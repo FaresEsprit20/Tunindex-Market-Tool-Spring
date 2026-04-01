@@ -3,7 +3,6 @@ package com.tunindex.market_tool.core.handlers;
 import com.tunindex.market_tool.core.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -45,18 +44,6 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         errorDto.setHttpCode(badRequest.value());
         errorDto.setMessage(exception.getMessage());
         errorDto.setErrors(exception.getErrors());
-        return new ResponseEntity<>(errorDto, badRequest);
-    }
-
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<CustomErrorMsg> handleException(BadCredentialsException exception, WebRequest webRequest) {
-        final HttpStatus badRequest = HttpStatus.UNAUTHORIZED;
-        final CustomErrorMsg errorDto = CustomErrorMsg.builder()
-                .code(ErrorCodes.BAD_CREDENTIALS)
-                .httpCode(badRequest.value())
-                .message(exception.getMessage())
-                .errors(Collections.singletonList("Login or / Password is incorrect "))
-                .build();
         return new ResponseEntity<>(errorDto, badRequest);
     }
 

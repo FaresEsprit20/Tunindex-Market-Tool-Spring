@@ -4,6 +4,7 @@ import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.entities.Stock;
 import com.tunindex.market_tool.domain.entities.embedded.CalculatedValues;
+import com.tunindex.market_tool.domain.repository.jpa.StockRepository;
 import com.tunindex.market_tool.domain.services.calculator.GrahamCalculator;
 import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
 import lombok.RequiredArgsConstructor;

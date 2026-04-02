@@ -11,6 +11,8 @@ public interface Constants {
     String ALLOWED_ORIGINS = "http://localhost:4200";
     Boolean PRODUCTION_ENVIRONMENT = false;
 
+    // Add to Constants interface
+    String DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     // ========================
     // WEB CLIENT CONSTANTS
     // ========================

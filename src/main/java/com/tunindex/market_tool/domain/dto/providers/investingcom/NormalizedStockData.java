@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.domain.dto.providers.investingcom;
 
+import com.tunindex.market_tool.domain.entities.enums.OwnershipType;
 import lombok.Data;
 import java.math.BigDecimal;
 
@@ -16,6 +17,7 @@ public class NormalizedStockData {
     private String currency;
     private String sector;
     private String industry;
+    private OwnershipType ownershipType;
 
     // Price Data
     private BigDecimal lastPrice;
@@ -71,4 +73,11 @@ public class NormalizedStockData {
     private BigDecimal grahamFairValue;
     private BigDecimal marginOfSafety;
     private BigDecimal bookValuePerShare;
+
+    // Balance Sheet Data
+    private BigDecimal totalEquity;
+    private BigDecimal netIncome;
+
+    // Source
+    private String source;
 }

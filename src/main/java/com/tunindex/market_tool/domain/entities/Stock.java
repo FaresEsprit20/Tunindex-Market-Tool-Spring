@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.domain.entities;
 
+import com.tunindex.market_tool.domain.entities.embedded.*;
 import com.tunindex.market_tool.domain.entities.enums.OwnershipType;
 import com.tunindex.market_tool.domain.entities.enums.SectorType;
 import jakarta.persistence.*;
@@ -61,13 +62,13 @@ public class Stock {
     private FundamentalData fundamentalData;
 
     @Embedded
-    private com.tunindex.market_tool.entity.embedded.RatiosData ratiosData;
+    private RatiosData ratiosData;
 
     @Embedded
-    private com.tunindex.market_tool.entity.embedded.TechnicalData technicalData;
+    private TechnicalData technicalData;
 
     @Embedded
-    private com.tunindex.market_tool.entity.embedded.AnalystData analystData;
+    private AnalystData analystData;
 
     @Embedded
     private CalculatedValues calculatedValues;

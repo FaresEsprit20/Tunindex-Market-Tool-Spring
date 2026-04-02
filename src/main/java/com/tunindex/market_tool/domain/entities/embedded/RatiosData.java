@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.domain.entities;
+package com.tunindex.market_tool.domain.entities.embedded;
 
 import jakarta.persistence.Embeddable;
 import lombok.Data;
@@ -12,9 +12,9 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CalculatedValues {
+public class RatiosData {
 
-    private BigDecimal grahamFairValue;
-    private BigDecimal marginOfSafety;
-    private BigDecimal bookValuePerShare;
+    private BigDecimal priceToBook;
+    private BigDecimal debtToEquity;
+    private BigDecimal profitMargin;
 }

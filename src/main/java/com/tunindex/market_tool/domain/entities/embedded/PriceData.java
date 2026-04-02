@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.domain.entities;
+package com.tunindex.market_tool.domain.entities.embedded;
 
 import jakarta.persistence.Embeddable;
 import lombok.Data;

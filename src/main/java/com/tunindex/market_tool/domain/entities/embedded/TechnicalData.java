@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.entity.embedded;
+package com.tunindex.market_tool.domain.entities.embedded;
 
 import jakarta.persistence.Embeddable;
 import lombok.Data;
@@ -12,9 +12,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RatiosData {
+public class TechnicalData {
 
-    private BigDecimal priceToBook;
-    private BigDecimal debtToEquity;
-    private BigDecimal profitMargin;
+    private BigDecimal beta;
+    private String technicalSummary1d;
+    private String technicalSummary1w;
+    private String technicalSummary1m;
 }

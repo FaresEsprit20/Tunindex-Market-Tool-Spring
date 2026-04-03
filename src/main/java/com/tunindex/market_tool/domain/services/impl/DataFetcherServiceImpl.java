@@ -1,12 +1,10 @@
 package com.tunindex.market_tool.domain.services.impl;
 
+import com.tunindex.market_tool.core.exception.CaptchaException;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
-import com.tunindex.market_tool.core.webscraping.ProxyManager;
-import com.tunindex.market_tool.core.webscraping.RateLimiterManager;
-import com.tunindex.market_tool.core.webscraping.RetryManager;
-import com.tunindex.market_tool.core.webscraping.UserAgentManager;
+import com.tunindex.market_tool.core.webscraping.*;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.services.fetcher.DataFetcherService;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +28,8 @@ public class DataFetcherServiceImpl implements DataFetcherService {
     private final ProxyManager proxyManager;
     private final RateLimiterManager rateLimiterManager;
     private final RetryManager retryManager;
+    private final CaptchaDetector captchaDetector;
+    private final BrowserFingerprintGenerator fingerprintGenerator;
 
     @Override
     public Mono<RawStockData> fetchStockData(String symbol) {
@@ -53,11 +53,13 @@ public class DataFetcherServiceImpl implements DataFetcherService {
         String incomeUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
         String financialUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
 
-        // Fetch main page first, then chain other requests
-        return fetchAndSet(mainUrl, false, rawData::setMainPageHtml)
-                .then(fetchAndSet(balanceUrl, false, rawData::setBalanceSheetHtml))
-                .then(fetchAndSet(incomeUrl, false, rawData::setIncomeStatementHtml))
-                .then(fetchAndSet(financialUrl, false, rawData::setFinancialSummaryHtml))
+        boolean useProxy = Constants.USE_PROXY;
+
+        // Fetch main page first, then chain other requests with stealth
+        return fetchAndSetWithStealth(mainUrl, useProxy, rawData::setMainPageHtml, symbol)
+                .then(fetchAndSetWithStealth(balanceUrl, useProxy, rawData::setBalanceSheetHtml, symbol))
+                .then(fetchAndSetWithStealth(incomeUrl, useProxy, rawData::setIncomeStatementHtml, symbol))
+                .then(fetchAndSetWithStealth(financialUrl, useProxy, rawData::setFinancialSummaryHtml, symbol))
                 .thenReturn(rawData)
                 .onErrorMap(e -> new DataFetchException(
                         ErrorCodes.DATA_FETCH_FAILED,
@@ -70,18 +72,44 @@ public class DataFetcherServiceImpl implements DataFetcherService {
 
     @Override
     public Mono<String> fetchUrl(String url, boolean useProxy) {
-        return fetchUrlWithRetry(url, useProxy, 3, 2000);
+        return fetchUrlWithStealth(url, useProxy, null);
     }
 
     @Override
     public Mono<String> fetchUrlWithRetry(String url, boolean useProxy, int retries, long backoffMs) {
-        log.debug("Fetching URL: {} (useProxy: {}, retries: {})", url, useProxy, retries);
+        log.debug("Fetching URL with stealth: {} (useProxy: {}, retries: {})", url, useProxy, retries);
 
         // Apply rate limiting and build request
         return rateLimiterManager.waitForSlot()
-                .then(Mono.defer(() -> buildRequest(url, useProxy)))
+                .then(Mono.defer(() -> buildStealthRequest(url, useProxy)))
+                .handle((response, sink) -> {
+                    // Check for CAPTCHA
+                    if (captchaDetector.hasCaptcha(response)) {
+                        String captchaType = captchaDetector.getCaptchaType(response);
+                        log.error("CAPTCHA detected for {}: {}", url, captchaType);
+                        sink.error(new CaptchaException(
+                                ErrorCodes.CAPTCHA_DETECTED,
+                                Constants.PROVIDER_INVESTINGCOM,
+                                captchaType,
+                                "CAPTCHA detected when fetching URL",
+                                Collections.singletonList(url)
+                        ));
+                    } else if (captchaDetector.isBlocked(response)) {
+                        log.error("Request blocked for URL: {}", url);
+                        sink.error(new CaptchaException(
+                                ErrorCodes.BLOCKED_BY_PROVIDER,
+                                Constants.PROVIDER_INVESTINGCOM,
+                                "BLOCKED",
+                                "Request blocked by provider",
+                                Collections.singletonList(url)
+                        ));
+                    } else {
+                        sink.next(response);
+                    }
+                })
                 .retryWhen(Retry.backoff(retries, Duration.ofMillis(backoffMs))
                         .maxBackoff(Duration.ofMillis(backoffMs * 4))
+                        .filter(throwable -> !(throwable instanceof CaptchaException))
                         .doBeforeRetry(retrySignal -> {
                             long currentDelay = (long) (backoffMs * Math.pow(2, retrySignal.totalRetries()));
                             log.warn("Retry {} for URL: {} after {}ms",
@@ -89,37 +117,116 @@ public class DataFetcherServiceImpl implements DataFetcherService {
                                     url,
                                     currentDelay);
                         }))
-                .onErrorMap(e -> new DataFetchException(
-                        ErrorCodes.DATA_FETCH_FAILED,
-                        Constants.PROVIDER_INVESTINGCOM,
-                        null,
-                        "Failed to fetch URL: " + url + " - " + e.getMessage(),
-                        Collections.singletonList(url)
-                ));
+                .onErrorResume(e -> {
+                    if (e instanceof CaptchaException) {
+                        log.error("CAPTCHA error for URL: {}", url);
+                        return Mono.error(e);
+                    }
+                    log.error("Failed to fetch URL: {} - {}", url, e.getMessage());
+                    return Mono.error(new DataFetchException(
+                            ErrorCodes.DATA_FETCH_FAILED,
+                            Constants.PROVIDER_INVESTINGCOM,
+                            null,
+                            "Failed to fetch URL: " + url + " - " + e.getMessage(),
+                            Collections.singletonList(url)
+                    ));
+                });
     }
 
     /**
-     * Helper method to fetch a URL and set the result using the provided setter
-     * Returns Mono<Void> to allow chaining with then()
+     * Fetch URL with stealth and CAPTCHA detection
      */
-    private Mono<Void> fetchAndSet(String url, boolean useProxy, Consumer<String> setter) {
-        return fetchUrl(url, useProxy)
+    public Mono<String> fetchUrlWithStealth(String url, boolean useProxy, String symbol) {
+        log.debug("Fetching URL with stealth: {}", url);
+
+        return rateLimiterManager.waitForSlot()
+                .then(Mono.defer(() -> buildStealthRequest(url, useProxy)))
+                .handle((response, sink) -> {
+                    // Check for CAPTCHA
+                    if (captchaDetector.hasCaptcha(response)) {
+                        String captchaType = captchaDetector.getCaptchaType(response);
+                        log.error("CAPTCHA detected for {}: {}", url, captchaType);
+                        sink.error(new CaptchaException(
+                                ErrorCodes.CAPTCHA_DETECTED,
+                                Constants.PROVIDER_INVESTINGCOM,
+                                captchaType,
+                                "CAPTCHA detected when fetching URL",
+                                Collections.singletonList(url)
+                        ));
+                    } else if (captchaDetector.isBlocked(response)) {
+                        log.error("Request blocked for URL: {}", url);
+                        sink.error(new CaptchaException(
+                                ErrorCodes.BLOCKED_BY_PROVIDER,
+                                Constants.PROVIDER_INVESTINGCOM,
+                                "BLOCKED",
+                                "Request blocked by provider",
+                                Collections.singletonList(url)
+                        ));
+                    } else {
+                        sink.next(response);
+                    }
+                })
+                .retryWhen(Retry.backoff(3, Duration.ofMillis(1000))
+                        .maxBackoff(Duration.ofMillis(10000))
+                        .filter(throwable -> !(throwable instanceof CaptchaException))
+                        .doBeforeRetry(retrySignal -> {
+                            log.warn("Retry attempt {} for URL: {}",
+                                    retrySignal.totalRetries() + 1, url);
+                        }))
+                .onErrorResume(e -> {
+                    if (e instanceof CaptchaException) {
+                        return Mono.error(e);
+                    }
+                    return Mono.error(new DataFetchException(
+                            ErrorCodes.DATA_FETCH_FAILED,
+                            Constants.PROVIDER_INVESTINGCOM,
+                            symbol,
+                            "Failed to fetch URL: " + url + " - " + e.getMessage(),
+                            Collections.singletonList(url)
+                    ));
+                });
+    }
+
+    /**
+     * Helper method to fetch a URL and set the result using the provided setter with stealth
+     */
+    private Mono<Void> fetchAndSetWithStealth(String url, boolean useProxy, Consumer<String> setter, String symbol) {
+        return fetchUrlWithStealth(url, useProxy, symbol)
                 .doOnNext(setter)
                 .onErrorResume(e -> {
-                    log.warn("Failed to fetch URL: {} - {}", url, e.getMessage());
+                    if (e instanceof CaptchaException) {
+                        log.error("CAPTCHA/Blocked for URL: {} - {}", url, e.getMessage());
+                    } else {
+                        log.warn("Failed to fetch URL: {} - {}", url, e.getMessage());
+                    }
                     return Mono.empty();
                 })
                 .then();
     }
 
-    private Mono<String> buildRequest(String url, boolean useProxy) {
+    /**
+     * Build request with stealth headers (anti-detection)
+     */
+    private Mono<String> buildStealthRequest(String url, boolean useProxy) {
         WebClient.RequestHeadersSpec<?> request = webClient.get()
                 .uri(url)
+                // Rotating User-Agent
                 .header("User-Agent", userAgentManager.getRandomUserAgent())
+                // Standard headers
                 .header("Accept", Constants.DEFAULT_ACCEPT)
-                .header("Accept-Language", Constants.DEFAULT_ACCEPT_LANGUAGE)
+                .header("Accept-Language", fingerprintGenerator.getAcceptLanguage())
                 .header("Accept-Encoding", Constants.DEFAULT_ACCEPT_ENCODING)
-                .header("Connection", Constants.DEFAULT_CONNECTION);
+                .header("Connection", Constants.DEFAULT_CONNECTION)
+                // Anti-detection headers
+                .header("Upgrade-Insecure-Requests", "1")
+                .header("Cache-Control", "max-age=0")
+                .header("Sec-Ch-Ua", fingerprintGenerator.getSecChUa())
+                .header("Sec-Ch-Ua-Mobile", "?0")
+                .header("Sec-Ch-Ua-Platform", fingerprintGenerator.getPlatform())
+                .header("Sec-Fetch-Dest", "document")
+                .header("Sec-Fetch-Mode", "navigate")
+                .header("Sec-Fetch-Site", "none")
+                .header("Sec-Fetch-User", "?1");
 
         return request.retrieve()
                 .bodyToMono(String.class)

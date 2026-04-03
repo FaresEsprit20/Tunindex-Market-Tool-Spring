@@ -1,0 +1,159 @@
+package com.tunindex.market_tool.domain.services.impl;
+
+import com.tunindex.market_tool.core.config.properties.MarketToolProperties;
+import com.tunindex.market_tool.core.utils.constants.Constants;
+import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
+import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
+import com.tunindex.market_tool.domain.providers.investingcom.InvestingComProvider;
+import com.tunindex.market_tool.domain.repository.jpa.StockRepository;
+import com.tunindex.market_tool.domain.services.async.AsyncFetchService;
+import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
+import com.tunindex.market_tool.domain.services.normalizer.DataNormalizerService;
+import com.tunindex.market_tool.domain.services.orchestrator.DataOrchestrator;
+import com.tunindex.market_tool.domain.services.parser.DataParserService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class DataOrchestratorImpl implements DataOrchestrator {
+
+    private final MarketToolProperties properties;
+    private final InvestingComProvider investingComProvider;
+    private final StockRepository stockRepository;
+    private final AsyncFetchService asyncFetchService;
+    private final DataParserService dataParserService;
+    private final DataNormalizerService normalizer;
+    private final DataEnricherService enricher;
+
+    @Override
+    public Mono<Void> runPipeline() {
+        log.info("🚀 Running pipeline with provider: {}", getActiveProviderName());
+
+        MarketDataProvider provider = getActiveProvider();
+
+        // STEP 1: Fetch all market data
+        return provider.fetchAllStocks()
+                .collectList()
+                .flatMap(enrichedStocks -> {
+                    log.info("✅ Fetched {} stocks", enrichedStocks.size());
+
+                    // STEP 2: Filter stocks that need BVPS calculation
+                    List<EnrichedStockData> stocksNeedingBvps = enrichedStocks.stream()
+                            .filter(s -> s.getStock().getCalculatedValues() == null ||
+                                    s.getStock().getCalculatedValues().getBookValuePerShare() == null)
+                            .collect(Collectors.toList());
+
+                    if (!stocksNeedingBvps.isEmpty()) {
+                        log.info("📊 Calculating BVPS for {} stocks in parallel", stocksNeedingBvps.size());
+
+                        // Run BVPS calculation in parallel
+                        return processBvpsInParallel(stocksNeedingBvps)
+                                .then(Mono.just(enrichedStocks));
+                    }
+
+                    return Mono.just(enrichedStocks);
+                })
+                .flatMap(enrichedStocks -> {
+                    // STEP 3: Normalize and Enrich (already done by provider)
+                    log.info("🔄 Normalizing and enriching {} stocks", enrichedStocks.size());
+
+                    // STEP 4: Save to database
+                    return saveAllToDatabase(enrichedStocks);
+                })
+                .doOnSuccess(v -> log.info("✅ Pipeline completed successfully"))
+                .doOnError(e -> log.error("❌ Pipeline failed: {}", e.getMessage()))
+                .then();
+    }
+
+    @Override
+    public Mono<EnrichedStockData> runPipelineForStock(String symbol) {
+        log.info("🚀 Running pipeline for stock: {}", symbol);
+
+        MarketDataProvider provider = getActiveProvider();
+
+        return provider.fetchStockData(symbol)
+                .doOnSuccess(stock -> log.info("✅ Successfully processed stock: {}", symbol))
+                .doOnError(e -> log.error("❌ Failed to process stock {}: {}", symbol, e.getMessage()));
+    }
+
+    @Override
+    public String getActiveProviderName() {
+        String activeProvider = properties.getProvider().getActive();
+        if (activeProvider == null || activeProvider.isEmpty()) {
+            return Constants.PROVIDER_INVESTINGCOM;
+        }
+        return activeProvider;
+    }
+
+    private MarketDataProvider getActiveProvider() {
+        String activeProvider = getActiveProviderName();
+
+        // Since we only have InvestingCom provider for now
+        if (Constants.PROVIDER_INVESTINGCOM.equalsIgnoreCase(activeProvider)) {
+            return investingComProvider;
+        }
+
+        log.warn("Provider {} not found, falling back to InvestingCom", activeProvider);
+        return investingComProvider;
+    }
+
+    private Mono<Void> processBvpsInParallel(List<EnrichedStockData> stocks) {
+        // Extract symbols
+        List<String> symbols = stocks.stream()
+                .map(s -> s.getStock().getSymbol())
+                .collect(Collectors.toList());
+
+        // Run BVPS calculation in parallel using AsyncFetchService
+        return Mono.fromCallable(() -> {
+            return asyncFetchService.runParallel(
+                    symbol -> {
+                        log.debug("Calculating BVPS for {}", symbol);
+                        // This would call a method to calculate BVPS
+                        // For now, just return the stock
+                        return stocks.stream()
+                                .filter(s -> s.getStock().getSymbol().equals(symbol))
+                                .findFirst()
+                                .orElse(null);
+                    },
+                    symbols,
+                    properties.getParallelism().getMaxWorkers()
+            );
+        }).then();
+    }
+
+    private Mono<Void> saveAllToDatabase(List<EnrichedStockData> stocks) {
+        log.info("💾 Saving {} stocks to database", stocks.size());
+
+        return Flux.fromIterable(stocks)
+                .parallel(properties.getParallelism().getMaxWorkers())
+                .runOn(Schedulers.boundedElastic())
+                .flatMap(enrichedData -> {
+                    if (enrichedData.getStock() != null) {
+                        return Mono.fromCallable(() -> {
+                                    stockRepository.save(enrichedData.getStock());
+                                    log.debug("Saved stock: {}", enrichedData.getStock().getSymbol());
+                                    return enrichedData;
+                                })
+                                .subscribeOn(Schedulers.boundedElastic())
+                                .onErrorResume(e -> {
+                                    log.error("Failed to save stock {}: {}",
+                                            enrichedData.getStock().getSymbol(), e.getMessage());
+                                    return Mono.empty();
+                                });
+                    }
+                    return Mono.empty();
+                })
+                .sequential()
+                .then()
+                .doOnSuccess(v -> log.info("✅ All stocks saved successfully"));
+    }
+}

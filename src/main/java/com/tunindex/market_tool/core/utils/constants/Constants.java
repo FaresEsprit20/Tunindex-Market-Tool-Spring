@@ -68,6 +68,10 @@ public interface Constants {
     int CACHE_TTL_SECONDS = 3600;
 
     // ========================
+    // PROXY SETTINGS
+    // ========================
+    boolean USE_PROXY = false;
+    // ========================
     // TUNISIAN STOCKS
     // ========================
     Map<String, StockInfo> TUNISIAN_STOCKS = new HashMap<>() {{

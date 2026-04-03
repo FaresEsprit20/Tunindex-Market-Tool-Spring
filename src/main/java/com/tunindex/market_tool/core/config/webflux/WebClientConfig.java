@@ -1,9 +1,12 @@
 package com.tunindex.market_tool.core.config.webflux;
 
 import com.tunindex.market_tool.core.utils.constants.Constants;
+import com.tunindex.market_tool.core.webscraping.ProxyManager;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -11,12 +14,17 @@ import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
+import reactor.netty.transport.ProxyProvider;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
+@RequiredArgsConstructor
+@Slf4j
 public class WebClientConfig {
+
+    private final ProxyManager proxyManager;
 
     @Bean
     public WebClient webClient() {
@@ -34,6 +42,24 @@ public class WebClientConfig {
                         conn.addHandlerLast(new ReadTimeoutHandler(Constants.READ_TIMEOUT_MS, TimeUnit.MILLISECONDS))
                                 .addHandlerLast(new WriteTimeoutHandler(Constants.READ_TIMEOUT_MS, TimeUnit.MILLISECONDS))
                 );
+
+        // Configure proxy if enabled
+        if (proxyManager.hasProxy()) {
+            String proxy = proxyManager.getRandomProxy();
+            if (proxy != null) {
+                String[] proxyParts = proxy.split(":");
+                if (proxyParts.length >= 2) {
+                    String host = proxyParts[0];
+                    int port = Integer.parseInt(proxyParts[1]);
+
+                    httpClient = httpClient.proxy(proxySpec -> proxySpec
+                            .type(ProxyProvider.Proxy.HTTP)
+                            .host(host)
+                            .port(port));
+                    log.info("WebClient configured with proxy: {}:{}", host, port);
+                }
+            }
+        }
 
         // Memory configuration
         ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()

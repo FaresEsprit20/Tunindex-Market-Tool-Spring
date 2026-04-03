@@ -6,6 +6,9 @@ import com.tunindex.market_tool.core.utils.constants.Constants;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
+import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
+import com.tunindex.market_tool.domain.services.normalizer.DataNormalizerService;
+import com.tunindex.market_tool.domain.services.parser.DataParserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,9 +26,8 @@ import java.util.Collections;
 public class InvestingComProvider implements MarketDataProvider {
 
     private final WebClient webClient;
-    private final InvestingComParser parser;
     private final DataParserService dataParserService;
-    private final StockDataNormalizer normalizer;
+    private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
 
     private static final int DELAY_MIN = 1000;
@@ -58,8 +60,8 @@ public class InvestingComProvider implements MarketDataProvider {
                 .flatMap(rawData -> fetchIncomeStatement(symbol, stockInfo, rawData))
                 .delayElement(Duration.ofMillis(randomDelay()))
                 .flatMap(rawData -> fetchFinancialRatios(symbol, stockInfo, rawData))
-                .map(rawData -> dataParserService.parseToNormalized(rawData))
-                .map(normalizer::normalizeToEntity)
+                .map(dataParserService::parseToNormalized)
+                .map(normalizer::toEntity)
                 .flatMap(enricher::enrich)
                 .doOnSuccess(data -> log.info("Successfully fetched data for {}", symbol))
                 .doOnError(error -> log.error("Failed to fetch data for {}: {}", symbol, error.getMessage()));

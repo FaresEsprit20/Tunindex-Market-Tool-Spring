@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.domain.services.impl;
 
+import com.tunindex.market_tool.core.exception.EnrichmentException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.entities.Stock;

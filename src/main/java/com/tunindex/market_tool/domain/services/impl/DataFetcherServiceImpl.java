@@ -3,6 +3,10 @@ package com.tunindex.market_tool.domain.services.impl;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
+import com.tunindex.market_tool.core.webscraping.ProxyManager;
+import com.tunindex.market_tool.core.webscraping.RateLimiterManager;
+import com.tunindex.market_tool.core.webscraping.RetryManager;
+import com.tunindex.market_tool.core.webscraping.UserAgentManager;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.services.fetcher.DataFetcherService;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +18,7 @@ import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
@@ -43,17 +48,16 @@ public class DataFetcherServiceImpl implements DataFetcherService {
         rawData.setSymbol(symbol);
         rawData.setStockInfo(stockInfo);
 
-        // Fetch main page
         String mainUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl();
         String balanceUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_BALANCE_SHEET;
         String incomeUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
         String financialUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
 
-        return fetchUrl(mainUrl, false)
-                .doOnNext(rawData::setMainPageHtml)
-                .flatMap(html -> fetchUrl(balanceUrl, false).doOnNext(rawData::setBalanceSheetHtml).onErrorResume(e -> Mono.just(rawData)))
-                .flatMap(html -> fetchUrl(incomeUrl, false).doOnNext(rawData::setIncomeStatementHtml).onErrorResume(e -> Mono.just(rawData)))
-                .flatMap(html -> fetchUrl(financialUrl, false).doOnNext(rawData::setFinancialSummaryHtml).onErrorResume(e -> Mono.just(rawData)))
+        // Fetch main page first, then chain other requests
+        return fetchAndSet(mainUrl, false, rawData::setMainPageHtml)
+                .then(fetchAndSet(balanceUrl, false, rawData::setBalanceSheetHtml))
+                .then(fetchAndSet(incomeUrl, false, rawData::setIncomeStatementHtml))
+                .then(fetchAndSet(financialUrl, false, rawData::setFinancialSummaryHtml))
                 .thenReturn(rawData)
                 .onErrorMap(e -> new DataFetchException(
                         ErrorCodes.DATA_FETCH_FAILED,
@@ -73,16 +77,17 @@ public class DataFetcherServiceImpl implements DataFetcherService {
     public Mono<String> fetchUrlWithRetry(String url, boolean useProxy, int retries, long backoffMs) {
         log.debug("Fetching URL: {} (useProxy: {}, retries: {})", url, useProxy, retries);
 
-        // Apply rate limiting
+        // Apply rate limiting and build request
         return rateLimiterManager.waitForSlot()
-                .then(buildRequest(url, useProxy))
+                .then(Mono.defer(() -> buildRequest(url, useProxy)))
                 .retryWhen(Retry.backoff(retries, Duration.ofMillis(backoffMs))
                         .maxBackoff(Duration.ofMillis(backoffMs * 4))
                         .doBeforeRetry(retrySignal -> {
+                            long currentDelay = (long) (backoffMs * Math.pow(2, retrySignal.totalRetries()));
                             log.warn("Retry {} for URL: {} after {}ms",
                                     retrySignal.totalRetries() + 1,
                                     url,
-                                    retrySignal.backoff().toMillis());
+                                    currentDelay);
                         }))
                 .onErrorMap(e -> new DataFetchException(
                         ErrorCodes.DATA_FETCH_FAILED,
@@ -93,6 +98,20 @@ public class DataFetcherServiceImpl implements DataFetcherService {
                 ));
     }
 
+    /**
+     * Helper method to fetch a URL and set the result using the provided setter
+     * Returns Mono<Void> to allow chaining with then()
+     */
+    private Mono<Void> fetchAndSet(String url, boolean useProxy, Consumer<String> setter) {
+        return fetchUrl(url, useProxy)
+                .doOnNext(setter)
+                .onErrorResume(e -> {
+                    log.warn("Failed to fetch URL: {} - {}", url, e.getMessage());
+                    return Mono.empty();
+                })
+                .then();
+    }
+
     private Mono<String> buildRequest(String url, boolean useProxy) {
         WebClient.RequestHeadersSpec<?> request = webClient.get()
                 .uri(url)
@@ -101,9 +120,6 @@ public class DataFetcherServiceImpl implements DataFetcherService {
                 .header("Accept-Language", Constants.DEFAULT_ACCEPT_LANGUAGE)
                 .header("Accept-Encoding", Constants.DEFAULT_ACCEPT_ENCODING)
                 .header("Connection", Constants.DEFAULT_CONNECTION);
-
-        // Add proxy if enabled (WebClient doesn't support proxy directly in this simple config)
-        // Proxy would need to be configured at the HttpClient level
 
         return request.retrieve()
                 .bodyToMono(String.class)

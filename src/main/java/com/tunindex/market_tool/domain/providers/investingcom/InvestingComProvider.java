@@ -5,7 +5,9 @@ import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
+import com.tunindex.market_tool.domain.entities.Stock;
 import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
+import com.tunindex.market_tool.domain.repository.jpa.StockRepository;
 import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
 import com.tunindex.market_tool.domain.services.normalizer.DataNormalizerService;
 import com.tunindex.market_tool.domain.services.parser.DataParserService;
@@ -29,6 +31,7 @@ public class InvestingComProvider implements MarketDataProvider {
     private final DataParserService dataParserService;
     private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
+    private final StockRepository stockRepository;
 
     private static final int DELAY_MIN = 1000;
     private static final int DELAY_MAX = 2000;
@@ -63,10 +66,26 @@ public class InvestingComProvider implements MarketDataProvider {
                 .map(dataParserService::parseToNormalized)
                 .map(normalizer::toEntity)
                 .flatMap(enricher::enrich)
-                .doOnSuccess(data -> log.info("Successfully fetched data for {}", symbol))
+                .flatMap(enrichedData -> {
+                    log.info("Saving stock data for {} to database", symbol);
+                    return Mono.fromCallable(() -> {
+                                Stock savedStock = stockRepository.save(enrichedData.getStock());
+                                enrichedData.setStock(savedStock);
+                                enrichedData.setSaved(true);
+                                enrichedData.setSaveMessage("Stock data saved successfully");
+                                return enrichedData;
+                            })
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .onErrorResume(e -> {
+                                log.error("Failed to save stock data for {}: {}", symbol, e.getMessage());
+                                enrichedData.setSaved(false);
+                                enrichedData.setSaveMessage("Failed to save: " + e.getMessage());
+                                return Mono.just(enrichedData);
+                            });
+                })
+                .doOnSuccess(data -> log.info("Successfully fetched and saved data for {}", symbol))
                 .doOnError(error -> log.error("Failed to fetch data for {}: {}", symbol, error.getMessage()));
     }
-
     @Override
     public Flux<EnrichedStockData> fetchAllStocks() {
         log.info("Fetching all stocks from Investing.com");
@@ -79,7 +98,8 @@ public class InvestingComProvider implements MarketDataProvider {
                             log.error("Failed to fetch {}: {}", entry.getKey(), error.getMessage());
                             return Mono.empty();
                         }))
-                .sequential();
+                .sequential()
+                .doOnComplete(() -> log.info("Completed fetching all stocks"));
     }
 
     @Override

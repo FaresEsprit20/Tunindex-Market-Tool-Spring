@@ -5,7 +5,6 @@ import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.entities.Stock;
 import com.tunindex.market_tool.domain.entities.embedded.CalculatedValues;
-import com.tunindex.market_tool.domain.repository.jpa.StockRepository;
 import com.tunindex.market_tool.domain.services.calculator.GrahamCalculator;
 import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +13,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collections;
 
 @Service
@@ -22,7 +22,6 @@ import java.util.Collections;
 public class DataEnricherServiceImpl implements DataEnricherService {
 
     private final GrahamCalculator grahamCalculator;
-    private final StockRepository stockRepository;
 
     @Override
     public Mono<EnrichedStockData> enrich(Stock stock) {
@@ -78,12 +77,10 @@ public class DataEnricherServiceImpl implements DataEnricherService {
                 calculatedValues.setGrahamFairValue(fairValue);
                 calculatedValues.setMarginOfSafety(marginOfSafety);
 
-                // Save to database
-                Stock savedStock = stockRepository.save(stock);
-                log.info("Successfully enriched and saved stock: {} (Fair Value: {}, Margin: {}%)",
-                        savedStock.getSymbol(), fairValue, marginOfSafety);
+                log.info("Successfully enriched stock: {} (Fair Value: {}, Margin: {}%)",
+                        stock.getSymbol(), fairValue, marginOfSafety);
 
-                return new EnrichedStockData(savedStock);
+                return new EnrichedStockData(stock);
 
             } catch (Exception e) {
                 log.error("Failed to enrich stock {}: {}", stock.getSymbol(), e.getMessage());
@@ -108,12 +105,13 @@ public class DataEnricherServiceImpl implements DataEnricherService {
             sharesOutstanding = stock.getFundamentalData().getSharesOutstanding();
         }
 
-        // Get total equity from balance sheet data (would need to be fetched separately)
-        // This is a simplified version - in reality, you'd get this from the balance sheet
+        // TODO: Get total equity from balance sheet data
+        // This would come from the balance sheet HTML parsing
+        // For now, return null (BVPS will be calculated from other methods)
 
         if (totalEquity != null && sharesOutstanding != null && sharesOutstanding > 0) {
             BigDecimal sharesBD = BigDecimal.valueOf(sharesOutstanding);
-            return totalEquity.divide(sharesBD, 2, BigDecimal.ROUND_HALF_UP);
+            return totalEquity.divide(sharesBD, 2, RoundingMode.HALF_UP);
         }
 
         return null;

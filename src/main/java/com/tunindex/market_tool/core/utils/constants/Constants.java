@@ -12,6 +12,13 @@ public interface Constants {
     Boolean PRODUCTION_ENVIRONMENT = false;
 
     // ========================
+    // FLARESOLVERR CONFIGURATION
+    // ========================
+    String FLARESOLVERR_URL = "http://localhost:8191";
+    int FLARESOLVERR_TIMEOUT = 60000;
+    int FLARESOLVERR_MAX_RETRIES = 3;
+
+    // ========================
     // WEB CLIENT CONSTANTS
     // ========================
     String USER_AGENT_HEADER = "User-Agent";
@@ -20,13 +27,12 @@ public interface Constants {
     String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
     String CONNECTION_HEADER = "Connection";
 
-
-    // Add these to your Constants interface
-    String DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    String DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
     String DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
     String DEFAULT_ACCEPT_LANGUAGE = "en-US,en;q=0.9";
     String DEFAULT_ACCEPT_ENCODING = "gzip, deflate, br";
     String DEFAULT_CONNECTION = "keep-alive";
+
     // ========================
     // SCRAPING CONSTANTS
     // ========================
@@ -70,7 +76,8 @@ public interface Constants {
     // ========================
     // PROXY SETTINGS
     // ========================
-    boolean USE_PROXY = false;
+    boolean USE_PROXY = true;
+
     // ========================
     // TUNISIAN STOCKS
     // ========================

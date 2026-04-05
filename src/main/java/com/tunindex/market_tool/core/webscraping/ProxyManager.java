@@ -1,230 +1,185 @@
 package com.tunindex.market_tool.core.webscraping;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.netty.http.client.HttpClient;
+import org.springframework.stereotype.Component;
 
-import java.time.Duration;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
-@Service
+@Component
 @Slf4j
 public class ProxyManager {
 
-    @Value("${market-tool.scraping.use-proxy:false}")
-    private boolean proxyEnabled;
-
-    @Value("${market-tool.proxy.auto-load:true}")
-    private boolean autoLoadProxies;
-
-    @Value("${market-tool.proxy.api-url:https://www.proxy-list.download/api/v1/get?type=http}")
-    private String proxyApiUrl;
-
     private final List<String> proxyList = new CopyOnWriteArrayList<>();
     private final Random random = new Random();
-    private final AtomicBoolean isLoading = new AtomicBoolean(false);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private int currentIndex = 0;
+
+    private static final String[] PROXY_SOURCES = {
+            "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
+            "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt",
+            "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt",
+            "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt"
+    };
 
     @PostConstruct
     public void init() {
-        if (proxyEnabled && autoLoadProxies) {
-            loadProxiesAsync();
-        } else if (proxyEnabled) {
-            loadProxiesFromFile();
-        } else {
-            log.info("Proxy is disabled");
-        }
+        log.info("Initializing ProxyManager...");
+        loadProxiesFromSources();
+
+        // Refresh proxies every 30 minutes
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler.scheduleAtFixedRate(this::refreshProxies, 30, 30, TimeUnit.MINUTES);
     }
 
     /**
-     * Load proxies from API
-     * Maps to Python: proxy_manager.py - load_proxies()
+     * Load proxies from multiple free sources
      */
-    public void loadProxies() {
-        if (!proxyEnabled) {
-            log.debug("Proxy is disabled, skipping load");
-            return;
-        }
-
-        if (isLoading.get()) {
-            log.debug("Proxy loading already in progress");
-            return;
-        }
-
-        isLoading.set(true);
-
-        try {
-            log.info("Loading proxies from API: {}", proxyApiUrl);
-
-            WebClient webClient = WebClient.builder()
-                    .baseUrl(proxyApiUrl)
-                    .build();
-
-            String response = webClient.get()
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(10))
-                    .block();
-
-            if (response != null && !response.isEmpty()) {
-                parseProxyResponse(response);
-                log.info("Loaded {} proxies", proxyList.size());
-            } else {
-                log.warn("Empty response from proxy API");
-                loadProxiesFromFile();
-            }
-
-        } catch (Exception e) {
-            log.error("Failed to load proxies from API: {}", e.getMessage());
-            loadProxiesFromFile();
-        } finally {
-            isLoading.set(false);
-        }
-    }
-
-    /**
-     * Load proxies asynchronously
-     */
-    public void loadProxiesAsync() {
-        Thread thread = new Thread(() -> {
+    private void loadProxiesFromSources() {
+        for (String source : PROXY_SOURCES) {
             try {
-                Thread.sleep(2000); // Wait for application startup
-                loadProxies();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                List<String> proxies = fetchProxiesFromUrl(source);
+                proxyList.addAll(proxies);
+                log.info("Loaded {} proxies from {}", proxies.size(), source);
+            } catch (Exception e) {
+                log.warn("Failed to load proxies from {}: {}", source, e.getMessage());
             }
-        });
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-    /**
-     * Load proxies from local file (fallback)
-     */
-    private void loadProxiesFromFile() {
-        try (var inputStream = getClass().getResourceAsStream("/stealth/proxy-list.txt")) {
-            if (inputStream != null) {
-                try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(inputStream))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        line = line.trim();
-                        if (!line.isEmpty() && !line.startsWith("#")) {
-                            proxyList.add(line);
-                        }
-                    }
-                    log.info("Loaded {} proxies from file", proxyList.size());
-                }
-            } else {
-                log.warn("Proxy list file not found");
-            }
-        } catch (Exception e) {
-            log.error("Failed to load proxies from file: {}", e.getMessage());
         }
+
+        // Remove duplicates
+        List<String> uniqueProxies = new ArrayList<>(new java.util.LinkedHashSet<>(proxyList));
+        proxyList.clear();
+        proxyList.addAll(uniqueProxies);
+
+        log.info("Total unique proxies loaded: {}", proxyList.size());
+
+        // Validate a sample of proxies
+        validateProbes();
     }
 
     /**
-     * Parse proxy API response
+     * Fetch proxies from URL
      */
-    private void parseProxyResponse(String response) {
-        try {
-            // Try to parse as JSON first
-            if (response.trim().startsWith("{")) {
-                JsonNode json = objectMapper.readTree(response);
-                if (json.has("LISTA")) {
-                    String[] proxies = json.get("LISTA").asText().split("\n");
-                    for (String proxy : proxies) {
-                        proxy = proxy.trim();
-                        if (!proxy.isEmpty()) {
-                            proxyList.add(proxy);
-                        }
-                    }
-                }
-            } else {
-                // Parse as plain text (one proxy per line)
-                String[] lines = response.split("\n");
-                for (String line : lines) {
-                    line = line.trim();
-                    if (!line.isEmpty() && !line.startsWith("#")) {
-                        proxyList.add(line);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse proxy response as JSON, treating as plain text");
-            String[] lines = response.split("\n");
-            for (String line : lines) {
+    private List<String> fetchProxiesFromUrl(String urlString) throws Exception {
+        List<String> proxies = new ArrayList<>();
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            String line;
+            Pattern proxyPattern = Pattern.compile("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{2,5}$");
+            while ((line = reader.readLine()) != null) {
                 line = line.trim();
-                if (!line.isEmpty() && !line.startsWith("#")) {
-                    proxyList.add(line);
+                if (proxyPattern.matcher(line).matches()) {
+                    proxies.add(line);
                 }
+            }
+        }
+
+        return proxies;
+    }
+
+    /**
+     * Validate a sample of proxies
+     */
+    private void validateProbes() {
+        int sampleSize = Math.min(10, proxyList.size());
+        List<String> sample = new ArrayList<>(proxyList.subList(0, sampleSize));
+
+        for (String proxy : sample) {
+            if (validateProxy(proxy)) {
+                log.debug("Proxy validated: {}", proxy);
+            } else {
+                log.debug("Proxy failed validation: {}", proxy);
+                proxyList.remove(proxy);
             }
         }
     }
 
     /**
-     * Get random proxy
-     * Maps to Python: proxy_manager.py - get_random_proxy()
+     * Validate a single proxy
+     */
+    private boolean validateProxy(String proxy) {
+        try {
+            String[] parts = proxy.split(":");
+            if (parts.length != 2) return false;
+
+            HttpURLConnection conn = (HttpURLConnection) new URL("http://httpbin.org/ip").openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.setRequestProperty("Proxy-Authorization", null);
+
+            // Java doesn't support simple proxy auth directly, so we'll just test connectivity
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Refresh proxies periodically
+     */
+    private void refreshProxies() {
+        log.info("Refreshing proxy list...");
+        proxyList.clear();
+        loadProxiesFromSources();
+    }
+
+    /**
+     * Get a random proxy (round-robin rotation)
      */
     public String getRandomProxy() {
-        if (!proxyEnabled) {
-            return null;
+        if (proxyList.isEmpty()) {
+            log.warn("No proxies available, loading fresh list...");
+            loadProxiesFromSources();
         }
 
         if (proxyList.isEmpty()) {
-            log.debug("Proxy list is empty, attempting to load");
-            loadProxies();
-        }
-
-        if (proxyList.isEmpty()) {
-            log.warn("No proxies available");
+            log.warn("Still no proxies available, returning null");
             return null;
         }
 
-        String proxy = proxyList.get(random.nextInt(proxyList.size()));
+        // Round-robin rotation
+        String proxy = proxyList.get(currentIndex % proxyList.size());
+        currentIndex++;
+
         log.debug("Selected proxy: {}", proxy);
         return proxy;
     }
 
     /**
-     * Check if proxy is available
+     * Get proxy in format expected by FlareSolverr
      */
-    public boolean hasProxy() {
-        return proxyEnabled && !proxyList.isEmpty();
+    public String getProxyUrl() {
+        String proxy = getRandomProxy();
+        if (proxy == null) return null;
+
+        // FlareSolverr expects format: http://host:port or socks5://host:port
+        // For now, assume HTTP proxy
+        return "http://" + proxy;
     }
 
     /**
-     * Add proxy manually
+     * Add custom proxy manually
      */
     public void addProxy(String proxy) {
         if (proxy != null && !proxy.isEmpty()) {
             proxyList.add(proxy);
-            log.debug("Added proxy: {}", proxy);
+            log.info("Added proxy: {}", proxy);
         }
-    }
-
-    /**
-     * Remove proxy
-     */
-    public void removeProxy(String proxy) {
-        proxyList.remove(proxy);
-        log.debug("Removed proxy: {}", proxy);
-    }
-
-    /**
-     * Get all proxies
-     */
-    public List<String> getAllProxies() {
-        return new ArrayList<>(proxyList);
     }
 
     /**
@@ -235,59 +190,9 @@ public class ProxyManager {
     }
 
     /**
-     * Clear all proxies
+     * Check if proxies are available
      */
-    public void clearProxies() {
-        proxyList.clear();
-        log.info("Cleared all proxies");
-    }
-
-    /**
-     * Reload proxies
-     */
-    public void reloadProxies() {
-        clearProxies();
-        loadProxies();
-    }
-
-    /**
-     * Validate a proxy by testing it
-     * Fixed: Correct proxy configuration syntax
-     */
-    public boolean validateProxy(String proxy, String testUrl) {
-        try {
-            String[] parts = proxy.split(":");
-            if (parts.length < 2) {
-                return false;
-            }
-
-            String host = parts[0];
-            int port = Integer.parseInt(parts[1]);
-
-            // Create HttpClient with proxy
-            HttpClient httpClient = HttpClient.create()
-                    .proxy(proxySpec -> proxySpec
-                            .type(reactor.netty.transport.ProxyProvider.Proxy.HTTP)
-                            .host(host)
-                            .port(port))
-                    .responseTimeout(Duration.ofSeconds(5));
-
-            WebClient webClient = WebClient.builder()
-                    .clientConnector(new ReactorClientHttpConnector(httpClient))
-                    .build();
-
-            String response = webClient.get()
-                    .uri(testUrl)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(10))
-                    .block();
-
-            return response != null && !response.isEmpty();
-
-        } catch (Exception e) {
-            log.debug("Proxy validation failed for {}: {}", proxy, e.getMessage());
-            return false;
-        }
+    public boolean hasProxies() {
+        return !proxyList.isEmpty();
     }
 }

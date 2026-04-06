@@ -83,7 +83,7 @@ public class StealthHttpClient {
         HttpClient httpClient = HttpClient.create();
 
         // Configure proxy if needed
-        if (useProxy && proxyManager.hasProxy()) {
+        if (useProxy && proxyManager.hasProxies()) {
             String proxy = proxyManager.getRandomProxy();
             if (proxy != null) {
                 String[] proxyParts = proxy.split(":");

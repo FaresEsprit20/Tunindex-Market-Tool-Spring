@@ -15,7 +15,7 @@ public interface Constants {
     // FLARESOLVERR CONFIGURATION
     // ========================
     String FLARESOLVERR_URL = "http://192.168.36.124:8191";
-    int FLARESOLVERR_TIMEOUT = 60000;
+    int FLARESOLVERR_TIMEOUT = 600000;
     int FLARESOLVERR_MAX_RETRIES = 3;
 
     // ========================

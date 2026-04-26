@@ -60,9 +60,8 @@ public class ChromeDriverService {
         // Random viewport size (not always full HD)
         int[] viewport = VIEWPORT_SIZES[random.nextInt(VIEWPORT_SIZES.length)];
 
-        // IMPORTANT: Disable headless temporarily to avoid detection
-        // Investing.com blocks headless browsers effectively
-        // options.addArguments("--headless=new");  // COMMENTED OUT - USE VISIBLE MODE
+        // IMPORTANT: Keep headless disabled for now
+        // options.addArguments("--headless=new");
 
         options.addArguments("--window-size=" + viewport[0] + "," + viewport[1]);
         options.addArguments("--start-maximized");
@@ -172,7 +171,7 @@ public class ChromeDriverService {
                     pageSource.contains("captcha") ||
                     pageSource.contains("rate limit"))) {
                 log.warn("Access blocked detected for URL: {}", url);
-                isHealthy = false;
+                // Don't mark as unhealthy - just return null and let retry happen
                 return null;
             }
 

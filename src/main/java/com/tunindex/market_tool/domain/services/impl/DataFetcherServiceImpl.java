@@ -4,12 +4,12 @@ import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
 import com.tunindex.market_tool.core.webscraping.RateLimiterManager;
+import com.tunindex.market_tool.core.webscraping.StealthHttpClient;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.services.fetcher.DataFetcherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 public class DataFetcherServiceImpl implements DataFetcherService {
 
     private final RateLimiterManager rateLimiterManager;
-    private final WebClient webClient;
+    private final StealthHttpClient stealthHttpClient;
 
     private final Random random = new Random();
     private static final int DELAY_MIN_MS = 2000;
@@ -51,14 +51,16 @@ public class DataFetcherServiceImpl implements DataFetcherService {
         String incomeUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
         String financialUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
 
+        boolean useProxy = Constants.USE_PROXY;
+
         // Sequential fetch with delays to avoid rate limiting
-        return fetchAndSetWithWebClient(mainUrl, rawData::setMainPageHtml)
+        return fetchAndSetWithStealth(mainUrl, useProxy, rawData::setMainPageHtml, symbol)
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithWebClient(balanceUrl, rawData::setBalanceSheetHtml))
+                .then(fetchAndSetWithStealth(balanceUrl, useProxy, rawData::setBalanceSheetHtml, symbol))
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithWebClient(incomeUrl, rawData::setIncomeStatementHtml))
+                .then(fetchAndSetWithStealth(incomeUrl, useProxy, rawData::setIncomeStatementHtml, symbol))
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithWebClient(financialUrl, rawData::setFinancialSummaryHtml))
+                .then(fetchAndSetWithStealth(financialUrl, useProxy, rawData::setFinancialSummaryHtml, symbol))
                 .thenReturn(rawData)
                 .onErrorMap(e -> new DataFetchException(
                         ErrorCodes.DATA_FETCH_FAILED,
@@ -71,12 +73,12 @@ public class DataFetcherServiceImpl implements DataFetcherService {
 
     @Override
     public Mono<String> fetchUrl(String url, boolean useProxy) {
-        return fetchWithRateLimit(url);
+        return fetchWithStealth(url, useProxy, null);
     }
 
     @Override
     public Mono<String> fetchUrlWithRetry(String url, boolean useProxy, int retries, long backoffMs) {
-        return fetchWithRateLimit(url)
+        return fetchWithStealth(url, useProxy, null)
                 .retry(retries)
                 .onErrorResume(e -> {
                     log.warn("Retry {} failed for {}: {}", retries, url, e.getMessage());
@@ -85,11 +87,12 @@ public class DataFetcherServiceImpl implements DataFetcherService {
     }
 
     /**
-     * Fetch URL with rate limiting using WebClient directly
+     * Fetch URL with stealth anti-detection
      */
-    private Mono<String> fetchWithRateLimit(String url) {
+    private Mono<String> fetchWithStealth(String url, boolean useProxy, String symbol) {
         return rateLimiterManager.waitForSlot()
-                .then(fetchDirect(url))
+                .then(stealthHttpClient.fetchWithStealth(url, useProxy, symbol))
+                .cast(String.class)
                 .doOnNext(html -> {
                     if (html == null || html.isEmpty()) {
                         log.warn("Empty response for URL: {}", url);
@@ -97,33 +100,18 @@ public class DataFetcherServiceImpl implements DataFetcherService {
                         boolean hasNextData = html.contains("__NEXT_DATA__");
                         log.debug("Fetched {} (length: {}, has __NEXT_DATA__: {})", url, html.length(), hasNextData);
                     }
+                })
+                .onErrorResume(e -> {
+                    log.error("Failed to fetch URL: {} - {}", url, e.getMessage());
+                    return Mono.empty();
                 });
-    }
-
-    /**
-     * Direct WebClient fetch with realistic browser headers
-     */
-    private Mono<String> fetchDirect(String url) {
-        log.debug("Fetching URL directly with WebClient: {}", url);
-
-        return webClient.get()
-                .uri(url)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Accept-Encoding", "gzip, deflate, br")
-                .header("Connection", "keep-alive")
-                .header("Upgrade-Insecure-Requests", "1")
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(30));
     }
 
     /**
      * Fetch URL and set result using consumer
      */
-    private Mono<Void> fetchAndSetWithWebClient(String url, Consumer<String> setter) {
-        return fetchWithRateLimit(url)
+    private Mono<Void> fetchAndSetWithStealth(String url, boolean useProxy, Consumer<String> setter, String symbol) {
+        return fetchWithStealth(url, useProxy, symbol)
                 .doOnNext(setter)
                 .onErrorResume(e -> {
                     log.error("Failed to fetch URL: {} - {}", url, e.getMessage());

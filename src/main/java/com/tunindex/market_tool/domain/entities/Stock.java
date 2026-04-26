@@ -34,7 +34,7 @@ public class Stock {
     private String url;
     private String isin;
 
-    @Column(nullable = false)
+    @Column(name = "exchange", nullable = true)
     private String exchange;
 
     private String exchangeFullName;

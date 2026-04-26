@@ -35,8 +35,8 @@ public class InvestingComProvider implements MarketDataProvider {
     // ChromeDriver is NOT thread-safe and must always be accessed from the same thread
     private static final Scheduler SELENIUM_SCHEDULER = Schedulers.newSingle("selenium-thread", true);
 
-    private static final int DELAY_MIN_MS = 3000;
-    private static final int DELAY_MAX_MS = 8000;
+    private static final int DELAY_MIN_MS = 8000;
+    private static final int DELAY_MAX_MS = 15000;
     private final Random random = new Random();
 
     @Override

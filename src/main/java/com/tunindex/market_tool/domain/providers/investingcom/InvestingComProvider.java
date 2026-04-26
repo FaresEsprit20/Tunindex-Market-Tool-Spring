@@ -1,10 +1,9 @@
 package com.tunindex.market_tool.domain.providers.investingcom;
 
+import com.tunindex.market_tool.core.config.selenium.ChromeDriverService;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
-import com.tunindex.market_tool.core.webscraping.RateLimiterManager;
-import com.tunindex.market_tool.core.webscraping.StealthHttpClient;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
@@ -27,8 +26,7 @@ import java.util.Random;
 @Slf4j
 public class InvestingComProvider implements MarketDataProvider {
 
-    private final RateLimiterManager rateLimiterManager;
-    private final StealthHttpClient stealthHttpClient;
+    private final ChromeDriverService chromeDriverService;
     private final DataParserService dataParserService;
     private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
@@ -57,15 +55,13 @@ public class InvestingComProvider implements MarketDataProvider {
             ));
         }
 
-        boolean useProxy = Constants.USE_PROXY;
-
-        return fetchMainPage(symbol, stockInfo, useProxy)
+        return fetchMainPage(symbol, stockInfo)
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchBalanceSheet(symbol, stockInfo, rawData, useProxy))
+                .flatMap(rawData -> fetchBalanceSheet(symbol, stockInfo, rawData))
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchIncomeStatement(symbol, stockInfo, rawData, useProxy))
+                .flatMap(rawData -> fetchIncomeStatement(symbol, stockInfo, rawData))
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchFinancialRatios(symbol, stockInfo, rawData, useProxy))
+                .flatMap(rawData -> fetchFinancialRatios(symbol, stockInfo, rawData))
                 .map(dataParserService::parseToNormalized)
                 .map(normalizer::toEntity)
                 .flatMap(enricher::enrich)
@@ -73,11 +69,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 .doOnError(error -> log.error("Failed to fetch data for {}: {}", symbol, error.getMessage()));
     }
 
-    private Mono<RawStockData> fetchMainPage(String symbol, Constants.StockInfo stockInfo, boolean useProxy) {
+    private Mono<RawStockData> fetchMainPage(String symbol, Constants.StockInfo stockInfo) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl();
-        log.debug("Fetching main page: {}", url);
+        log.debug("Fetching main page via Selenium: {}", url);
 
-        return fetchWithStealth(url, useProxy, symbol)
+        return fetchWithSelenium(url, symbol)
                 .map(html -> {
                     RawStockData rawData = new RawStockData();
                     rawData.setSymbol(symbol);
@@ -94,11 +90,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 ));
     }
 
-    private Mono<RawStockData> fetchBalanceSheet(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, boolean useProxy) {
+    private Mono<RawStockData> fetchBalanceSheet(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_BALANCE_SHEET;
-        log.debug("Fetching balance sheet: {}", url);
+        log.debug("Fetching balance sheet via Selenium: {}", url);
 
-        return fetchWithStealth(url, useProxy, symbol)
+        return fetchWithSelenium(url, symbol)
                 .map(html -> {
                     rawData.setBalanceSheetHtml(html);
                     return rawData;
@@ -109,11 +105,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<RawStockData> fetchIncomeStatement(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, boolean useProxy) {
+    private Mono<RawStockData> fetchIncomeStatement(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
-        log.debug("Fetching income statement: {}", url);
+        log.debug("Fetching income statement via Selenium: {}", url);
 
-        return fetchWithStealth(url, useProxy, symbol)
+        return fetchWithSelenium(url, symbol)
                 .map(html -> {
                     rawData.setIncomeStatementHtml(html);
                     return rawData;
@@ -124,11 +120,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<RawStockData> fetchFinancialRatios(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, boolean useProxy) {
+    private Mono<RawStockData> fetchFinancialRatios(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
-        log.debug("Fetching financial summary: {}", url);
+        log.debug("Fetching financial summary via Selenium: {}", url);
 
-        return fetchWithStealth(url, useProxy, symbol)
+        return fetchWithSelenium(url, symbol)
                 .map(html -> {
                     rawData.setFinancialSummaryHtml(html);
                     return rawData;
@@ -139,15 +135,13 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<String> fetchWithStealth(String url, boolean useProxy, String symbol) {
-        return rateLimiterManager.waitForSlot()
-                .then(stealthHttpClient.fetchWithStealth(url, useProxy, symbol))
-                .cast(String.class)
+    private Mono<String> fetchWithSelenium(String url, String symbol) {
+        return Mono.fromCallable(() -> chromeDriverService.fetchPage(url))
                 .doOnNext(html -> {
                     if (html == null || html.isEmpty()) {
                         log.warn("Empty response for URL: {}", url);
                     } else if (html.contains("__NEXT_DATA__")) {
-                        log.debug("Successfully fetched full page for {}", url);
+                        log.info("✅ Successfully fetched full page for {}", url);
                     } else {
                         log.warn("Fetched simplified page (missing __NEXT_DATA__) for {}", url);
                     }
@@ -159,7 +153,7 @@ public class InvestingComProvider implements MarketDataProvider {
         log.info("Fetching all stocks from Investing.com");
 
         return Flux.fromIterable(Constants.TUNISIAN_STOCKS.entrySet())
-                .parallel(3)
+                .parallel(1)  // Selenium needs sequential execution to avoid browser conflicts
                 .runOn(Schedulers.boundedElastic())
                 .flatMap(entry -> fetchStockData(entry.getKey())
                         .onErrorResume(error -> {

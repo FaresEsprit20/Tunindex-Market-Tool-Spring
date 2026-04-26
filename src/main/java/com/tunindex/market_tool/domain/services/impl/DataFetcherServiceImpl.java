@@ -1,10 +1,9 @@
 package com.tunindex.market_tool.domain.services.impl;
 
+import com.tunindex.market_tool.core.config.selenium.ChromeDriverService;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
-import com.tunindex.market_tool.core.webscraping.RateLimiterManager;
-import com.tunindex.market_tool.core.webscraping.StealthHttpClient;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.services.fetcher.DataFetcherService;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +21,7 @@ import java.util.function.Consumer;
 @Slf4j
 public class DataFetcherServiceImpl implements DataFetcherService {
 
-    private final RateLimiterManager rateLimiterManager;
-    private final StealthHttpClient stealthHttpClient;
+    private final ChromeDriverService chromeDriverService;
 
     private final Random random = new Random();
     private static final int DELAY_MIN_MS = 2000;
@@ -51,16 +49,14 @@ public class DataFetcherServiceImpl implements DataFetcherService {
         String incomeUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
         String financialUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
 
-        boolean useProxy = Constants.USE_PROXY;
-
         // Sequential fetch with delays to avoid rate limiting
-        return fetchAndSetWithStealth(mainUrl, useProxy, rawData::setMainPageHtml, symbol)
+        return fetchAndSetWithSelenium(mainUrl, rawData::setMainPageHtml, symbol)
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithStealth(balanceUrl, useProxy, rawData::setBalanceSheetHtml, symbol))
+                .then(fetchAndSetWithSelenium(balanceUrl, rawData::setBalanceSheetHtml, symbol))
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithStealth(incomeUrl, useProxy, rawData::setIncomeStatementHtml, symbol))
+                .then(fetchAndSetWithSelenium(incomeUrl, rawData::setIncomeStatementHtml, symbol))
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithStealth(financialUrl, useProxy, rawData::setFinancialSummaryHtml, symbol))
+                .then(fetchAndSetWithSelenium(financialUrl, rawData::setFinancialSummaryHtml, symbol))
                 .thenReturn(rawData)
                 .onErrorMap(e -> new DataFetchException(
                         ErrorCodes.DATA_FETCH_FAILED,
@@ -73,12 +69,12 @@ public class DataFetcherServiceImpl implements DataFetcherService {
 
     @Override
     public Mono<String> fetchUrl(String url, boolean useProxy) {
-        return fetchWithStealth(url, useProxy, null);
+        return fetchWithSelenium(url);
     }
 
     @Override
     public Mono<String> fetchUrlWithRetry(String url, boolean useProxy, int retries, long backoffMs) {
-        return fetchWithStealth(url, useProxy, null)
+        return fetchWithSelenium(url)
                 .retry(retries)
                 .onErrorResume(e -> {
                     log.warn("Retry {} failed for {}: {}", retries, url, e.getMessage());
@@ -87,12 +83,10 @@ public class DataFetcherServiceImpl implements DataFetcherService {
     }
 
     /**
-     * Fetch URL with stealth anti-detection
+     * Fetch URL using Selenium ChromeDriver
      */
-    private Mono<String> fetchWithStealth(String url, boolean useProxy, String symbol) {
-        return rateLimiterManager.waitForSlot()
-                .then(stealthHttpClient.fetchWithStealth(url, useProxy, symbol))
-                .cast(String.class)
+    private Mono<String> fetchWithSelenium(String url) {
+        return Mono.fromCallable(() -> chromeDriverService.fetchPage(url))
                 .doOnNext(html -> {
                     if (html == null || html.isEmpty()) {
                         log.warn("Empty response for URL: {}", url);
@@ -110,8 +104,8 @@ public class DataFetcherServiceImpl implements DataFetcherService {
     /**
      * Fetch URL and set result using consumer
      */
-    private Mono<Void> fetchAndSetWithStealth(String url, boolean useProxy, Consumer<String> setter, String symbol) {
-        return fetchWithStealth(url, useProxy, symbol)
+    private Mono<Void> fetchAndSetWithSelenium(String url, Consumer<String> setter, String symbol) {
+        return fetchWithSelenium(url)
                 .doOnNext(setter)
                 .onErrorResume(e -> {
                     log.error("Failed to fetch URL: {} - {}", url, e.getMessage());

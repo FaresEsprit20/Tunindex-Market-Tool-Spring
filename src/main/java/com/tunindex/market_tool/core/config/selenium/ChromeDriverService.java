@@ -23,15 +23,18 @@ public class ChromeDriverService {
 
     @PostConstruct
     public void init() {
-        log.info("🚀 Initializing ChromeDriver...");
+        log.info("🚀 Initializing ChromeDriver for Chrome 147...");
 
-        // Automatically download and setup correct ChromeDriver
+        // Setup ChromeDriver - let WebDriverManager handle it
         WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
 
+        // ========== CRITICAL FOR CHROME 147 ==========
+        options.addArguments("--remote-allow-origins=*");
+        options.addArguments("--disable-search-engine-choice-screen");
+
         // ========== STEALTH OPTIONS ==========
-        // Hide automation flags
         options.addArguments("--disable-blink-features=AutomationControlled");
         options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
         options.setExperimentalOption("useAutomationExtension", false);
@@ -47,57 +50,64 @@ public class ChromeDriverService {
         options.addArguments("--disable-gpu");
         options.addArguments("--window-size=1920,1080");
 
-        // Random user agent
-        options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36");
+        // User agent for Chrome 147
+        options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36");
 
-        // Additional preferences to mimic real user
+        // Additional preferences
         Map<String, Object> prefs = new HashMap<>();
         prefs.put("credentials_enable_service", false);
         prefs.put("profile.password_manager_enabled", false);
         options.setExperimentalOption("prefs", prefs);
 
-        // Create driver
+        // Create driver with longer timeout
         driver = new ChromeDriver(options);
 
         // Set timeouts
-        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
-        driver.manage().timeouts().pageLoadTimeout(30, TimeUnit.SECONDS);
+        driver.manage().timeouts().implicitlyWait(15, TimeUnit.SECONDS);
+        driver.manage().timeouts().pageLoadTimeout(60, TimeUnit.SECONDS);
 
-        // Execute stealth JavaScript to hide webdriver property
+        // Execute stealth JavaScript
         executeStealthJavaScript();
 
-        log.info("✅ ChromeDriver initialized successfully");
+        log.info("✅ ChromeDriver initialized successfully for Chrome 147");
     }
 
     private void executeStealthJavaScript() {
-        JavascriptExecutor js = (JavascriptExecutor) driver;
-        js.executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
-        js.executeScript("window.navigator.chrome = {runtime: {}}");
-        js.executeScript("Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]})");
-        js.executeScript("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})");
-        log.debug("Stealth JavaScript executed");
+        try {
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            js.executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
+            js.executeScript("window.navigator.chrome = {runtime: {}}");
+            js.executeScript("Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]})");
+            js.executeScript("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})");
+            log.debug("Stealth JavaScript executed");
+        } catch (Exception e) {
+            log.warn("Stealth JavaScript failed: {}", e.getMessage());
+        }
     }
 
     public String fetchPage(String url) {
         log.debug("Fetching URL: {}", url);
-        driver.get(url);
 
-        // Wait for page to load
         try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            driver.get(url);
+
+            // Wait for page to load
+            Thread.sleep(8000);
+
+            String html = driver.getPageSource();
+
+            if (html.contains("__NEXT_DATA__")) {
+                log.info("✅ Successfully fetched full page with __NEXT_DATA__");
+            } else {
+                log.warn("⚠️ Fetched page without __NEXT_DATA__");
+            }
+
+            return html;
+
+        } catch (Exception e) {
+            log.error("Failed to fetch page: {}", e.getMessage());
+            return null;
         }
-
-        String html = driver.getPageSource();
-
-        if (html.contains("__NEXT_DATA__")) {
-            log.info("✅ Successfully fetched full page with __NEXT_DATA__");
-        } else {
-            log.warn("⚠️ Fetched page without __NEXT_DATA__");
-        }
-
-        return html;
     }
 
     @PreDestroy

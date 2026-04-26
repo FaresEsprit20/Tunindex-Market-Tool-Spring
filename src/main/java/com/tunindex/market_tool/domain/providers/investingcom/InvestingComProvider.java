@@ -4,6 +4,7 @@ import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
 import com.tunindex.market_tool.core.webscraping.RateLimiterManager;
+import com.tunindex.market_tool.core.webscraping.StealthHttpClient;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
@@ -13,7 +14,6 @@ import com.tunindex.market_tool.domain.services.parser.DataParserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -28,10 +28,10 @@ import java.util.Random;
 public class InvestingComProvider implements MarketDataProvider {
 
     private final RateLimiterManager rateLimiterManager;
+    private final StealthHttpClient stealthHttpClient;
     private final DataParserService dataParserService;
     private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
-    private final WebClient webClient;
 
     private static final int DELAY_MIN_MS = 2000;
     private static final int DELAY_MAX_MS = 5000;
@@ -57,13 +57,15 @@ public class InvestingComProvider implements MarketDataProvider {
             ));
         }
 
-        return fetchMainPage(symbol, stockInfo)
+        boolean useProxy = Constants.USE_PROXY;
+
+        return fetchMainPage(symbol, stockInfo, useProxy)
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchBalanceSheet(symbol, stockInfo, rawData))
+                .flatMap(rawData -> fetchBalanceSheet(symbol, stockInfo, rawData, useProxy))
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchIncomeStatement(symbol, stockInfo, rawData))
+                .flatMap(rawData -> fetchIncomeStatement(symbol, stockInfo, rawData, useProxy))
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchFinancialRatios(symbol, stockInfo, rawData))
+                .flatMap(rawData -> fetchFinancialRatios(symbol, stockInfo, rawData, useProxy))
                 .map(dataParserService::parseToNormalized)
                 .map(normalizer::toEntity)
                 .flatMap(enricher::enrich)
@@ -71,32 +73,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 .doOnError(error -> log.error("Failed to fetch data for {}: {}", symbol, error.getMessage()));
     }
 
-    @Override
-    public Flux<EnrichedStockData> fetchAllStocks() {
-        log.info("Fetching all stocks from Investing.com");
-
-        return Flux.fromIterable(Constants.TUNISIAN_STOCKS.entrySet())
-                .parallel(3)  // Limit parallel calls
-                .runOn(Schedulers.boundedElastic())
-                .flatMap(entry -> fetchStockData(entry.getKey())
-                        .onErrorResume(error -> {
-                            log.error("Failed to fetch {}: {}", entry.getKey(), error.getMessage());
-                            return Mono.empty();
-                        }))
-                .sequential()
-                .doOnComplete(() -> log.info("Completed fetching all stocks"));
-    }
-
-    @Override
-    public boolean supports(String symbol) {
-        return Constants.TUNISIAN_STOCKS.containsKey(symbol);
-    }
-
-    private Mono<RawStockData> fetchMainPage(String symbol, Constants.StockInfo stockInfo) {
+    private Mono<RawStockData> fetchMainPage(String symbol, Constants.StockInfo stockInfo, boolean useProxy) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl();
         log.debug("Fetching main page: {}", url);
 
-        return fetchWithRateLimit(url)
+        return fetchWithStealth(url, useProxy, symbol)
                 .map(html -> {
                     RawStockData rawData = new RawStockData();
                     rawData.setSymbol(symbol);
@@ -113,11 +94,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 ));
     }
 
-    private Mono<RawStockData> fetchBalanceSheet(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
+    private Mono<RawStockData> fetchBalanceSheet(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, boolean useProxy) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_BALANCE_SHEET;
         log.debug("Fetching balance sheet: {}", url);
 
-        return fetchWithRateLimit(url)
+        return fetchWithStealth(url, useProxy, symbol)
                 .map(html -> {
                     rawData.setBalanceSheetHtml(html);
                     return rawData;
@@ -128,11 +109,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<RawStockData> fetchIncomeStatement(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
+    private Mono<RawStockData> fetchIncomeStatement(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, boolean useProxy) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
         log.debug("Fetching income statement: {}", url);
 
-        return fetchWithRateLimit(url)
+        return fetchWithStealth(url, useProxy, symbol)
                 .map(html -> {
                     rawData.setIncomeStatementHtml(html);
                     return rawData;
@@ -143,11 +124,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<RawStockData> fetchFinancialRatios(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
+    private Mono<RawStockData> fetchFinancialRatios(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, boolean useProxy) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
         log.debug("Fetching financial summary: {}", url);
 
-        return fetchWithRateLimit(url)
+        return fetchWithStealth(url, useProxy, symbol)
                 .map(html -> {
                     rawData.setFinancialSummaryHtml(html);
                     return rawData;
@@ -158,12 +139,10 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    /**
-     * Fetch URL with rate limiting and proper headers
-     */
-    private Mono<String> fetchWithRateLimit(String url) {
+    private Mono<String> fetchWithStealth(String url, boolean useProxy, String symbol) {
         return rateLimiterManager.waitForSlot()
-                .then(fetchDirect(url))
+                .then(stealthHttpClient.fetchWithStealth(url, useProxy, symbol))
+                .cast(String.class)
                 .doOnNext(html -> {
                     if (html == null || html.isEmpty()) {
                         log.warn("Empty response for URL: {}", url);
@@ -175,21 +154,25 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    /**
-     * Direct WebClient fetch with realistic browser headers
-     */
-    private Mono<String> fetchDirect(String url) {
-        return webClient.get()
-                .uri(url)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Accept-Encoding", "gzip, deflate, br")
-                .header("Connection", "keep-alive")
-                .header("Upgrade-Insecure-Requests", "1")
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(30));
+    @Override
+    public Flux<EnrichedStockData> fetchAllStocks() {
+        log.info("Fetching all stocks from Investing.com");
+
+        return Flux.fromIterable(Constants.TUNISIAN_STOCKS.entrySet())
+                .parallel(3)
+                .runOn(Schedulers.boundedElastic())
+                .flatMap(entry -> fetchStockData(entry.getKey())
+                        .onErrorResume(error -> {
+                            log.error("Failed to fetch {}: {}", entry.getKey(), error.getMessage());
+                            return Mono.empty();
+                        }))
+                .sequential()
+                .doOnComplete(() -> log.info("Completed fetching all stocks"));
+    }
+
+    @Override
+    public boolean supports(String symbol) {
+        return Constants.TUNISIAN_STOCKS.containsKey(symbol);
     }
 
     private long randomDelay() {

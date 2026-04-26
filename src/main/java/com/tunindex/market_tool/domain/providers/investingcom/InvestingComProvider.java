@@ -15,9 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import reactor.util.function.Tuple3;
-import reactor.util.function.Tuple4;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -28,10 +27,13 @@ import java.util.Random;
 @Slf4j
 public class InvestingComProvider implements MarketDataProvider {
 
-    // Remove ChromeDriverService from constructor - we'll create fresh instances
     private final DataParserService dataParserService;
     private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
+
+    // CRITICAL: Dedicated single-thread scheduler for Selenium
+    // ChromeDriver is NOT thread-safe and must always be accessed from the same thread
+    private static final Scheduler SELENIUM_SCHEDULER = Schedulers.newSingle("selenium-thread", true);
 
     private static final int DELAY_MIN_MS = 3000;
     private static final int DELAY_MAX_MS = 8000;
@@ -57,12 +59,13 @@ public class InvestingComProvider implements MarketDataProvider {
             ));
         }
 
-        // Create a NEW ChromeDriver for each stock
+        // Create a NEW ChromeDriver for each stock, pinned to single thread
         return Mono.fromCallable(() -> {
                     ChromeDriverService driverService = new ChromeDriverService();
                     driverService.init();
                     return driverService;
                 })
+                .subscribeOn(SELENIUM_SCHEDULER)  // CRITICAL: pin to one thread
                 .flatMap(driverService -> fetchAllPages(driverService, symbol, stockInfo)
                         .doFinally(signalType -> {
                             // Always cleanup the driver
@@ -74,39 +77,37 @@ public class InvestingComProvider implements MarketDataProvider {
                         }));
     }
 
-    private Mono<EnrichedStockData> fetchAllPages(ChromeDriverService driverService, String symbol, Constants.StockInfo stockInfo) {
+    // SEQUENTIAL fetching - NOT parallel!
+    // One ChromeDriver cannot handle multiple simultaneous driver.get() calls
+    private Mono<EnrichedStockData> fetchAllPages(ChromeDriverService driverService,
+                                                  String symbol,
+                                                  Constants.StockInfo stockInfo) {
         String baseUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl();
 
-        // Fetch main page
-        Mono<String> mainPageMono = fetchPage(driverService, baseUrl, symbol, "main")
-                .delayElement(Duration.ofMillis(randomDelay()));
-
-        // Fetch balance sheet
-        Mono<String> balanceSheetMono = fetchPage(driverService, baseUrl + Constants.INVESTINGCOM_BALANCE_SHEET, symbol, "balance")
+        // Sequential flatMap chaining instead of Mono.zip
+        return fetchPage(driverService, baseUrl, symbol, "main")
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .defaultIfEmpty("");
-
-        // Fetch income statement
-        Mono<String> incomeStatementMono = fetchPage(driverService, baseUrl + Constants.INVESTINGCOM_INCOME_STATEMENT, symbol, "income")
-                .delayElement(Duration.ofMillis(randomDelay()))
-                .defaultIfEmpty("");
-
-        // Fetch financial summary
-        Mono<String> financialSummaryMono = fetchPage(driverService, baseUrl + Constants.INVESTINGCOM_FINANCIAL_SUMMARY, symbol, "financial")
-                .defaultIfEmpty("");
-
-        // Combine all fetches
-        return Mono.zip(mainPageMono, balanceSheetMono, incomeStatementMono, financialSummaryMono)
-                .map(tuple -> {
-                    RawStockData rawData = new RawStockData();
-                    rawData.setSymbol(symbol);
-                    rawData.setStockInfo(stockInfo);
-                    rawData.setMainPageHtml(tuple.getT1());
-                    rawData.setBalanceSheetHtml(tuple.getT2());
-                    rawData.setIncomeStatementHtml(tuple.getT3());
-                    rawData.setFinancialSummaryHtml(tuple.getT4());
-                    return rawData;
-                })
+                .flatMap(mainHtml ->
+                        fetchPage(driverService, baseUrl + Constants.INVESTINGCOM_BALANCE_SHEET, symbol, "balance")
+                                .delayElement(Duration.ofMillis(randomDelay()))
+                                .flatMap(balanceHtml ->
+                                        fetchPage(driverService, baseUrl + Constants.INVESTINGCOM_INCOME_STATEMENT, symbol, "income")
+                                                .delayElement(Duration.ofMillis(randomDelay()))
+                                                .flatMap(incomeHtml ->
+                                                        fetchPage(driverService, baseUrl + Constants.INVESTINGCOM_FINANCIAL_SUMMARY, symbol, "financial")
+                                                                .map(summaryHtml -> {
+                                                                    RawStockData rawData = new RawStockData();
+                                                                    rawData.setSymbol(symbol);
+                                                                    rawData.setStockInfo(stockInfo);
+                                                                    rawData.setMainPageHtml(mainHtml);
+                                                                    rawData.setBalanceSheetHtml(balanceHtml);
+                                                                    rawData.setIncomeStatementHtml(incomeHtml);
+                                                                    rawData.setFinancialSummaryHtml(summaryHtml);
+                                                                    return rawData;
+                                                                })
+                                                )
+                                )
+                )
                 .map(dataParserService::parseToNormalized)
                 .map(normalizer::toEntity)
                 .flatMap(enricher::enrich)
@@ -114,7 +115,10 @@ public class InvestingComProvider implements MarketDataProvider {
                 .doOnError(error -> log.error("Failed to fetch data for {}: {}", symbol, error.getMessage()));
     }
 
-    private Mono<String> fetchPage(ChromeDriverService driverService, String url, String symbol, String pageType) {
+    private Mono<String> fetchPage(ChromeDriverService driverService,
+                                   String url,
+                                   String symbol,
+                                   String pageType) {
         return Mono.fromCallable(() -> {
                     log.debug("Fetching {} page for {}: {}", pageType, symbol, url);
                     String html = driverService.fetchPage(url);
@@ -137,7 +141,8 @@ public class InvestingComProvider implements MarketDataProvider {
 
                     return html;
                 })
-                .timeout(Duration.ofSeconds(45))
+                .subscribeOn(SELENIUM_SCHEDULER)  // Same single thread
+                .timeout(Duration.ofSeconds(60))
                 .onErrorResume(e -> {
                     log.warn("Failed to fetch {} page for {}: {}", pageType, symbol, e.getMessage());
                     return Mono.just("");

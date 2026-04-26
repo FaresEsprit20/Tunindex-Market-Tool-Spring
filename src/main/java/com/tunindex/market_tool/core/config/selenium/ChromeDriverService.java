@@ -26,10 +26,10 @@ public class ChromeDriverService {
 
     // Rotating user agents to avoid detection
     private static final String[] USER_AGENTS = {
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
     };
 
     public void init() {
@@ -39,9 +39,9 @@ public class ChromeDriverService {
     private void createNewDriver() {
         log.info("🚀 Initializing ChromeDriver...");
 
-        // Use Chrome 120 (more stable and less detected than 147)
+        // Use Chrome 147 to match your installed browser
         WebDriverManager.chromedriver()
-                .browserVersion("120.0.6099.109")
+                .browserVersion("147")
                 .setup();
 
         ChromeOptions options = new ChromeOptions();
@@ -70,11 +70,6 @@ public class ChromeDriverService {
         // Disable password manager and autofill
         options.addArguments("--disable-password-manager-reauthentication");
 
-        // Disable background network services that might reveal automation
-        options.addArguments("--disable-background-networking");
-        options.addArguments("--disable-sync");
-        options.addArguments("--disable-default-apps");
-
         // Anti-detection with random user agent
         String userAgent = USER_AGENTS[random.nextInt(USER_AGENTS.length)];
         options.addArguments("--disable-blink-features=AutomationControlled");
@@ -90,24 +85,20 @@ public class ChromeDriverService {
         prefs.put("credentials_enable_service", false);
         prefs.put("profile.password_manager_enabled", false);
         prefs.put("profile.default_content_setting_values.notifications", 2);
-        prefs.put("profile.default_content_setting_values.images", 1); // Allow images for realistic browsing
+        prefs.put("profile.default_content_setting_values.images", 1);
         prefs.put("profile.default_content_setting_values.popups", 2);
         prefs.put("profile.default_content_setting_values.geolocation", 2);
         prefs.put("profile.default_content_setting_values.media_stream", 2);
-
-        // Set realistic language preferences
         prefs.put("intl.accept_languages", "en-US,en;q=0.9");
         prefs.put("profile.default_content_setting_values.automatic_downloads", 1);
 
         options.setExperimentalOption("prefs", prefs);
-
-        // Add accept-language header
         options.addArguments("--lang=en-US");
 
         driver = new ChromeDriver(options);
         driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(60));
         driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
-        driver.manage().deleteAllCookies(); // Start with clean cookies
+        driver.manage().deleteAllCookies();
 
         executeAdvancedStealthJavaScript();
         isHealthy = true;
@@ -126,14 +117,11 @@ public class ChromeDriverService {
             log.info("Navigating to: {}", url);
             driver.get(url);
 
-            // Wait for body to be present
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
             wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
 
-            // Wait for network to be relatively idle
             Thread.sleep(5000);
 
-            // Check if we got blocked (common patterns)
             String pageSource = driver.getPageSource();
             String title = driver.getTitle();
 
@@ -164,19 +152,11 @@ public class ChromeDriverService {
         try {
             JavascriptExecutor js = (JavascriptExecutor) driver;
 
-            // Remove webdriver property
             js.executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
-
-            // Add chrome property
             js.executeScript("window.navigator.chrome = {runtime: {}}");
-
-            // Modify plugins length to realistic value
             js.executeScript("Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]})");
-
-            // Set realistic languages
             js.executeScript("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en', 'fr']})");
 
-            // Modify permissions query
             js.executeScript(
                     "const originalQuery = window.navigator.permissions.query;" +
                             "window.navigator.permissions.query = (parameters) => {" +
@@ -187,21 +167,6 @@ public class ChromeDriverService {
                             "};"
             );
 
-            // Modify webgl vendor
-            js.executeScript(
-                    "const getParameter = WebGLRenderingContext.prototype.getParameter;" +
-                            "WebGLRenderingContext.prototype.getParameter = function(parameter) {" +
-                            "    if (parameter === 37445) {" +
-                            "        return 'Intel Inc.';" +
-                            "    }" +
-                            "    if (parameter === 37446) {" +
-                            "        return 'Intel Iris OpenGL Engine';" +
-                            "    }" +
-                            "    return getParameter(parameter);" +
-                            "};"
-            );
-
-            // Override navigator properties
             js.executeScript(
                     "Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});" +
                             "Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});" +
@@ -209,7 +174,6 @@ public class ChromeDriverService {
                             "Object.defineProperty(navigator, 'maxTouchPoints', {get: () => 0});"
             );
 
-            // Add fake Chrome runtime
             js.executeScript(
                     "window.chrome = {" +
                             "    runtime: {}," +

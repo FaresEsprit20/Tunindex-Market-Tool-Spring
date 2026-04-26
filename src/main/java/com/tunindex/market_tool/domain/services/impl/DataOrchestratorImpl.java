@@ -6,7 +6,6 @@ import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockD
 import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
 import com.tunindex.market_tool.domain.providers.investingcom.InvestingComProvider;
 import com.tunindex.market_tool.domain.repository.jpa.StockRepository;
-import com.tunindex.market_tool.domain.services.async.AsyncFetchService;
 import com.tunindex.market_tool.domain.services.orchestrator.DataOrchestrator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ public class DataOrchestratorImpl implements DataOrchestrator {
     private final MarketToolProperties properties;
     private final InvestingComProvider investingComProvider;
     private final StockRepository stockRepository;
-    private final AsyncFetchService asyncFetchService;
 
     @Override
     public Mono<Void> runPipeline() {
@@ -40,27 +38,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
                 .flatMap(enrichedStocks -> {
                     log.info("✅ Fetched {} stocks", enrichedStocks.size());
 
-                    // STEP 2: Filter stocks that need BVPS calculation
-                    List<EnrichedStockData> stocksNeedingBvps = enrichedStocks.stream()
-                            .filter(s -> s.getStock().getCalculatedValues() == null ||
-                                    s.getStock().getCalculatedValues().getBookValuePerShare() == null)
-                            .collect(Collectors.toList());
-
-                    if (!stocksNeedingBvps.isEmpty()) {
-                        log.info("📊 Calculating BVPS for {} stocks in parallel", stocksNeedingBvps.size());
-
-                        // Run BVPS calculation in parallel
-                        return processBvpsInParallel(stocksNeedingBvps)
-                                .then(Mono.just(enrichedStocks));
-                    }
-
-                    return Mono.just(enrichedStocks);
-                })
-                .flatMap(enrichedStocks -> {
-                    // STEP 3: Normalize and Enrich (already done by provider)
-                    log.info("🔄 Normalizing and enriching {} stocks", enrichedStocks.size());
-
-                    // STEP 4: Save to database
+                    // STEP 2: Save all to database
                     return saveAllToDatabase(enrichedStocks);
                 })
                 .doOnSuccess(v -> log.info("✅ Pipeline completed successfully"))
@@ -75,6 +53,15 @@ public class DataOrchestratorImpl implements DataOrchestrator {
         MarketDataProvider provider = getActiveProvider();
 
         return provider.fetchStockData(symbol)
+                .flatMap(enrichedData -> {
+                    // Save to database
+                    return Mono.fromCallable(() -> {
+                                stockRepository.save(enrichedData.getStock());
+                                log.info("Saved stock: {}", symbol);
+                                return enrichedData;
+                            })
+                            .subscribeOn(Schedulers.boundedElastic());
+                })
                 .doOnSuccess(stock -> log.info("✅ Successfully processed stock: {}", symbol))
                 .doOnError(e -> log.error("❌ Failed to process stock {}: {}", symbol, e.getMessage()));
     }
@@ -98,30 +85,6 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
         log.warn("Provider {} not found, falling back to InvestingCom", activeProvider);
         return investingComProvider;
-    }
-
-    private Mono<Void> processBvpsInParallel(List<EnrichedStockData> stocks) {
-        // Extract symbols
-        List<String> symbols = stocks.stream()
-                .map(s -> s.getStock().getSymbol())
-                .collect(Collectors.toList());
-
-        // Run BVPS calculation in parallel using AsyncFetchService
-        return Mono.fromCallable(() -> {
-            return asyncFetchService.runParallel(
-                    symbol -> {
-                        log.debug("Calculating BVPS for {}", symbol);
-                        // This would call a method to calculate BVPS
-                        // For now, just return the stock
-                        return stocks.stream()
-                                .filter(s -> s.getStock().getSymbol().equals(symbol))
-                                .findFirst()
-                                .orElse(null);
-                    },
-                    symbols,
-                    properties.getParallelism().getMaxWorkers()
-            );
-        }).then();
     }
 
     private Mono<Void> saveAllToDatabase(List<EnrichedStockData> stocks) {

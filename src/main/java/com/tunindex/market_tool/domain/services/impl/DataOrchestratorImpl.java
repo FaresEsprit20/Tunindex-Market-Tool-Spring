@@ -15,7 +15,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -32,13 +31,10 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
         MarketDataProvider provider = getActiveProvider();
 
-        // STEP 1: Fetch all market data
         return provider.fetchAllStocks()
                 .collectList()
                 .flatMap(enrichedStocks -> {
                     log.info("✅ Fetched {} stocks", enrichedStocks.size());
-
-                    // STEP 2: Save all to database
                     return saveAllToDatabase(enrichedStocks);
                 })
                 .doOnSuccess(v -> log.info("✅ Pipeline completed successfully"))
@@ -54,7 +50,6 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
         return provider.fetchStockData(symbol)
                 .flatMap(enrichedData -> {
-                    // Save to database
                     return Mono.fromCallable(() -> {
                                 stockRepository.save(enrichedData.getStock());
                                 log.info("Saved stock: {}", symbol);
@@ -78,7 +73,6 @@ public class DataOrchestratorImpl implements DataOrchestrator {
     private MarketDataProvider getActiveProvider() {
         String activeProvider = getActiveProviderName();
 
-        // Since we only have InvestingCom provider for now
         if (Constants.PROVIDER_INVESTINGCOM.equalsIgnoreCase(activeProvider)) {
             return investingComProvider;
         }

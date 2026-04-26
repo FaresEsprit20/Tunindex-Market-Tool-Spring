@@ -21,7 +21,8 @@ import java.util.function.Consumer;
 @Slf4j
 public class DataFetcherServiceImpl implements DataFetcherService {
 
-    private final ChromeDriverService chromeDriverService;
+    // Remove ChromeDriverService injection - we'll create drivers manually
+    // private final ChromeDriverService chromeDriverService;
 
     private final Random random = new Random();
     private static final int DELAY_MIN_MS = 2000;
@@ -40,83 +41,91 @@ public class DataFetcherServiceImpl implements DataFetcherService {
             ));
         }
 
-        RawStockData rawData = new RawStockData();
-        rawData.setSymbol(symbol);
-        rawData.setStockInfo(stockInfo);
+        // Create a new ChromeDriver for each stock
+        return Mono.fromCallable(() -> {
+                    ChromeDriverService driverService = new ChromeDriverService();
+                    driverService.init();
+                    return driverService;
+                })
+                .flatMap(driverService -> fetchAllPages(driverService, symbol, stockInfo)
+                        .doFinally(signalType -> {
+                            try {
+                                driverService.cleanup();
+                            } catch (Exception e) {
+                                log.warn("Error cleaning up driver for {}: {}", symbol, e.getMessage());
+                            }
+                        }));
+    }
 
+    private Mono<RawStockData> fetchAllPages(ChromeDriverService driverService, String symbol, Constants.StockInfo stockInfo) {
         String mainUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl();
         String balanceUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_BALANCE_SHEET;
         String incomeUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
         String financialUrl = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
 
-        // Sequential fetch with delays to avoid rate limiting
-        return fetchAndSetWithSelenium(mainUrl, rawData::setMainPageHtml, symbol)
+        RawStockData rawData = new RawStockData();
+        rawData.setSymbol(symbol);
+        rawData.setStockInfo(stockInfo);
+
+        return fetchPage(driverService, mainUrl, symbol, "main")
+                .doOnNext(rawData::setMainPageHtml)
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithSelenium(balanceUrl, rawData::setBalanceSheetHtml, symbol))
+                .then(fetchPage(driverService, balanceUrl, symbol, "balance"))
+                .doOnNext(rawData::setBalanceSheetHtml)
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithSelenium(incomeUrl, rawData::setIncomeStatementHtml, symbol))
+                .then(fetchPage(driverService, incomeUrl, symbol, "income"))
+                .doOnNext(rawData::setIncomeStatementHtml)
                 .then(Mono.delay(Duration.ofMillis(randomDelay())))
-                .then(fetchAndSetWithSelenium(financialUrl, rawData::setFinancialSummaryHtml, symbol))
-                .thenReturn(rawData)
-                .onErrorMap(e -> new DataFetchException(
-                        ErrorCodes.DATA_FETCH_FAILED,
-                        Constants.PROVIDER_INVESTINGCOM,
-                        symbol,
-                        "Failed to fetch stock data: " + e.getMessage(),
-                        Collections.singletonList(e.getMessage())
-                ));
+                .then(fetchPage(driverService, financialUrl, symbol, "financial"))
+                .doOnNext(rawData::setFinancialSummaryHtml)
+                .thenReturn(rawData);
+    }
+
+    private Mono<String> fetchPage(ChromeDriverService driverService, String url, String symbol, String pageType) {
+        return Mono.fromCallable(() -> {
+                    log.debug("Fetching {} page for {}: {}", pageType, symbol, url);
+                    String html = driverService.fetchPage(url);
+
+                    if (html == null || html.isEmpty()) {
+                        log.warn("Empty response for {} page of {}", pageType, symbol);
+                        return "";
+                    }
+
+                    boolean hasNextData = html.contains("__NEXT_DATA__");
+                    log.debug("Fetched {} page (length: {}, has __NEXT_DATA__: {})", pageType, html.length(), hasNextData);
+                    return html;
+                })
+                .timeout(Duration.ofSeconds(45))
+                .onErrorResume(e -> {
+                    log.error("Failed to fetch {} page for {}: {}", pageType, symbol, e.getMessage());
+                    return Mono.just("");
+                });
     }
 
     @Override
     public Mono<String> fetchUrl(String url, boolean useProxy) {
-        return fetchWithSelenium(url);
+        // This method is kept for compatibility but not recommended for use
+        return Mono.fromCallable(() -> {
+                    ChromeDriverService driverService = new ChromeDriverService();
+                    driverService.init();
+                    try {
+                        return driverService.fetchPage(url);
+                    } finally {
+                        driverService.cleanup();
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Failed to fetch URL: {}", e.getMessage());
+                    return Mono.empty();
+                });
     }
 
     @Override
     public Mono<String> fetchUrlWithRetry(String url, boolean useProxy, int retries, long backoffMs) {
-        return fetchWithSelenium(url)
-                .retry(retries)
-                .onErrorResume(e -> {
-                    log.warn("Retry {} failed for {}: {}", retries, url, e.getMessage());
-                    return Mono.empty();
-                });
+        // Simple implementation without retry
+        return fetchUrl(url, useProxy);
     }
 
-    /**
-     * Fetch URL using Selenium ChromeDriver
-     */
-    private Mono<String> fetchWithSelenium(String url) {
-        return Mono.fromCallable(() -> chromeDriverService.fetchPage(url))
-                .doOnNext(html -> {
-                    if (html == null || html.isEmpty()) {
-                        log.warn("Empty response for URL: {}", url);
-                    } else {
-                        boolean hasNextData = html.contains("__NEXT_DATA__");
-                        log.debug("Fetched {} (length: {}, has __NEXT_DATA__: {})", url, html.length(), hasNextData);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Failed to fetch URL: {} - {}", url, e.getMessage());
-                    return Mono.empty();
-                });
-    }
-
-    /**
-     * Fetch URL and set result using consumer
-     */
-    private Mono<Void> fetchAndSetWithSelenium(String url, Consumer<String> setter, String symbol) {
-        return fetchWithSelenium(url)
-                .doOnNext(setter)
-                .onErrorResume(e -> {
-                    log.error("Failed to fetch URL: {} - {}", url, e.getMessage());
-                    return Mono.empty();
-                })
-                .then();
-    }
-
-    /**
-     * Random delay to mimic human behavior
-     */
     private long randomDelay() {
         return DELAY_MIN_MS + random.nextInt(DELAY_MAX_MS - DELAY_MIN_MS);
     }

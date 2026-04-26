@@ -1,8 +1,6 @@
 package com.tunindex.market_tool;
 
-import com.tunindex.market_tool.core.scheduler.DataScheduler;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -20,12 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @SpringBootApplication
 @Slf4j
 public class MarketToolApplication {
-
-    @Autowired
-    private DataScheduler dataScheduler;
-
-    @Value("${market-tool.scheduler.interval-minutes:30}")
-    private int schedulerIntervalMinutes;
 
     @Value("${market-tool.scheduler.run-on-startup:true}")
     private boolean runOnStartup;
@@ -76,7 +68,6 @@ public class MarketToolApplication {
             log.info("🚀 Market Tool Application Started");
             log.info("📡 Web server running on http://localhost:8082");
             log.info("⚙️  Max workers: {}", maxWorkers);
-            log.info("⚙️  Scheduler interval: {} minutes", schedulerIntervalMinutes);
             log.info("=".repeat(60));
 
             if (runOnStartup) {
@@ -90,11 +81,7 @@ public class MarketToolApplication {
                         Thread.sleep(initialDelaySeconds * 1000L);
 
                         log.info("🔄 Running initial pipeline on background thread...");
-                        dataScheduler.runOnce();
                         log.info("✅ Initial pipeline completed successfully");
-
-                        // Start the scheduled pipeline (runs in background)
-                        startScheduledPipeline();
 
                     } catch (InterruptedException e) {
                         log.warn("Pipeline thread interrupted");
@@ -109,25 +96,6 @@ public class MarketToolApplication {
                 log.info("Pipeline execution disabled (run-on-startup=false)");
             }
         };
-    }
-
-    /**
-     * Start scheduled pipeline in background
-     * This runs the scheduler which executes pipeline at regular intervals
-     */
-    private void startScheduledPipeline() {
-        // Create a separate daemon thread for the scheduler
-        Thread schedulerThread = new Thread(() -> {
-            try {
-                log.info("⏱️ Starting scheduler with {} minute interval", schedulerIntervalMinutes);
-                dataScheduler.start(schedulerIntervalMinutes);
-            } catch (Exception e) {
-                log.error("❌ Scheduler failed: {}", e.getMessage(), e);
-            }
-        });
-        schedulerThread.setDaemon(true);
-        schedulerThread.setName("scheduler-worker");
-        schedulerThread.start();
     }
 
     /**

@@ -22,7 +22,6 @@ public class StealthHttpClient {
 
     private final UserAgentManager userAgentManager;
     private final BrowserFingerprintGenerator fingerprintGenerator;
-    private final ProxyManager proxyManager;
     private final RateLimiterManager rateLimiterManager;
     private final CaptchaDetector captchaDetector;
     private final RetryManager retryManager;
@@ -81,25 +80,6 @@ public class StealthHttpClient {
 
     private WebClient buildStealthWebClient(boolean useProxy) {
         HttpClient httpClient = HttpClient.create();
-
-        // Configure proxy if needed
-        if (useProxy && proxyManager.hasProxies()) {
-            String proxy = proxyManager.getRandomProxy();
-            if (proxy != null) {
-                String[] proxyParts = proxy.split(":");
-                if (proxyParts.length >= 2) {
-                    String host = proxyParts[0];
-                    int port = Integer.parseInt(proxyParts[1]);
-
-                    httpClient = httpClient.proxy(proxySpec -> proxySpec
-                            .type(ProxyProvider.Proxy.HTTP)
-                            .host(host)
-                            .port(port));
-                    log.debug("Using proxy: {}:{}", host, port);
-                }
-            }
-        }
-
         // Build WebClient with stealth headers
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient))

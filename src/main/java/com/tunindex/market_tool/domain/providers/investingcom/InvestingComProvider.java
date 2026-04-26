@@ -1,10 +1,8 @@
 package com.tunindex.market_tool.domain.providers.investingcom;
 
-import com.tunindex.market_tool.core.config.flaresolverclient.FlareSolverClient;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
-import com.tunindex.market_tool.core.webscraping.ProxyManager;
 import com.tunindex.market_tool.core.webscraping.RateLimiterManager;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
@@ -15,6 +13,7 @@ import com.tunindex.market_tool.domain.services.parser.DataParserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -28,12 +27,11 @@ import java.util.Random;
 @Slf4j
 public class InvestingComProvider implements MarketDataProvider {
 
-    private final FlareSolverClient flareSolverClient;
     private final RateLimiterManager rateLimiterManager;
-    private final ProxyManager proxyManager;
     private final DataParserService dataParserService;
     private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
+    private final WebClient webClient;
 
     private static final int DELAY_MIN_MS = 2000;
     private static final int DELAY_MAX_MS = 5000;
@@ -59,16 +57,13 @@ public class InvestingComProvider implements MarketDataProvider {
             ));
         }
 
-        // Get rotating proxy for this request
-        String proxyUrl = getRotatingProxy();
-
-        return fetchMainPage(symbol, stockInfo, proxyUrl)
+        return fetchMainPage(symbol, stockInfo)
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchBalanceSheet(symbol, stockInfo, rawData, proxyUrl))
+                .flatMap(rawData -> fetchBalanceSheet(symbol, stockInfo, rawData))
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchIncomeStatement(symbol, stockInfo, rawData, proxyUrl))
+                .flatMap(rawData -> fetchIncomeStatement(symbol, stockInfo, rawData))
                 .delayElement(Duration.ofMillis(randomDelay()))
-                .flatMap(rawData -> fetchFinancialRatios(symbol, stockInfo, rawData, proxyUrl))
+                .flatMap(rawData -> fetchFinancialRatios(symbol, stockInfo, rawData))
                 .map(dataParserService::parseToNormalized)
                 .map(normalizer::toEntity)
                 .flatMap(enricher::enrich)
@@ -81,7 +76,7 @@ public class InvestingComProvider implements MarketDataProvider {
         log.info("Fetching all stocks from Investing.com");
 
         return Flux.fromIterable(Constants.TUNISIAN_STOCKS.entrySet())
-                .parallel()
+                .parallel(3)  // Limit parallel calls
                 .runOn(Schedulers.boundedElastic())
                 .flatMap(entry -> fetchStockData(entry.getKey())
                         .onErrorResume(error -> {
@@ -97,11 +92,11 @@ public class InvestingComProvider implements MarketDataProvider {
         return Constants.TUNISIAN_STOCKS.containsKey(symbol);
     }
 
-    private Mono<RawStockData> fetchMainPage(String symbol, Constants.StockInfo stockInfo, String proxyUrl) {
+    private Mono<RawStockData> fetchMainPage(String symbol, Constants.StockInfo stockInfo) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl();
-        log.debug("Fetching main page via FlareSolverr: {} (proxy: {})", url, proxyUrl != null ? "enabled" : "none");
+        log.debug("Fetching main page: {}", url);
 
-        return fetchWithRateLimit(url, proxyUrl)
+        return fetchWithRateLimit(url)
                 .map(html -> {
                     RawStockData rawData = new RawStockData();
                     rawData.setSymbol(symbol);
@@ -118,11 +113,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 ));
     }
 
-    private Mono<RawStockData> fetchBalanceSheet(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, String proxyUrl) {
+    private Mono<RawStockData> fetchBalanceSheet(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_BALANCE_SHEET;
-        log.debug("Fetching balance sheet via FlareSolverr: {}", url);
+        log.debug("Fetching balance sheet: {}", url);
 
-        return fetchWithRateLimit(url, proxyUrl)
+        return fetchWithRateLimit(url)
                 .map(html -> {
                     rawData.setBalanceSheetHtml(html);
                     return rawData;
@@ -133,11 +128,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<RawStockData> fetchIncomeStatement(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, String proxyUrl) {
+    private Mono<RawStockData> fetchIncomeStatement(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_INCOME_STATEMENT;
-        log.debug("Fetching income statement via FlareSolverr: {}", url);
+        log.debug("Fetching income statement: {}", url);
 
-        return fetchWithRateLimit(url, proxyUrl)
+        return fetchWithRateLimit(url)
                 .map(html -> {
                     rawData.setIncomeStatementHtml(html);
                     return rawData;
@@ -148,11 +143,11 @@ public class InvestingComProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<RawStockData> fetchFinancialRatios(String symbol, Constants.StockInfo stockInfo, RawStockData rawData, String proxyUrl) {
+    private Mono<RawStockData> fetchFinancialRatios(String symbol, Constants.StockInfo stockInfo, RawStockData rawData) {
         String url = Constants.INVESTINGCOM_BASE_URL + stockInfo.getUrl() + Constants.INVESTINGCOM_FINANCIAL_SUMMARY;
-        log.debug("Fetching financial summary via FlareSolverr: {}", url);
+        log.debug("Fetching financial summary: {}", url);
 
-        return fetchWithRateLimit(url, proxyUrl)
+        return fetchWithRateLimit(url)
                 .map(html -> {
                     rawData.setFinancialSummaryHtml(html);
                     return rawData;
@@ -164,29 +159,37 @@ public class InvestingComProvider implements MarketDataProvider {
     }
 
     /**
-     * Fetch URL with rate limiting
+     * Fetch URL with rate limiting and proper headers
      */
-    private Mono<String> fetchWithRateLimit(String url, String proxyUrl) {
+    private Mono<String> fetchWithRateLimit(String url) {
         return rateLimiterManager.waitForSlot()
-                .then(flareSolverClient.fetch(url, proxyUrl))
+                .then(fetchDirect(url))
                 .doOnNext(html -> {
                     if (html == null || html.isEmpty()) {
                         log.warn("Empty response for URL: {}", url);
+                    } else if (html.contains("__NEXT_DATA__")) {
+                        log.debug("Successfully fetched full page for {}", url);
+                    } else {
+                        log.warn("Fetched simplified page (missing __NEXT_DATA__) for {}", url);
                     }
                 });
     }
 
     /**
-     * Get rotating proxy for each request
-     * This prevents IP blocking by using different proxies
+     * Direct WebClient fetch with realistic browser headers
      */
-    private String getRotatingProxy() {
-        if (Constants.USE_PROXY && proxyManager.hasProxies()) {
-            String proxy = proxyManager.getProxyUrl();
-            log.debug("Using rotating proxy for request");
-            return proxy;
-        }
-        return null;
+    private Mono<String> fetchDirect(String url) {
+        return webClient.get()
+                .uri(url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36")
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("Accept-Encoding", "gzip, deflate, br")
+                .header("Connection", "keep-alive")
+                .header("Upgrade-Insecure-Requests", "1")
+                .retrieve()
+                .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(30));
     }
 
     private long randomDelay() {

@@ -7,10 +7,7 @@ import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
 import com.tunindex.market_tool.domain.providers.investingcom.InvestingComProvider;
 import com.tunindex.market_tool.domain.repository.jpa.StockRepository;
 import com.tunindex.market_tool.domain.services.async.AsyncFetchService;
-import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
-import com.tunindex.market_tool.domain.services.normalizer.DataNormalizerService;
 import com.tunindex.market_tool.domain.services.orchestrator.DataOrchestrator;
-import com.tunindex.market_tool.domain.services.parser.DataParserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -30,9 +27,6 @@ public class DataOrchestratorImpl implements DataOrchestrator {
     private final InvestingComProvider investingComProvider;
     private final StockRepository stockRepository;
     private final AsyncFetchService asyncFetchService;
-    private final DataParserService dataParserService;
-    private final DataNormalizerService normalizer;
-    private final DataEnricherService enricher;
 
     @Override
     public Mono<Void> runPipeline() {

@@ -23,12 +23,15 @@ public class ChromeDriverService {
 
     @PostConstruct
     public void init() {
-        log.info("🚀 Initializing ChromeDriver for Chrome 147...");
+        log.info("🚀 Initializing ChromeDriver in HEADLESS mode...");
 
-        // Setup ChromeDriver - let WebDriverManager handle it
         WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
+
+        // ========== HEADLESS MODE (No visible browser window) ==========
+        options.addArguments("--headless=new");  // New headless mode (Chrome 109+)
+        options.addArguments("--window-size=1920,1080");
 
         // ========== CRITICAL FOR CHROME 147 ==========
         options.addArguments("--remote-allow-origins=*");
@@ -47,8 +50,7 @@ public class ChromeDriverService {
         // Standard options
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--disable-gpu");  // Still needed for some systems
 
         // User agent for Chrome 147
         options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36");
@@ -59,7 +61,7 @@ public class ChromeDriverService {
         prefs.put("profile.password_manager_enabled", false);
         options.setExperimentalOption("prefs", prefs);
 
-        // Create driver with longer timeout
+        // Create driver
         driver = new ChromeDriver(options);
 
         // Set timeouts
@@ -69,7 +71,7 @@ public class ChromeDriverService {
         // Execute stealth JavaScript
         executeStealthJavaScript();
 
-        log.info("✅ ChromeDriver initialized successfully for Chrome 147");
+        log.info("✅ ChromeDriver initialized successfully in HEADLESS mode");
     }
 
     private void executeStealthJavaScript() {

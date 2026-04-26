@@ -21,12 +21,9 @@ import java.util.function.Consumer;
 @Slf4j
 public class DataFetcherServiceImpl implements DataFetcherService {
 
-    // Remove ChromeDriverService injection - we'll create drivers manually
-    // private final ChromeDriverService chromeDriverService;
-
     private final Random random = new Random();
-    private static final int DELAY_MIN_MS = 2000;
-    private static final int DELAY_MAX_MS = 5000;
+    private static final int DELAY_MIN_MS = 3000;  // Increased from 2000
+    private static final int DELAY_MAX_MS = 8000;  // Increased from 5000
 
     @Override
     public Mono<RawStockData> fetchStockData(String symbol) {
@@ -92,10 +89,15 @@ public class DataFetcherServiceImpl implements DataFetcherService {
                     }
 
                     boolean hasNextData = html.contains("__NEXT_DATA__");
-                    log.debug("Fetched {} page (length: {}, has __NEXT_DATA__: {})", pageType, html.length(), hasNextData);
+                    if (hasNextData) {
+                        log.info("✅ Successfully fetched {} page with __NEXT_DATA__ for {}", pageType, symbol);
+                    } else {
+                        log.warn("⚠️ Fetched {} page without __NEXT_DATA__ for {}", pageType, symbol);
+                    }
+
                     return html;
                 })
-                .timeout(Duration.ofSeconds(45))
+                .timeout(Duration.ofSeconds(90))  // Increased from 45 to 90 seconds
                 .onErrorResume(e -> {
                     log.error("Failed to fetch {} page for {}: {}", pageType, symbol, e.getMessage());
                     return Mono.just("");
@@ -104,7 +106,6 @@ public class DataFetcherServiceImpl implements DataFetcherService {
 
     @Override
     public Mono<String> fetchUrl(String url, boolean useProxy) {
-        // This method is kept for compatibility but not recommended for use
         return Mono.fromCallable(() -> {
                     ChromeDriverService driverService = new ChromeDriverService();
                     driverService.init();
@@ -114,6 +115,7 @@ public class DataFetcherServiceImpl implements DataFetcherService {
                         driverService.cleanup();
                     }
                 })
+                .timeout(Duration.ofSeconds(120))
                 .onErrorResume(e -> {
                     log.error("Failed to fetch URL: {}", e.getMessage());
                     return Mono.empty();
@@ -122,7 +124,6 @@ public class DataFetcherServiceImpl implements DataFetcherService {
 
     @Override
     public Mono<String> fetchUrlWithRetry(String url, boolean useProxy, int retries, long backoffMs) {
-        // Simple implementation without retry
         return fetchUrl(url, useProxy);
     }
 

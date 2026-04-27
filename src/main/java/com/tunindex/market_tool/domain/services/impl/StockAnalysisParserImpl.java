@@ -15,6 +15,8 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -51,24 +53,24 @@ public class StockAnalysisParserImpl implements DataParserService {
             // Extract ALL fields
             extractBasicInfo(doc, normalizedData);
             extractMarketCap(doc, normalizedData);
-            extractPriceData(doc, normalizedData);      // ← THIS NEEDS TO BE FIXED
+            extractPriceData(doc, normalizedData);
             extractVolumeData(doc, normalizedData);
             extractRevenueAndEarnings(doc, normalizedData);
-            extractRatios(doc, normalizedData);        // ← ADDED PB RATIO
+            extractRatios(doc, normalizedData);
             extractDividends(doc, normalizedData);
             extract52WeekRange(doc, normalizedData);
             extractTechnicalData(doc, normalizedData);
             extractExchangeInfo(doc, normalizedData);
-            extractDebtToEquity(doc, normalizedData);   // ← NEW
-            extractProfitMargin(doc, normalizedData);   // ← NEW
-            extractBookValuePerShare(doc, normalizedData); // ← NEW
+            extractDebtToEquity(doc, normalizedData);
+            extractProfitMargin(doc, normalizedData);
+            extractBookValuePerShare(doc, normalizedData);
         }
 
         // Post-process calculations
         calculateDerivedFields(normalizedData);
 
         // Log extracted data for debugging
-        log.info("📝 Parsed data for {}: price={}, change={}, changePct={}, open={}, prevClose={}, dayHigh={}, dayLow={}, volume={}",
+        log.info("📝 Parsed data for {}: price={}, change={}, changePct={}, open={}, prevClose={}, dayHigh={}, dayLow={}, volume={}, 52WeekLow={}, 52WeekHigh={}",
                 normalizedData.getSymbol(),
                 normalizedData.getLastPrice(),
                 normalizedData.getChange(),
@@ -77,7 +79,9 @@ public class StockAnalysisParserImpl implements DataParserService {
                 normalizedData.getPrevClose(),
                 normalizedData.getDayHigh(),
                 normalizedData.getDayLow(),
-                normalizedData.getVolume());
+                normalizedData.getVolume(),
+                normalizedData.getWeek52Low(),
+                normalizedData.getWeek52High());
 
         return normalizedData;
     }
@@ -163,7 +167,7 @@ public class StockAnalysisParserImpl implements DataParserService {
     }
 
     /**
-     * FIXED: Extract ALL price data including price, change, open, close, high, low
+     * Extract ALL price data including price, change, open, close, high, low
      */
     private void extractPriceData(Document doc, NormalizedStockData normalizedData) {
         // Current price - from .price class
@@ -180,16 +184,16 @@ public class StockAnalysisParserImpl implements DataParserService {
             String value = cleanLabel(changeElem.text(), "Change %");
             if (value != null && !value.isEmpty()) {
                 // Extract percentage from "(0.70%)"
-                java.util.regex.Pattern percentPattern = java.util.regex.Pattern.compile("\\(([0-9.]+)%\\)");
-                java.util.regex.Matcher percentMatcher = percentPattern.matcher(value);
+                Pattern percentPattern = Pattern.compile("\\(([0-9.]+)%\\)");
+                Matcher percentMatcher = percentPattern.matcher(value);
                 if (percentMatcher.find()) {
                     setBigDecimal(percentMatcher.group(1), normalizedData::setChangePct);
                     log.info("📈 Extracted change percent: {}%", percentMatcher.group(1));
                 }
 
                 // Extract absolute change from "+1.01"
-                java.util.regex.Pattern amountPattern = java.util.regex.Pattern.compile("([+-][0-9.]+)\\s*\\(");
-                java.util.regex.Matcher amountMatcher = amountPattern.matcher(value);
+                Pattern amountPattern = Pattern.compile("([+-][0-9.]+)\\s*\\(");
+                Matcher amountMatcher = amountPattern.matcher(value);
                 if (amountMatcher.find()) {
                     setBigDecimal(amountMatcher.group(1), normalizedData::setChange);
                     log.info("📈 Extracted change amount: {}", amountMatcher.group(1));
@@ -370,7 +374,7 @@ public class StockAnalysisParserImpl implements DataParserService {
     }
 
     /**
-     * NEW: Extract Debt/Equity ratio
+     * Extract Debt/Equity ratio
      */
     private void extractDebtToEquity(Document doc, NormalizedStockData normalizedData) {
         Element debtEquityElem = doc.selectFirst(".debt-equity");
@@ -382,7 +386,7 @@ public class StockAnalysisParserImpl implements DataParserService {
     }
 
     /**
-     * NEW: Extract Profit Margin
+     * Extract Profit Margin
      */
     private void extractProfitMargin(Document doc, NormalizedStockData normalizedData) {
         Element profitMarginElem = doc.selectFirst(".profit-margin");
@@ -397,7 +401,7 @@ public class StockAnalysisParserImpl implements DataParserService {
     }
 
     /**
-     * NEW: Extract Book Value Per Share
+     * Extract Book Value Per Share
      */
     private void extractBookValuePerShare(Document doc, NormalizedStockData normalizedData) {
         Element bvpsElem = doc.selectFirst(".book-value-per-share");

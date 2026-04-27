@@ -60,11 +60,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
 
         String overviewUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/";
         String ratiosUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/financials/ratios/";
+        String statisticsUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/statistics/";
 
         return Mono.zip(
                         fetchPage(overviewUrl),
-                        fetchPage(ratiosUrl)
-                ).flatMap(tuple -> extractStockDataFromPages(tuple.getT1(), tuple.getT2(), symbol, stockInfo))
+                        fetchPage(ratiosUrl),
+                        fetchPage(statisticsUrl)
+                ).flatMap(tuple -> extractStockDataFromPages(tuple.getT1(), tuple.getT2(), tuple.getT3(), symbol, stockInfo))
                 .filter(rawData -> rawData.getMainPageHtml() != null && !rawData.getMainPageHtml().isEmpty())
                 .switchIfEmpty(Mono.defer(() -> {
                     log.warn("⚠️ No data found for symbol: {}, skipping", symbol);
@@ -114,7 +116,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 });
     }
 
-    private Mono<RawStockData> extractStockDataFromPages(String overviewHtml, String ratiosHtml,
+    private Mono<RawStockData> extractStockDataFromPages(String overviewHtml, String ratiosHtml, String statisticsHtml,
                                                          String symbol, Constants.StockInfo stockInfo) {
         RawStockData rawData = new RawStockData();
         rawData.setSymbol(symbol);
@@ -130,14 +132,12 @@ public class StockAnalysisProvider implements MarketDataProvider {
         // Extract price data
         extractPriceData(overviewHtml, metrics);
 
-        // Extract Debt/Equity from ratios page - FIXED to get the VALUE cell
+        // Extract Debt/Equity from ratios page
         extractDebtEquityFromRatiosTable(ratiosHtml, metrics);
 
-        // Extract Profit Margin from ratios table
-        extractProfitMarginFromRatiosTable(ratiosHtml, metrics);
-
-        // Extract Book Value Per Share
-        extractBookValue(overviewHtml, metrics);
+        // Extract Profit Margin and Book Value from statistics page
+        extractProfitMarginFromStatisticsPage(statisticsHtml, metrics);
+        extractBookValueFromStatisticsPage(statisticsHtml, metrics);
 
         // Post-processing
         if (metrics.containsKey("l52") && metrics.containsKey("h52")) {
@@ -211,23 +211,16 @@ public class StockAnalysisProvider implements MarketDataProvider {
         }
     }
 
-    /**
-     * Extract Debt/Equity - gets the VALUE from the data cell (not the label)
-     */
     private void extractDebtEquityFromRatiosTable(String html, Map<String, String> metrics) {
         log.info("🔍 Looking for Debt/Equity in ratios table...");
 
         Document doc = Jsoup.parse(html);
 
-        // Find the row containing "Debt / Equity Ratio"
         Elements rows = doc.select("tr");
         for (Element row : rows) {
-            // Check if this row contains the label in any cell
             if (row.text().contains("Debt / Equity Ratio")) {
-                // Get all data cells (td elements) in this row
                 Elements dataCells = row.select("td");
                 if (dataCells.size() >= 2) {
-                    // The FIRST cell is the label, the SECOND cell is the current/TTM value
                     String value = dataCells.get(1).text().trim();
                     if (!value.isEmpty() && !value.equals("n/a") && !value.equals("Debt / Equity Ratio")) {
                         metrics.put("debtToEquity", value);
@@ -239,7 +232,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
             }
         }
 
-        // Fallback: search in JSON
         Pattern pattern = Pattern.compile("\"debtequity\":\\[([0-9.\\-,\\s]+)\\]");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
@@ -257,13 +249,15 @@ public class StockAnalysisProvider implements MarketDataProvider {
     }
 
     /**
-     * Extract Profit Margin - gets the VALUE from the data cell
+     * Extract Profit Margin from statistics page
+     * Looking for the row with "Profit Margin" in the Margins table
      */
-    private void extractProfitMarginFromRatiosTable(String html, Map<String, String> metrics) {
-        log.info("🔍 Looking for Profit Margin in ratios table...");
+    private void extractProfitMarginFromStatisticsPage(String html, Map<String, String> metrics) {
+        log.info("🔍 Looking for Profit Margin in statistics page...");
 
         Document doc = Jsoup.parse(html);
 
+        // Find the section with Margins table
         Elements rows = doc.select("tr");
         for (Element row : rows) {
             if (row.text().contains("Profit Margin")) {
@@ -271,6 +265,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 if (dataCells.size() >= 2) {
                     String value = dataCells.get(1).text().trim();
                     if (!value.isEmpty() && !value.equals("n/a")) {
+                        // Remove % sign
                         value = value.replace("%", "");
                         metrics.put("profitMargin", value);
                         log.info("📊 profitMargin: {}%", value);
@@ -281,6 +276,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
             }
         }
 
+        // Fallback: search in JSON
         Pattern pattern = Pattern.compile("\"profitMargin\":\"([0-9.]+)%\"");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
@@ -290,17 +286,46 @@ public class StockAnalysisProvider implements MarketDataProvider {
             return;
         }
 
-        log.warn("⚠️ profitMargin not found in ratios page");
+        log.warn("⚠️ profitMargin not found in statistics page");
     }
 
-    private void extractBookValue(String html, Map<String, String> metrics) {
+    /**
+     * Extract Book Value Per Share from statistics page
+     * Looking for the row with "Book Value Per Share" in Balance Sheet section
+     */
+    private void extractBookValueFromStatisticsPage(String html, Map<String, String> metrics) {
+        log.info("🔍 Looking for Book Value Per Share in statistics page...");
+
+        Document doc = Jsoup.parse(html);
+
+        // Find the row with "Book Value Per Share"
+        Elements rows = doc.select("tr");
+        for (Element row : rows) {
+            if (row.text().contains("Book Value Per Share")) {
+                Elements dataCells = row.select("td");
+                if (dataCells.size() >= 2) {
+                    String value = dataCells.get(1).text().trim();
+                    if (!value.isEmpty() && !value.equals("n/a")) {
+                        metrics.put("bookValuePerShare", value);
+                        log.info("📊 bookValuePerShare: {}", value);
+                        return;
+                    }
+                }
+                break;
+            }
+        }
+
+        // Fallback: search in JSON
         Pattern pattern = Pattern.compile("\"bvps\":\"([0-9.]+)\"");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
             String value = matcher.group(1);
             metrics.put("bookValuePerShare", value);
-            log.info("📊 bookValuePerShare: {}", value);
+            log.info("📊 bookValuePerShare (from JSON): {}", value);
+            return;
         }
+
+        log.warn("⚠️ bookValuePerShare not found in statistics page");
     }
 
     private void extractQuoted(String html, String fieldName, Map<String, String> metrics) {

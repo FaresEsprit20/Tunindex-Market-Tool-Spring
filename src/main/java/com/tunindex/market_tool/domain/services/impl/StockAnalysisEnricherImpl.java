@@ -4,10 +4,8 @@ import com.tunindex.market_tool.core.exception.EnrichmentException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.domain.entities.Stock;
-import com.tunindex.market_tool.domain.entities.embedded.CalculatedValues;
 import com.tunindex.market_tool.domain.services.calculator.GrahamCalculator;
-import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
-import lombok.RequiredArgsConstructor;
+import com.tunindex.market_tool.domain.services.enricher.BaseDataEnricher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -16,41 +14,46 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collections;
 
-@Service
-@RequiredArgsConstructor
+@Service("stockAnalysisEnricher")
 @Slf4j
-public class DataEnricherServiceImpl implements DataEnricherService {
+public class StockAnalysisEnricherImpl extends BaseDataEnricher {
 
-    private final GrahamCalculator grahamCalculator;
+    public StockAnalysisEnricherImpl(GrahamCalculator grahamCalculator) {
+        super(grahamCalculator);
+    }
 
     @Override
     public Mono<EnrichedStockData> enrich(Stock stock) {
         return Mono.fromCallable(() -> {
             try {
-                log.debug("Enriching stock: {}", stock.getSymbol());
+                log.debug("Enriching StockAnalysis data for: {}", stock.getSymbol());
 
-                // Get EPS
+                // Get EPS from FundamentalData (StockAnalysis provides this directly)
                 BigDecimal eps = null;
                 if (stock.getFundamentalData() != null) {
                     eps = stock.getFundamentalData().getEps();
                 }
 
-                // Get or calculate BVPS
+                // Fallback: Calculate EPS from PE ratio and price
+                if (eps == null && stock.getRatiosData() != null && stock.getPriceData() != null) {
+                    BigDecimal peRatio = stock.getFundamentalData().getPeRatio();
+                    BigDecimal price = stock.getPriceData().getLastPrice();
+                    if (peRatio != null && price != null && peRatio.compareTo(BigDecimal.ZERO) > 0) {
+                        eps = price.divide(peRatio, 4, RoundingMode.HALF_UP);
+                        log.debug("Calculated EPS from PE ratio for {}: {}", stock.getSymbol(), eps);
+                    }
+                }
+
+                // Get BVPS - StockAnalysis provides this directly in calculated values
                 BigDecimal bvps = null;
                 if (stock.getCalculatedValues() != null) {
                     bvps = stock.getCalculatedValues().getBookValuePerShare();
                 }
 
-                // Calculate BVPS if missing (matches Python logic)
+                // Fallback: Calculate BVPS if missing
                 if (bvps == null) {
                     bvps = calculateBvps(stock);
-                    if (bvps != null) {
-                        if (stock.getCalculatedValues() == null) {
-                            stock.setCalculatedValues(new CalculatedValues());
-                        }
-                        stock.getCalculatedValues().setBookValuePerShare(bvps);
-                        log.debug("Calculated BVPS for {}: {}", stock.getSymbol(), bvps);
-                    }
+                    log.debug("Calculated BVPS for {}: {}", stock.getSymbol(), bvps);
                 }
 
                 // Get current price
@@ -68,17 +71,14 @@ public class DataEnricherServiceImpl implements DataEnricherService {
                     marginOfSafety = grahamCalculator.calculateMarginOfSafety(price, fairValue);
                 }
 
-                // Set calculated values
-                CalculatedValues calculatedValues = stock.getCalculatedValues();
-                if (calculatedValues == null) {
-                    calculatedValues = new CalculatedValues();
-                    stock.setCalculatedValues(calculatedValues);
-                }
-                calculatedValues.setGrahamFairValue(fairValue);
-                calculatedValues.setMarginOfSafety(marginOfSafety);
+                // Set all calculated values
+                setCalculatedValues(stock, fairValue, marginOfSafety, bvps);
 
-                log.info("Successfully enriched stock: {} (Fair Value: {}, Margin: {}%)",
-                        stock.getSymbol(), fairValue, marginOfSafety);
+                // Calculate 52-week position
+                set52WeekPosition(stock);
+
+                log.info("Successfully enriched StockAnalysis stock: {} (Fair Value: {}, Margin: {}%, BVPS: {})",
+                        stock.getSymbol(), fairValue, marginOfSafety, bvps);
 
                 return new EnrichedStockData(stock);
 
@@ -93,27 +93,5 @@ public class DataEnricherServiceImpl implements DataEnricherService {
                 );
             }
         });
-    }
-
-    @Override
-    public BigDecimal calculateBvps(Stock stock) {
-        BigDecimal totalEquity = null;
-        Long sharesOutstanding = null;
-
-        // Get shares outstanding
-        if (stock.getFundamentalData() != null) {
-            sharesOutstanding = stock.getFundamentalData().getSharesOutstanding();
-        }
-
-        // TODO: Get total equity from balance sheet data
-        // This would come from the balance sheet HTML parsing
-        // For now, return null (BVPS will be calculated from other methods)
-
-        if (totalEquity != null && sharesOutstanding != null && sharesOutstanding > 0) {
-            BigDecimal sharesBD = BigDecimal.valueOf(sharesOutstanding);
-            return totalEquity.divide(sharesBD, 2, RoundingMode.HALF_UP);
-        }
-
-        return null;
     }
 }

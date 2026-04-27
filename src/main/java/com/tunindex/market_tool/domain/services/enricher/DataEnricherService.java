@@ -7,16 +7,6 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 
 public interface DataEnricherService {
-
-    /**
-     * Enrich stock data with calculated values (BVPS, Fair Value, Margin of Safety)
-     * Maps to Python: services/enricher.py - enrich(stock)
-     */
     Mono<EnrichedStockData> enrich(Stock stock);
-
-    /**
-     * Calculate Book Value Per Share from Total Equity and Shares Outstanding
-     */
     BigDecimal calculateBvps(Stock stock);
-
 }

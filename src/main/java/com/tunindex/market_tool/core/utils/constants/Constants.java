@@ -56,12 +56,7 @@ public interface Constants {
     // ========================
     // PROVIDER CONSTANTS
     // ========================
-    String ACTIVE_PROVIDER = "stockanalysis";
 
-    String PROVIDER_INVESTINGCOM = "investingcom";
-    String PROVIDER_ILBOURSA = "ilboursa";
-    String PROVIDER_BVMT = "bvmt";
-    String PROVIDER_TUNISIE_VALEURS = "tunisie_valeurs";
     String PROVIDER_STOCKANALYSIS = "stockanalysis";
 
     String INVESTINGCOM_BASE_URL = "https://www.investing.com";

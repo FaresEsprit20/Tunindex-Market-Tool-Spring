@@ -18,6 +18,7 @@ public class NormalizedStockData {
     private String sector;
     private String industry;
     private OwnershipType ownershipType;
+    private String country;  // NEW - Country of the stock
 
     // Price Data
     private BigDecimal lastPrice;
@@ -56,6 +57,11 @@ public class NormalizedStockData {
     private BigDecimal priceToBook;
     private BigDecimal debtToEquity;
     private BigDecimal profitMargin;
+    private BigDecimal priceToSales;      // NEW - P/S Ratio
+    private BigDecimal payoutRatio;       // NEW - Dividend Payout Ratio
+    private BigDecimal returnOnEquity;   // NEW - ROE
+    private BigDecimal returnOnAssets;   // NEW - ROA
+    private BigDecimal operatingMargin;  // NEW - Operating Margin
 
     // Technical Data
     private BigDecimal beta;

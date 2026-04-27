@@ -19,6 +19,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -59,7 +60,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
         String ratiosUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/financials/ratios/";
         String statisticsUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/statistics/";
 
-        // Fetch overview, ratios, and statistics pages
         return Mono.zip(
                         fetchPage(overviewUrl),
                         fetchPage(ratiosUrl),
@@ -70,12 +70,10 @@ public class StockAnalysisProvider implements MarketDataProvider {
                     String ratiosHtml = tuple.getT2();
                     String statisticsHtml = tuple.getT3();
 
-                    // Extract data from all pages
                     Map<String, Object> overviewData = extractAllStockDataFromJson(overviewHtml, symbol);
                     Map<String, Object> ratiosData = extractRatiosDataFromJson(ratiosHtml, symbol);
                     Map<String, Object> statisticsData = extractStatisticsDataFromJson(statisticsHtml, symbol);
 
-                    // Merge data (later sources take precedence)
                     Map<String, Object> mergedData = new HashMap<>();
                     mergedData.putAll(overviewData);
                     mergedData.putAll(ratiosData);
@@ -133,7 +131,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
         rawData.setSymbol(symbol);
         rawData.setStockInfo(stockInfo);
 
-        // Build comprehensive HTML with ALL extracted data
         String combinedHtml = buildComprehensiveHtml(symbol, stockInfo, data);
 
         rawData.setMainPageHtml(combinedHtml);
@@ -193,10 +190,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
         return data;
     }
 
-    /**
-     * Extract ratio data from the financial ratios page
-     * Always takes the latest data (Current/TTM column or most recent fiscal year)
-     */
     private Map<String, Object> extractRatiosDataFromJson(String html, String targetSymbol) {
         Map<String, Object> data = new HashMap<>();
 
@@ -216,11 +209,16 @@ public class StockAnalysisProvider implements MarketDataProvider {
                         latestColumnIndex = 0;
                     }
 
-                    // Extract only the metrics we need from ratios page
                     extractRatioMetric(financialData, "pe", latestColumnIndex, data);
                     extractRatioMetric(financialData, "pb", latestColumnIndex, data);
                     extractRatioMetric(financialData, "dividendyield", latestColumnIndex, data);
                     extractRatioMetric(financialData, "debtequity", latestColumnIndex, data);
+                    extractRatioMetric(financialData, "ps", latestColumnIndex, data);
+                    extractRatioMetric(financialData, "payoutratio", latestColumnIndex, data);
+                    extractRatioMetric(financialData, "roe", latestColumnIndex, data);
+                    extractRatioMetric(financialData, "roa", latestColumnIndex, data);
+                    extractRatioMetric(financialData, "marketcap", latestColumnIndex, data);
+                    extractRatioMetric(financialData, "lastCloseRatios", latestColumnIndex, data);
                 }
             }
         } catch (Exception e) {
@@ -230,15 +228,10 @@ public class StockAnalysisProvider implements MarketDataProvider {
         return data;
     }
 
-    /**
-     * Extract statistics data from the statistics page
-     * Extracts Profit Margin and Book Value Per Share (BVPS) from the latest data
-     */
     private Map<String, Object> extractStatisticsDataFromJson(String html, String targetSymbol) {
         Map<String, Object> data = new HashMap<>();
 
         try {
-            // Look for profitMargin in the margins section
             Pattern profitMarginPattern = Pattern.compile("\"profitMargin\":\\s*\\{[^}]*\"value\":\\s*\"([^\"]+)\"", Pattern.DOTALL);
             Matcher profitMarginMatcher = profitMarginPattern.matcher(html);
             if (profitMarginMatcher.find()) {
@@ -251,7 +244,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 }
             }
 
-            // Look for Book Value Per Share in the balance sheet section
             Pattern bvpsPattern = Pattern.compile("\"bvps\":\\s*\\{[^}]*\"value\":\\s*\"([^\"]+)\"", Pattern.DOTALL);
             Matcher bvpsMatcher = bvpsPattern.matcher(html);
             if (bvpsMatcher.find()) {
@@ -263,34 +255,35 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 }
             }
 
-            // Alternative: Look for the structured data in the statistics page
-            // The page contains a data object with all statistics
-            Pattern statisticsPattern = Pattern.compile("\"margins\":\\s*\\{[^}]*\"data\":\\s*\\[([^\\]]+)\\]", Pattern.DOTALL);
-            Matcher statisticsMatcher = statisticsPattern.matcher(html);
-
-            // Also try to find profitMargin from the text content as fallback
-            if (!data.containsKey("profitMargin")) {
-                Pattern profitMarginTextPattern = Pattern.compile("Profit Margin</div>\\s*<div[^>]*>\\s*([0-9.]+)%", Pattern.DOTALL);
-                Matcher textMatcher = profitMarginTextPattern.matcher(html);
-                if (textMatcher.find()) {
-                    try {
-                        data.put("profitMargin", Double.parseDouble(textMatcher.group(1)));
-                    } catch (NumberFormatException e) {
-                        log.debug("Failed to parse profitMargin from text: {}", textMatcher.group(1));
-                    }
+            Pattern epsPattern = Pattern.compile("\"eps\":\\s*\\{[^}]*\"value\":\\s*\"([^\"]+)\"", Pattern.DOTALL);
+            Matcher epsMatcher = epsPattern.matcher(html);
+            if (epsMatcher.find()) {
+                String epsStr = epsMatcher.group(1);
+                try {
+                    data.put("eps", Double.parseDouble(epsStr));
+                } catch (NumberFormatException e) {
+                    log.debug("Failed to parse EPS: {}", epsStr);
                 }
             }
 
-            // Also try to find Book Value Per Share from text content as fallback
-            if (!data.containsKey("bookValuePerShare")) {
-                Pattern bvpsTextPattern = Pattern.compile("Book Value Per Share</div>\\s*<div[^>]*>\\s*([0-9.]+)", Pattern.DOTALL);
-                Matcher textMatcher = bvpsTextPattern.matcher(html);
-                if (textMatcher.find()) {
-                    try {
-                        data.put("bookValuePerShare", Double.parseDouble(textMatcher.group(1)));
-                    } catch (NumberFormatException e) {
-                        log.debug("Failed to parse bookValuePerShare from text: {}", textMatcher.group(1));
-                    }
+            Pattern betaPattern = Pattern.compile("\"beta\":\\s*\\{[^}]*\"value\":\\s*\"([^\"]+)\"", Pattern.DOTALL);
+            Matcher betaMatcher = betaPattern.matcher(html);
+            if (betaMatcher.find()) {
+                try {
+                    data.put("beta", Double.parseDouble(betaMatcher.group(1)));
+                } catch (NumberFormatException e) {
+                    log.debug("Failed to parse beta");
+                }
+            }
+
+            // Extract 52-week price change
+            Pattern week52ChangePattern = Pattern.compile("\"ch1y\":\\s*([0-9.]+)", Pattern.DOTALL);
+            Matcher week52Matcher = week52ChangePattern.matcher(html);
+            if (week52Matcher.find()) {
+                try {
+                    data.put("oneYearReturn", Double.parseDouble(week52Matcher.group(1)));
+                } catch (NumberFormatException e) {
+                    log.debug("Failed to parse 52-week change: {}", week52Matcher.group(1));
                 }
             }
 
@@ -327,12 +320,33 @@ public class StockAnalysisProvider implements MarketDataProvider {
     }
 
     private String buildComprehensiveHtml(String symbol, Constants.StockInfo stockInfo, Map<String, Object> data) {
+        BigDecimal currentPrice = data.containsKey("price") ? BigDecimal.valueOf((Double) data.get("price")) : null;
+        BigDecimal week52High = data.containsKey("week52High") ? BigDecimal.valueOf((Double) data.get("week52High")) : null;
+        BigDecimal week52Low = data.containsKey("week52Low") ? BigDecimal.valueOf((Double) data.get("week52Low")) : null;
+
+        // Calculate 52-week percentages
+        BigDecimal highPercentage = null;
+        BigDecimal lowPercentage = null;
+        BigDecimal distanceFromHigh = null;
+        BigDecimal distanceFromLow = null;
+
+        if (currentPrice != null && week52High != null && week52High.compareTo(BigDecimal.ZERO) > 0) {
+            highPercentage = currentPrice.divide(week52High, 4, java.math.RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+            distanceFromHigh = week52High.subtract(currentPrice);
+        }
+
+        if (currentPrice != null && week52Low != null && week52Low.compareTo(BigDecimal.ZERO) > 0) {
+            lowPercentage = currentPrice.divide(week52Low, 4, java.math.RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+            distanceFromLow = currentPrice.subtract(week52Low);
+        }
+
         StringBuilder html = new StringBuilder();
         html.append("<div class='stock-analysis-data'>\n");
         html.append("  <div class='symbol'>").append(symbol).append("</div>\n");
         html.append("  <div class='company-name'>").append(stockInfo.name()).append("</div>\n");
 
-        // Add Industry and Country from stockInfo record
         if (stockInfo.industry() != null && !stockInfo.industry().isEmpty()) {
             html.append("  <div class='industry'>Industry: ").append(stockInfo.industry()).append("</div>\n");
         }
@@ -350,7 +364,46 @@ public class StockAnalysisProvider implements MarketDataProvider {
         if (data.containsKey("price")) html.append("    <div class='price'>Price: ").append(data.get("price")).append("</div>\n");
         if (data.containsKey("change")) html.append("    <div class='change'>Change: ").append(data.get("change")).append("%</div>\n");
         if (data.containsKey("revenue")) html.append("    <div class='revenue'>Revenue: ").append(formatNumber((Double) data.get("revenue"))).append("</div>\n");
-        if (data.containsKey("lastCloseRatios")) html.append("    <div class='last-close'>Last Close: ").append(data.get("lastCloseRatios")).append("</div>\n");
+        if (data.containsKey("eps")) html.append("    <div class='eps'>EPS: ").append(data.get("eps")).append("</div>\n");
+        if (data.containsKey("oneYearReturn")) html.append("    <div class='one-year-return'>52-Week Return: ").append(data.get("oneYearReturn")).append("%</div>\n");
+        html.append("  </div>\n");
+
+        // ============ 52-WEEK PRICE SECTION ============
+        html.append("  <div class='section week52'>\n");
+        html.append("    <h3>52-Week Price Range</h3>\n");
+
+        if (week52High != null) {
+            html.append("    <div class='week52-high'>52-Week High: ").append(week52High).append("</div>\n");
+            if (highPercentage != null) {
+                html.append("    <div class='week52-high-percentage'>Current vs High: ").append(String.format("%.2f", highPercentage)).append("%</div>\n");
+            }
+            if (distanceFromHigh != null) {
+                html.append("    <div class='distance-from-high'>Distance from High: ").append(String.format("%.2f", distanceFromHigh)).append("</div>\n");
+            }
+        }
+
+        if (week52Low != null) {
+            html.append("    <div class='week52-low'>52-Week Low: ").append(week52Low).append("</div>\n");
+            if (lowPercentage != null) {
+                html.append("    <div class='week52-low-percentage'>Current vs Low: ").append(String.format("%.2f", lowPercentage)).append("%</div>\n");
+            }
+            if (distanceFromLow != null) {
+                html.append("    <div class='distance-from-low'>Distance from Low: ").append(String.format("%.2f", distanceFromLow)).append("</div>\n");
+            }
+        }
+
+        if (week52Low != null && week52High != null) {
+            BigDecimal range = week52High.subtract(week52Low);
+            html.append("    <div class='week52-range'>52-Week Range: ").append(week52Low).append(" - ").append(week52High).append("</div>\n");
+            html.append("    <div class='week52-range-width'>Range Width: ").append(String.format("%.2f", range)).append("</div>\n");
+
+            if (currentPrice != null && range.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal positionInRange = currentPrice.subtract(week52Low)
+                        .divide(range, 4, java.math.RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100));
+                html.append("    <div class='position-in-range'>Position in Range: ").append(String.format("%.2f", positionInRange)).append("%</div>\n");
+            }
+        }
         html.append("  </div>\n");
 
         // ============ VALUATION RATIOS SECTION ============
@@ -368,13 +421,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
         if (data.containsKey("roe")) html.append("    <div class='roe'>ROE: ").append(String.format("%.2f%%", (Double) data.get("roe") * 100)).append("</div>\n");
         if (data.containsKey("roa")) html.append("    <div class='roa'>ROA: ").append(String.format("%.2f%%", (Double) data.get("roa") * 100)).append("</div>\n");
         if (data.containsKey("bookValuePerShare")) html.append("    <div class='book-value-per-share'>Book Value Per Share: ").append(String.format("%.2f", (Double) data.get("bookValuePerShare"))).append("</div>\n");
+        if (data.containsKey("beta")) html.append("    <div class='beta'>Beta: ").append(String.format("%.2f", (Double) data.get("beta"))).append("</div>\n");
         html.append("  </div>\n");
 
         // ============ PROFITABILITY & MARGINS SECTION ============
         html.append("  <div class='section profitability'>\n");
         html.append("    <h3>Profitability & Margins</h3>\n");
         if (data.containsKey("profitMargin")) html.append("    <div class='profit-margin'>Profit Margin: ").append(String.format("%.2f%%", (Double) data.get("profitMargin"))).append("</div>\n");
-        if (data.containsKey("operatingMargin")) html.append("    <div class='operating-margin'>Operating Margin: ").append(String.format("%.2f%%", (Double) data.get("operatingMargin") * 100)).append("</div>\n");
         html.append("  </div>\n");
 
         // ============ DIVIDENDS SECTION ============
@@ -382,6 +435,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
         html.append("    <h3>Dividends</h3>\n");
         if (data.containsKey("dividendyield")) html.append("    <div class='dividend-yield'>Dividend Yield: ").append(String.format("%.2f%%", (Double) data.get("dividendyield") * 100)).append("</div>\n");
         if (data.containsKey("payoutratio")) html.append("    <div class='payout-ratio'>Payout Ratio: ").append(String.format("%.2f%%", (Double) data.get("payoutratio") * 100)).append("</div>\n");
+        html.append("  </div>\n");
+
+        // ============ GRAHAM & FAIR VALUE SECTION ============
+        html.append("  <div class='section fair-value'>\n");
+        html.append("    <h3>Fair Value & Graham</h3>\n");
+        html.append("    <div class='graham-fair-value'>Graham Fair Value: To be calculated</div>\n");
+        html.append("    <div class='margin-of-safety'>Margin of Safety: To be calculated</div>\n");
         html.append("  </div>\n");
 
         html.append("</div>");

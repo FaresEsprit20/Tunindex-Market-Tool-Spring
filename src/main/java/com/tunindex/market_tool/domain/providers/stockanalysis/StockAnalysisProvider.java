@@ -181,7 +181,18 @@ public class StockAnalysisProvider implements MarketDataProvider {
         StringBuilder html = new StringBuilder();
         html.append("<div class='stock-analysis-data'>\n");
         html.append("  <div class='symbol'>").append(symbol).append("</div>\n");
-        html.append("  <div class='company-name'>").append(stockInfo.getName()).append("</div>\n");
+        html.append("  <div class='company-name'>").append(stockInfo.name()).append("</div>\n");
+
+        // Add Industry and Country from stockInfo record
+        if (stockInfo.industry() != null && !stockInfo.industry().isEmpty()) {
+            html.append("  <div class='industry'>Industry: ").append(stockInfo.industry()).append("</div>\n");
+        }
+        if (stockInfo.country() != null && !stockInfo.country().isEmpty()) {
+            html.append("  <div class='country'>Country: ").append(stockInfo.country()).append("</div>\n");
+        }
+        if (stockInfo.ownershipType() != null) {
+            html.append("  <div class='ownership-type'>Ownership: ").append(stockInfo.ownershipType()).append("</div>\n");
+        }
 
         // ============ OVERVIEW SECTION ============
         html.append("  <div class='section overview'>\n");

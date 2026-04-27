@@ -2,7 +2,7 @@ package com.tunindex.market_tool.core.utils.constants;
 
 import com.tunindex.market_tool.domain.entities.enums.OwnershipType;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public interface Constants {
@@ -56,17 +56,22 @@ public interface Constants {
     // ========================
     // PROVIDER CONSTANTS
     // ========================
-    String ACTIVE_PROVIDER = "investingcom";
+    String ACTIVE_PROVIDER = "stockanalysis";
 
     String PROVIDER_INVESTINGCOM = "investingcom";
     String PROVIDER_ILBOURSA = "ilboursa";
     String PROVIDER_BVMT = "bvmt";
     String PROVIDER_TUNISIE_VALEURS = "tunisie_valeurs";
+    String PROVIDER_STOCKANALYSIS = "stockanalysis";
 
     String INVESTINGCOM_BASE_URL = "https://www.investing.com";
     String INVESTINGCOM_FINANCIAL_SUMMARY = "-financial-summary";
     String INVESTINGCOM_BALANCE_SHEET = "-balance-sheet";
     String INVESTINGCOM_INCOME_STATEMENT = "-income-statement";
+
+    // StockAnalysis URLs
+    String STOCKANALYSIS_BASE_URL = "https://stockanalysis.com/quote/bvmt/";
+    String STOCKANALYSIS_LIST_URL = "https://stockanalysis.com/list/tunis-stock-exchange/";
 
     // ========================
     // CACHE
@@ -79,80 +84,155 @@ public interface Constants {
     boolean USE_PROXY = false;
 
     // ========================
-    // TUNISIAN STOCKS
+    // TUNISIAN STOCKS (73 stocks from StockAnalysis)
     // ========================
-    Map<String, StockInfo> TUNISIAN_STOCKS = new HashMap<>() {{
-        put("BS", new StockInfo("BS", "ATTIJARI BANK", "/equities/banque-attijari-de-tunisie", OwnershipType.PRIVATE));
-
-//        // Government-owned
-//        put("STB", new StockInfo("STB", "S.T.B", "/equities/societe-tunisienne-de-banque", OwnershipType.GOVERNMENT));
-//        put("BH", new StockInfo("BH", "BH Bank", "/equities/banque-de-lhabitat", OwnershipType.GOVERNMENT));
-//        put("BNA", new StockInfo("BNA", "BNA", "/equities/banque-nationale-agricole", OwnershipType.GOVERNMENT));
-//
-//        // Mixed ownership
-//        put("BIAT", new StockInfo("BIAT", "BIAT", "/equities/banque-inter.-arabe-de-tunisie", OwnershipType.PRIVATE));
-//        put("UIB", new StockInfo("UIB", "UIB", "/equities/union-internationale-de-banque", OwnershipType.PRIVATE));
-//        put("ATB", new StockInfo("ATB", "ATB", "/equities/arab-tunisian-bank", OwnershipType.PRIVATE));
-//        put("UBCI", new StockInfo("UBCI", "Union Bancaire pour le Commerce et l'Industrie", "/equities/u.b.c.i", OwnershipType.PRIVATE));
-//
-//        // Private sector
-//        put("AB", new StockInfo("AB", "AMEN BANK", "/equities/amen-bank", OwnershipType.PRIVATE));
-//        put("AL", new StockInfo("AL", "AIR LIQUIDE Tun", "/equities/air-liquide-tunisie", OwnershipType.PRIVATE));
-//        put("ARTES", new StockInfo("ARTES", "Automobile Reseau Tunisien Et Service", "/equities/artes-renault", OwnershipType.PRIVATE));
-//        put("AST", new StockInfo("AST", "ASTREE SA", "/equities/com.-dassur.et-de-reassur.", OwnershipType.PRIVATE));
-//        put("ATL", new StockInfo("ATL", "ATL", "/equities/arab-tunisian-lease", OwnershipType.PRIVATE));
-//        put("BT", new StockInfo("BT", "BT", "/equities/banque-de-tunisie", OwnershipType.PRIVATE));
-//        put("BTEI", new StockInfo("BTEI", "BTEI", "/equities/bq-de-tunisie-et-des-emirats", OwnershipType.PRIVATE));
-//        put("CC", new StockInfo("CC", "Carthage Cement", "/equities/carthage-cement", OwnershipType.PRIVATE));
-//        put("CIL", new StockInfo("CIL", "CIL", "/equities/compagnie-int.-de-leasing", OwnershipType.PRIVATE));
-//        put("ICF", new StockInfo("ICF", "ICF", "/equities/soc.-des-ind.-chimiu.-du-fluor", OwnershipType.PRIVATE));
-//        put("MGR", new StockInfo("MGR", "Societe Tunisienne des Marches de Gros", "/equities/sotumag", OwnershipType.PRIVATE));
-//        put("BHL", new StockInfo("BHL", "BH Leasing", "/equities/modern-leasing", OwnershipType.PRIVATE));
-//        put("MNP", new StockInfo("MNP", "Societe Nouvelle Maison de la Ville de Tunis", "/equities/monoprix", OwnershipType.PRIVATE));
-//        put("NAKL", new StockInfo("NAKL", "Ennakl Automobiles", "/equities/ennakl-automobiles", OwnershipType.PRIVATE));
-//        put("PLTU", new StockInfo("PLTU", "PLACEMENT DE TUNISIE", "/equities/placements-de-tunisie", OwnershipType.PRIVATE));
-//        put("POULA", new StockInfo("POULA", "POULINA GROUP HLD", "/equities/poulina-group-holding", OwnershipType.PRIVATE));
-//        put("SCB", new StockInfo("SCB", "Les Ciments de Bizerte", "/equities/ciments-de-bizerte", OwnershipType.PRIVATE));
-//        put("SFBT", new StockInfo("SFBT", "SFBT", "/equities/sfbt", OwnershipType.PRIVATE));
-//        put("SIAM", new StockInfo("SIAM", "STE Ind d'appareillage Et De Materiels Elec", "/equities/siame", OwnershipType.PRIVATE));
-//        put("SIMP", new StockInfo("SIMP", "SIMPAR", "/equities/soc.-immob.-et-de-part.", OwnershipType.PRIVATE));
-//        put("SITS", new StockInfo("SITS", "SITS", "/equities/soc.-immob.-tuniso-seoud.", OwnershipType.PRIVATE));
-//        put("SMG", new StockInfo("SMG", "MAGASIN GENERAL", "/equities/magazin-gneral", OwnershipType.PRIVATE));
-//        put("SOKNA", new StockInfo("SOKNA", "ESSOUKNA", "/equities/societe-essoukna", OwnershipType.PRIVATE));
-//        put("SOMOC", new StockInfo("SOMOC", "SOMOCER", "/equities/societe-moderne-de-ceramique", OwnershipType.PRIVATE));
-//        put("SOTE", new StockInfo("SOTE", "STE Tunisienne d'entreprises De Telecommunications", "/equities/sotetel", OwnershipType.PRIVATE));
-//        put("SPDI", new StockInfo("SPDI", "SPDIT-SICAF", "/equities/spdit", OwnershipType.PRIVATE));
-//        put("STAR", new StockInfo("STAR", "STAR", "/equities/star", OwnershipType.PRIVATE));
-//        put("STIP", new StockInfo("STIP", "Societe Tunisienne des Industries de Pneumatiques", "/equities/soc.-tun.-des-ind.-de-pneumatiques", OwnershipType.PRIVATE));
-//        put("STPIL", new StockInfo("STPIL", "SOTRAPIL", "/equities/sotrapil", OwnershipType.PRIVATE));
-//        put("TINV", new StockInfo("TINV", "TUN INVEST - SICAR", "/equities/tuninvest", OwnershipType.PRIVATE));
-//        put("TJL", new StockInfo("TJL", "ATTIJARI LEASING", "/equities/attijari-leasing", OwnershipType.PRIVATE));
-//        put("TLNET", new StockInfo("TLNET", "TELNET", "/equities/telnet-holding", OwnershipType.PRIVATE));
-//        put("TLS", new StockInfo("TLS", "TUNISIE LEASING", "/equities/tunisie-leasing", OwnershipType.PRIVATE));
-//        put("TPR", new StockInfo("TPR", "TPR", "/equities/soc.-tun.-profiles-aluminium", OwnershipType.PRIVATE));
-//        put("TRE", new StockInfo("TRE", "Tunis Re", "/equities/soc.-tun.-de-reassurance", OwnershipType.PRIVATE));
-//        put("WIFAK", new StockInfo("WIFAK", "EL WIFACK LEASING", "/equities/el-wifack-leasing", OwnershipType.PRIVATE));
-//        put("STVR", new StockInfo("STVR", "Societe Tunisienne De Verreries", "/equities/soc-tunisienne-de-verreries", OwnershipType.PRIVATE));
-//        put("BHASS", new StockInfo("BHASS", "BH Assurance", "/equities/salim", OwnershipType.PRIVATE));
-//        put("LNDOR", new StockInfo("LNDOR", "Land Or", "/equities/land-or", OwnershipType.PRIVATE));
-//        put("NBL", new StockInfo("NBL", "New Body Li", "/equities/new-body-li", OwnershipType.PRIVATE));
-//        put("OTH", new StockInfo("OTH", "One Tech Ho", "/equities/one-tech-ho", OwnershipType.PRIVATE));
-//        put("STPAP", new StockInfo("STPAP", "Societe Tunisienne Industrielle Du Papier Et Du Ca", "/equities/sotipapier", OwnershipType.PRIVATE));
-//        put("SOTEM", new StockInfo("SOTEM", "Sotemail", "/equities/sotemail", OwnershipType.PRIVATE));
-//        put("SAH", new StockInfo("SAH", "Sah", "/equities/sah", OwnershipType.PRIVATE));
-//        put("HANL", new StockInfo("HANL", "Hannibal Lease", "/equities/hannibal-lease", OwnershipType.PRIVATE));
-//        put("CITY", new StockInfo("CITY", "City Cars", "/equities/city-cars", OwnershipType.PRIVATE));
-//        put("ECYCL", new StockInfo("ECYCL", "Euro-Cycles", "/equities/euro-cycles", OwnershipType.PRIVATE));
-//        put("MPBS", new StockInfo("MPBS", "Manufacture de Panneaux Bois du Sud", "/equities/mpbs", OwnershipType.PRIVATE));
-//        put("BL", new StockInfo("BL", "Best Lease", "/equities/best-lease", OwnershipType.PRIVATE));
-//        put("DH", new StockInfo("DH", "Societe Delice Holding", "/equities/societe-delice-holding", OwnershipType.PRIVATE));
-//        put("PLAST", new StockInfo("PLAST", "OfficePlast", "/equities/officeplast", OwnershipType.PRIVATE));
-//        put("UMED", new StockInfo("UMED", "Unite de Fabrication de Medicaments", "/equities/unimed-sa", OwnershipType.PRIVATE));
-//        put("SAMAA", new StockInfo("SAMAA", "Atelier Meuble Interieurs", "/equities/atelier-meuble-interieurs", OwnershipType.PRIVATE));
-//        put("ASSMA", new StockInfo("ASSMA", "Ste Assurances Magrebia", "/equities/ste-assurances-magrebia", OwnershipType.PRIVATE));
-//        put("SMART", new StockInfo("SMART", "Smart Tunisie", "/equities/smart-tunisie", OwnershipType.PRIVATE));
-//        put("STAS", new StockInfo("STAS", "Societe Tunisienne D Automobiles", "/equities/societe-tunisienne-d-automobiles", OwnershipType.PRIVATE));
-//        put("AMV", new StockInfo("AMV", "Assurances Maghrebia Vie", "/equities/assurances-maghrebia-vie", OwnershipType.PRIVATE));
+    Map<String, StockInfo> TUNISIAN_STOCKS_STOCK_ANALYSIS = new LinkedHashMap<>() {{
+        // 1
+        put("BIAT", new StockInfo("BIAT", "Banque Internationale Arabe de Tunisie Société anonyme", "/quote/bvmt/BIAT/", OwnershipType.PRIVATE));
+        // 2
+        put("PGH", new StockInfo("PGH", "Poulina Group Holding S.A.", "/quote/bvmt/PGH/", OwnershipType.PRIVATE));
+        // 3
+        put("SFBT", new StockInfo("SFBT", "Société de Fabrication des Boissons de Tunisie Société Anonyme", "/quote/bvmt/SFBT/", OwnershipType.PRIVATE));
+        // 4
+        put("TJARI", new StockInfo("TJARI", "Banque Attijari de Tunisie Société anonyme", "/quote/bvmt/TJARI/", OwnershipType.PRIVATE));
+        // 5
+        put("AB", new StockInfo("AB", "Amen Bank Société anonyme", "/quote/bvmt/AB/", OwnershipType.PRIVATE));
+        // 6
+        put("DH", new StockInfo("DH", "Délice Holding SA", "/quote/bvmt/DH/", OwnershipType.PRIVATE));
+        // 7
+        put("BT", new StockInfo("BT", "Banque de Tunisie Société anonyme", "/quote/bvmt/BT/", OwnershipType.PRIVATE));
+        // 8
+        put("SAH", new StockInfo("SAH", "Société d'Articles Hygiéniques Société Anonyme", "/quote/bvmt/SAH/", OwnershipType.PRIVATE));
+        // 9
+        put("BNA", new StockInfo("BNA", "Banque Nationale Agricole Société anonyme", "/quote/bvmt/BNA/", OwnershipType.PRIVATE));
+        // 10
+        put("UIB", new StockInfo("UIB", "Union Internationale de Banques Société anonyme", "/quote/bvmt/UIB/", OwnershipType.PRIVATE));
+        // 11
+        put("OTH", new StockInfo("OTH", "One Tech Holding S.A.", "/quote/bvmt/OTH/", OwnershipType.PRIVATE));
+        // 12
+        put("SOTUV", new StockInfo("SOTUV", "Societe Tunisienne de Verreries", "/quote/bvmt/SOTUV/", OwnershipType.PRIVATE));
+        // 13
+        put("UBCI", new StockInfo("UBCI", "Union Bancaire pour le Commerce et L'Industrie Société anonyme", "/quote/bvmt/UBCI/", OwnershipType.PRIVATE));
+        // 14
+        put("STB", new StockInfo("STB", "Société Tunisienne de Banque Société anonyme", "/quote/bvmt/STB/", OwnershipType.GOVERNMENT));
+        // 15
+        put("CC", new StockInfo("CC", "Carthage Cement SA", "/quote/bvmt/CC/", OwnershipType.PRIVATE));
+        // 16
+        put("STAR", new StockInfo("STAR", "Société Tunisienne d'Assurances et de Réassurances", "/quote/bvmt/STAR/", OwnershipType.PRIVATE));
+        // 17
+        put("TPR", new StockInfo("TPR", "Tunisie Profilés Aluminium Société Anonyme", "/quote/bvmt/TPR/", OwnershipType.PRIVATE));
+        // 18
+        put("NAKL", new StockInfo("NAKL", "Ennakl Automobiles S.A.", "/quote/bvmt/NAKL/", OwnershipType.PRIVATE));
+        // 19
+        put("BH", new StockInfo("BH", "BH Bank Société anonyme", "/quote/bvmt/BH/", OwnershipType.GOVERNMENT));
+        // 20
+        put("ATB", new StockInfo("ATB", "Arab Tunisian Bank", "/quote/bvmt/ATB/", OwnershipType.PRIVATE));
+        // 21
+        put("ARTES", new StockInfo("ARTES", "Automobile Réseau Tunisien et Services S.A.", "/quote/bvmt/ARTES/", OwnershipType.PRIVATE));
+        // 22
+        put("SPDIT", new StockInfo("SPDIT", "Société de Placement & de Développement Industriel & Touristique", "/quote/bvmt/SPDIT/", OwnershipType.PRIVATE));
+        // 23
+        put("TLS", new StockInfo("TLS", "Tunisie Leasing & Factoring Société anonyme", "/quote/bvmt/TLS/", OwnershipType.PRIVATE));
+        // 24
+        put("CITY", new StockInfo("CITY", "City Cars S.A.", "/quote/bvmt/CITY/", OwnershipType.PRIVATE));
+        // 25
+        put("AST", new StockInfo("AST", "Compagnie d'Assurances et de Réassurances ASTREE", "/quote/bvmt/AST/", OwnershipType.PRIVATE));
+        // 26
+        put("ASSMA", new StockInfo("ASSMA", "Assurances Maghrebia SA", "/quote/bvmt/ASSMA/", OwnershipType.PRIVATE));
+        // 27
+        put("BNASS", new StockInfo("BNASS", "BNA Assurances", "/quote/bvmt/BNASS/", OwnershipType.PRIVATE));
+        // 28
+        put("AL", new StockInfo("AL", "Air Liquide Tunisie SA", "/quote/bvmt/AL/", OwnershipType.PRIVATE));
+        // 29
+        put("UMED", new StockInfo("UMED", "Unité de Fabrication des Médicaments S.A", "/quote/bvmt/UMED/", OwnershipType.PRIVATE));
+        // 30
+        put("ATL", new StockInfo("ATL", "Arab Tunisian Lease S.A.", "/quote/bvmt/ATL/", OwnershipType.PRIVATE));
+        // 31
+        put("SMART", new StockInfo("SMART", "SMART Tunisie SA", "/quote/bvmt/SMART/", OwnershipType.PRIVATE));
+        // 32
+        put("TRE", new StockInfo("TRE", "Société Tunisienne de Réassurance", "/quote/bvmt/TRE/", OwnershipType.PRIVATE));
+        // 33
+        put("WIFAK", new StockInfo("WIFAK", "Wifak International Bank", "/quote/bvmt/WIFAK/", OwnershipType.PRIVATE));
+        // 34
+        put("MNP", new StockInfo("MNP", "Société Nouvelle Maison de la Ville de Tunis", "/quote/bvmt/MNP/", OwnershipType.PRIVATE));
+        // 35
+        put("CIL", new StockInfo("CIL", "Compagnie Internationale de Leasing S.A.", "/quote/bvmt/CIL/", OwnershipType.PRIVATE));
+        // 36
+        put("AMV", new StockInfo("AMV", "Assurances Maghrebia Vie S.A.", "/quote/bvmt/AMV/", OwnershipType.PRIVATE));
+        // 37
+        put("LNDOR", new StockInfo("LNDOR", "Land'Or Société Anonyme", "/quote/bvmt/LNDOR/", OwnershipType.PRIVATE));
+        // 38
+        put("MAG", new StockInfo("MAG", "Societe Magasin General S.A.", "/quote/bvmt/MAG/", OwnershipType.PRIVATE));
+        // 39
+        put("MPBS", new StockInfo("MPBS", "Manufacture De Panneaux Bois Du Sud", "/quote/bvmt/MPBS/", OwnershipType.PRIVATE));
+        // 40
+        put("ICF", new StockInfo("ICF", "Les industries Chimiques du Fluor SA", "/quote/bvmt/ICF/", OwnershipType.PRIVATE));
+        // 41
+        put("BHASS", new StockInfo("BHASS", "BH Assurance", "/quote/bvmt/BHASS/", OwnershipType.PRIVATE));
+        // 42
+        put("MGR", new StockInfo("MGR", "Société Tunisienne des Marchés de Gros S.A.", "/quote/bvmt/MGR/", OwnershipType.PRIVATE));
+        // 43
+        put("TLNET", new StockInfo("TLNET", "Telnet Holding SA", "/quote/bvmt/TLNET/", OwnershipType.PRIVATE));
+        // 44
+        put("STA", new StockInfo("STA", "Société Tunisienne d'Automobiles - STA Société anonyme", "/quote/bvmt/STA/", OwnershipType.PRIVATE));
+        // 45
+        put("ECYCL", new StockInfo("ECYCL", "Euro-Cycles S.A", "/quote/bvmt/ECYCL/", OwnershipType.PRIVATE));
+        // 46
+        put("STPIL", new StockInfo("STPIL", "La Société de Transport des Hydrocarbures par Pipelines SOTRAPIL SA", "/quote/bvmt/STPIL/", OwnershipType.PRIVATE));
+        // 47
+        put("SOTEM", new StockInfo("SOTEM", "Société Tunisienne d'Email S.A", "/quote/bvmt/SOTEM/", OwnershipType.PRIVATE));
+        // 48
+        put("TJL", new StockInfo("TJL", "Attijari Leasing S.A.", "/quote/bvmt/TJL/", OwnershipType.PRIVATE));
+        // 49
+        put("TGH", new StockInfo("TGH", "Tawasol Group Holding SA", "/quote/bvmt/TGH/", OwnershipType.PRIVATE));
+        // 50
+        put("STPAP", new StockInfo("STPAP", "Société Tunisienne Industrielle du Papier et du Carton", "/quote/bvmt/STPAP/", OwnershipType.PRIVATE));
+        // 51
+        put("HL", new StockInfo("HL", "Hannibal Lease SA", "/quote/bvmt/HL/", OwnershipType.PRIVATE));
+        // 52
+        put("BL", new StockInfo("BL", "Best Lease SA", "/quote/bvmt/BL/", OwnershipType.PRIVATE));
+        // 53
+        put("ASSAD", new StockInfo("ASSAD", "L'Accumulateur Tunisien Assad SA", "/quote/bvmt/ASSAD/", OwnershipType.PRIVATE));
+        // 54
+        put("SIAME", new StockInfo("SIAME", "Société Industrielle d'Appareillage et de Matériels Electriques", "/quote/bvmt/SIAME/", OwnershipType.PRIVATE));
+        // 55
+        put("ALKIM", new StockInfo("ALKIM", "Société Chimique ALKIMIA S.A.", "/quote/bvmt/ALKIM/", OwnershipType.PRIVATE));
+        // 56
+        put("SITS", new StockInfo("SITS", "Société Immobilière Tunisio Saoudienne", "/quote/bvmt/SITS/", OwnershipType.PRIVATE));
+        // 57
+        put("STIP", new StockInfo("STIP", "Société Tunisienne des Industries de Pneumatiques SA", "/quote/bvmt/STIP/", OwnershipType.PRIVATE));
+        // 58
+        put("SOTET", new StockInfo("SOTET", "Société Tunisienne d'Entreprises de Télécommunications S.A.", "/quote/bvmt/SOTET/", OwnershipType.PRIVATE));
+        // 59
+        put("SIMPAR", new StockInfo("SIMPAR", "Société Immobilière et de participations Société Anonyme", "/quote/bvmt/SIMPAR/", OwnershipType.PRIVATE));
+        // 60
+        put("TAIR", new StockInfo("TAIR", "Société Tunisienne de l'Air S.A.", "/quote/bvmt/TAIR/", OwnershipType.PRIVATE));
+        // 61
+        put("SCB", new StockInfo("SCB", "Les Ciments de Bizerte", "/quote/bvmt/SCB/", OwnershipType.PRIVATE));
+        // 62
+        put("SOMOC", new StockInfo("SOMOC", "Société Moderne de Céramique", "/quote/bvmt/SOMOC/", OwnershipType.PRIVATE));
+        // 63
+        put("SAM", new StockInfo("SAM", "Société Atelier du Meuble Intérieurs SA", "/quote/bvmt/SAM/", OwnershipType.PRIVATE));
+        // 64
+        put("PLAST", new StockInfo("PLAST", "Office Plast SA", "/quote/bvmt/PLAST/", OwnershipType.PRIVATE));
+        // 65
+        put("BHL", new StockInfo("BHL", "BH Leasing Société Anonyme", "/quote/bvmt/BHL/", OwnershipType.PRIVATE));
+        // 66
+        put("SOKNA", new StockInfo("SOKNA", "Essoukna", "/quote/bvmt/SOKNA/", OwnershipType.PRIVATE));
+        // 67
+        put("NBL", new StockInfo("NBL", "New Body Line Société Anonyme", "/quote/bvmt/NBL/", OwnershipType.PRIVATE));
+        // 68
+        put("UADH", new StockInfo("UADH", "Universal Auto Distributors Holding", "/quote/bvmt/UADH/", OwnershipType.PRIVATE));
+        // 69
+        put("CELL", new StockInfo("CELL", "Cellcom Société Anonyme", "/quote/bvmt/CELL/", OwnershipType.PRIVATE));
+        // 70
+        put("STS", new StockInfo("STS", "Société Tunisienne du Sucre SA", "/quote/bvmt/STS/", OwnershipType.PRIVATE));
+        // 71
+        put("SIPHA", new StockInfo("SIPHA", "Société des Industries Pharmaceutiques de Tunisie - S.A.", "/quote/bvmt/SIPHA/", OwnershipType.PRIVATE));
+        // 72
+        put("SITEX", new StockInfo("SITEX", "Societe Industrielle des Textiles S.A.", "/quote/bvmt/SITEX/", OwnershipType.PRIVATE));
+        // 73
+        put("AETEC", new StockInfo("AETEC", "Advanced e-Technologies S.A", "/quote/bvmt/AETEC/", OwnershipType.PRIVATE));
     }};
 
     @lombok.Data

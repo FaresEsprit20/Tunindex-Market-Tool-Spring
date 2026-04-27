@@ -16,11 +16,9 @@ public class PriceData {
 
     private BigDecimal lastPrice;
     private BigDecimal prevClose;
-    private BigDecimal open;
     private BigDecimal dayHigh;
     private BigDecimal dayLow;
-    private BigDecimal change;
-    private BigDecimal changePct;
+
 
     // 52 Week Range
     private BigDecimal week52High;
@@ -28,9 +26,6 @@ public class PriceData {
     private String week52Range;
     private BigDecimal closeTo52weekslowPct;
 
-    // Bid/Ask
-    private BigDecimal bid;
-    private BigDecimal ask;
 
     // Timestamp from source
     private Long lastUpdateTimestamp;

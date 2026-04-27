@@ -24,14 +24,16 @@ public abstract class BaseDataEnricher implements DataEnricherService {
             sharesOutstanding = stock.getFundamentalData().getSharesOutstanding();
         }
 
+        // If we already have BVPS, return it
         if (stock.getCalculatedValues() != null) {
             BigDecimal bvps = stock.getCalculatedValues().getBookValuePerShare();
-            if (bvps != null && sharesOutstanding != null && sharesOutstanding > 0) {
-                return bvps.multiply(BigDecimal.valueOf(sharesOutstanding))
-                        .divide(BigDecimal.ONE, 2, RoundingMode.HALF_UP);
+            if (bvps != null) {
+                return bvps;
             }
         }
 
+        // For now, return null if not available
+        // You can implement total equity calculation if you have that data
         if (totalEquity != null && sharesOutstanding != null && sharesOutstanding > 0) {
             BigDecimal sharesBD = BigDecimal.valueOf(sharesOutstanding);
             return totalEquity.divide(sharesBD, 2, RoundingMode.HALF_UP);
@@ -47,10 +49,19 @@ public abstract class BaseDataEnricher implements DataEnricherService {
             stock.setCalculatedValues(calculatedValues);
         }
 
-        if (fairValue != null) calculatedValues.setGrahamFairValue(fairValue);
-        if (marginOfSafety != null) calculatedValues.setMarginOfSafety(marginOfSafety);
+        if (fairValue != null) {
+            calculatedValues.setGrahamFairValue(fairValue);
+            log.debug("Set Graham Fair Value: {}", fairValue);
+        }
+
+        if (marginOfSafety != null) {
+            calculatedValues.setMarginOfSafety(marginOfSafety);
+            log.debug("Set Margin of Safety: {}%", marginOfSafety);
+        }
+
         if (bvps != null && calculatedValues.getBookValuePerShare() == null) {
             calculatedValues.setBookValuePerShare(bvps);
+            log.debug("Set Book Value Per Share: {}", bvps);
         }
     }
 
@@ -60,11 +71,14 @@ public abstract class BaseDataEnricher implements DataEnricherService {
             BigDecimal week52Low = stock.getPriceData().getWeek52Low();
             BigDecimal week52High = stock.getPriceData().getWeek52High();
 
-            if (currentPrice != null && week52Low != null) {
+            if (currentPrice != null && week52Low != null && week52High != null) {
                 BigDecimal positionPct = grahamCalculator.calculateCloseTo52WeekLowPercentage(
                         currentPrice, week52Low, week52High
                 );
-                stock.getPriceData().setCloseTo52weekslowPct(positionPct);
+                if (positionPct != null) {
+                    stock.getPriceData().setCloseTo52weekslowPct(positionPct);
+                    log.debug("Set 52-week position: {}%", positionPct);
+                }
             }
         }
     }

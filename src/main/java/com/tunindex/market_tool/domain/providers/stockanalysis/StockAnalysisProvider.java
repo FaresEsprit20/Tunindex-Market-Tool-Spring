@@ -102,9 +102,9 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private Mono<String> fetchPage(String url) {
         return webClient.get()
                 .uri(url)
-                .header("User-Agent", Constants.DEFAULT_USER_AGENT)
-                .header("Accept", Constants.DEFAULT_ACCEPT)
-                .header("Accept-Language", Constants.DEFAULT_ACCEPT_LANGUAGE)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.9")
                 .header("Accept-Encoding", "identity")
                 .retrieve()
                 .bodyToMono(String.class)
@@ -126,16 +126,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
 
         log.info("🔍 Extracting data for {}", symbol);
 
-        // Extract from overview page
+        // Extract from overview page (quoted fields)
         extractFromOverviewPage(overviewHtml, metrics);
 
-        // Extract price data using multiple methods
-        extractPriceDataFromOverview(overviewHtml, metrics);
+        // Extract price data from HTML tables (MOST RELIABLE)
+        extractPriceDataFromHtml(overviewHtml, metrics);
 
-        // FALLBACK: Extract price data directly from HTML tables
-        extractPriceDataFromHtmlTables(overviewHtml, metrics);
-
-        // Extract 52-week range from HTML tables
+        // Extract 52-week range
         extract52WeekFromHtml(overviewHtml, metrics);
 
         // Extract Debt/Equity from ratios page
@@ -165,6 +162,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
         log.info("========================================");
         metrics.forEach((key, value) -> log.info("  {}: {}", key, value));
         log.info("========================================");
+        log.info("✅ Successfully extracted {} metrics for {}", metrics.size(), symbol);
 
         String combinedHtml = buildHtmlWithMetrics(symbol, stockInfo, metrics);
         rawData.setMainPageHtml(combinedHtml);
@@ -195,148 +193,181 @@ public class StockAnalysisProvider implements MarketDataProvider {
         extractQuoted(html, "payoutRatio", metrics);
     }
 
-    private void extractPriceDataFromOverview(String html, Map<String, String> metrics) {
-        log.info("🔍 Extracting price data from overview page...");
-
-        // Try to find the quote object
-        Pattern quotePattern = Pattern.compile("\"quote\":\\s*\\{([^}]+)\\}");
-        Matcher quoteMatcher = quotePattern.matcher(html);
-
-        if (quoteMatcher.find()) {
-            String quoteContent = quoteMatcher.group(1);
-            extractJsonValue(quoteContent, "p", metrics);
-            extractJsonValue(quoteContent, "c", metrics);
-            extractJsonValue(quoteContent, "cp", metrics);
-            extractJsonValue(quoteContent, "v", metrics);
-            extractJsonValue(quoteContent, "o", metrics);
-            extractJsonValue(quoteContent, "cl", metrics);
-            extractJsonValue(quoteContent, "h", metrics);
-            extractJsonValue(quoteContent, "l", metrics);
-        }
-
-        // Direct search as fallback
-        if (!metrics.containsKey("p")) extractDirectValue(html, "\"p\":", metrics, "p");
-        if (!metrics.containsKey("cp")) extractDirectValue(html, "\"cp\":", metrics, "cp");
-        if (!metrics.containsKey("v")) extractDirectValue(html, "\"v\":", metrics, "v");
-        if (!metrics.containsKey("o")) extractDirectValue(html, "\"o\":", metrics, "o");
-        if (!metrics.containsKey("cl")) extractDirectValue(html, "\"cl\":", metrics, "cl");
-        if (!metrics.containsKey("h")) extractDirectValue(html, "\"h\":", metrics, "h");
-        if (!metrics.containsKey("l")) extractDirectValue(html, "\"l\":", metrics, "l");
-    }
-
     /**
-     * CRITICAL FALLBACK: Extract price data directly from visible HTML elements
+     * Extract ALL price data directly from HTML elements
      */
-    private void extractPriceDataFromHtmlTables(String html, Map<String, String> metrics) {
-        if (metrics.containsKey("p") && metrics.containsKey("v")) {
-            return; // Already have price data
-        }
-
-        log.info("🔍 Extracting price data from HTML tables (critical fallback)...");
+    private void extractPriceDataFromHtml(String html, Map<String, String> metrics) {
+        log.info("🔍 Extracting price data from HTML...");
 
         try {
             Document doc = Jsoup.parse(html);
 
-            // Look for the price value in the main price div
-            Element priceElement = doc.selectFirst(".text-4xl.font-bold");
-            if (priceElement != null && !metrics.containsKey("p")) {
+            // 1. Extract current price - look for the main price element
+            Element priceElement = doc.selectFirst("div.text-4xl.font-bold");
+            if (priceElement == null) {
+                priceElement = doc.selectFirst(".text-4xl.font-bold");
+            }
+            if (priceElement != null) {
                 String price = priceElement.text().trim();
                 metrics.put("p", price);
-                log.info("📊 p (price from HTML): {}", price);
+                log.info("💰 Price: {}", price);
             }
 
-            // Look for the change element
+            // 2. Extract change and change percentage
             Element changeElement = doc.selectFirst(".font-semibold.inline-block.text-2xl");
-            if (changeElement != null && !metrics.containsKey("cp")) {
+            if (changeElement == null) {
+                changeElement = doc.selectFirst(".text-green-vivid, .text-red-vivid");
+            }
+            if (changeElement != null) {
                 String changeText = changeElement.text().trim();
-                // Extract percentage from " +1.01 (0.70%) "
-                Pattern percentPattern = Pattern.compile("\\(([0-9.]+)%\\)");
-                Matcher percentMatcher = percentPattern.matcher(changeText);
-                if (percentMatcher.find()) {
-                    metrics.put("cp", percentMatcher.group(1));
-                    log.info("📊 cp (change % from HTML): {}", percentMatcher.group(1));
-                }
-                // Extract absolute change
+                log.info("Change text: {}", changeText);
+
+                // Extract absolute change (e.g., "+1.01")
                 Pattern amountPattern = Pattern.compile("([+-][0-9.]+)\\s*\\(");
                 Matcher amountMatcher = amountPattern.matcher(changeText);
                 if (amountMatcher.find()) {
                     metrics.put("c", amountMatcher.group(1));
-                    log.info("📊 c (change amount from HTML): {}", amountMatcher.group(1));
+                    log.info("📈 Change amount: {}", amountMatcher.group(1));
+                }
+
+                // Extract percentage (e.g., "0.70")
+                Pattern percentPattern = Pattern.compile("\\(([0-9.]+)%\\)");
+                Matcher percentMatcher = percentPattern.matcher(changeText);
+                if (percentMatcher.find()) {
+                    metrics.put("cp", percentMatcher.group(1));
+                    log.info("📈 Change percent: {}%", percentMatcher.group(1));
                 }
             }
 
-            // Find all tables and extract price-related data
+            // 3. Extract data from tables
             Elements tables = doc.select("table");
             for (Element table : tables) {
                 Elements rows = table.select("tr");
                 for (Element row : rows) {
-                    String rowText = row.text();
                     Elements cells = row.select("td");
                     if (cells.size() >= 2) {
                         String label = cells.get(0).text().trim();
                         String value = cells.get(1).text().trim();
 
-                        if (label.equals("Open") && !metrics.containsKey("o")) {
-                            metrics.put("o", value);
-                            log.info("📊 o (open from HTML): {}", value);
-                        } else if (label.equals("Previous Close") && !metrics.containsKey("cl")) {
-                            metrics.put("cl", value);
-                            log.info("📊 cl (prev close from HTML): {}", value);
-                        } else if (label.equals("Day's Range") && (!metrics.containsKey("l") || !metrics.containsKey("h"))) {
-                            Pattern rangePattern = Pattern.compile("([0-9.]+)\\s*-\\s*([0-9.]+)");
-                            Matcher rangeMatcher = rangePattern.matcher(value);
-                            if (rangeMatcher.find()) {
-                                if (!metrics.containsKey("l")) {
-                                    metrics.put("l", rangeMatcher.group(1));
-                                    log.info("📊 l (day low from HTML): {}", rangeMatcher.group(1));
-                                }
-                                if (!metrics.containsKey("h")) {
-                                    metrics.put("h", rangeMatcher.group(2));
-                                    log.info("📊 h (day high from HTML): {}", rangeMatcher.group(2));
-                                }
-                            }
-                        } else if (label.equals("Volume") && !metrics.containsKey("v")) {
-                            metrics.put("v", value.replace(",", ""));
-                            log.info("📊 v (volume from HTML): {}", value);
-                        } else if (label.equals("Average Volume") && !metrics.containsKey("averageVolume")) {
-                            metrics.put("averageVolume", value);
-                            log.info("📊 averageVolume from HTML: {}", value);
-                        } else if (label.equals("Beta") && !metrics.containsKey("beta")) {
-                            metrics.put("beta", value);
-                            log.info("📊 beta from HTML: {}", value);
-                        } else if (label.equals("RSI") && !metrics.containsKey("rsi")) {
-                            metrics.put("rsi", value);
-                            log.info("📊 rsi from HTML: {}", value);
-                        } else if (label.equals("Earnings Date") && !metrics.containsKey("earningsDate")) {
-                            metrics.put("earningsDate", value);
-                            log.info("📊 earningsDate from HTML: {}", value);
-                        } else if (label.equals("Ex-Dividend Date") && !metrics.containsKey("exDividendDate")) {
-                            metrics.put("exDividendDate", value);
-                            log.info("📊 exDividendDate from HTML: {}", value);
+                        switch (label) {
+                            case "Open":
+                                metrics.put("o", value);
+                                log.info("🎯 Open: {}", value);
+                                break;
+                            case "Previous Close":
+                                metrics.put("cl", value);
+                                log.info("🔚 Previous Close: {}", value);
+                                break;
+                            case "Day's Range":
+                                parseRange(value, "l", "h", metrics);
+                                log.info("📊 Day's Range: {}", value);
+                                break;
+                            case "52-Week Range":
+                                parseRange(value, "l52", "h52", metrics);
+                                log.info("📊 52-Week Range: {}", value);
+                                break;
+                            case "Volume":
+                                metrics.put("v", value.replace(",", ""));
+                                log.info("📊 Volume: {}", value);
+                                break;
+                            case "Average Volume":
+                                metrics.put("averageVolume", value);
+                                log.info("📊 Average Volume: {}", value);
+                                break;
+                            case "Beta":
+                                metrics.put("beta", value);
+                                log.info("📊 Beta: {}", value);
+                                break;
+                            case "RSI":
+                                metrics.put("rsi", value);
+                                log.info("📊 RSI: {}", value);
+                                break;
+                            case "PE Ratio":
+                                metrics.put("peRatio", value);
+                                log.info("📊 PE Ratio: {}", value);
+                                break;
+                            case "Forward PE":
+                                metrics.put("forwardPE", value);
+                                log.info("📊 Forward PE: {}", value);
+                                break;
+                            case "Dividend":
+                                extractDividendInfo(value, metrics);
+                                break;
+                            case "Ex-Dividend Date":
+                                metrics.put("exDividendDate", value);
+                                log.info("📊 Ex-Dividend Date: {}", value);
+                                break;
+                            case "Earnings Date":
+                                metrics.put("earningsDate", value);
+                                log.info("📊 Earnings Date: {}", value);
+                                break;
                         }
                     }
                 }
             }
+
+            // 4. Also try to extract from the quote data in script
+            extractQuoteFromScript(html, metrics);
+
         } catch (Exception e) {
             log.warn("Failed to parse HTML for price data: {}", e.getMessage());
         }
     }
 
-    private void extractJsonValue(String json, String key, Map<String, String> metrics) {
+    private void parseRange(String rangeText, String lowKey, String highKey, Map<String, String> metrics) {
+        Pattern rangePattern = Pattern.compile("([0-9.]+)\\s*-\\s*([0-9.]+)");
+        Matcher matcher = rangePattern.matcher(rangeText);
+        if (matcher.find()) {
+            metrics.put(lowKey, matcher.group(1));
+            metrics.put(highKey, matcher.group(2));
+        }
+    }
+
+    private void extractDividendInfo(String dividendText, Map<String, String> metrics) {
+        // Format: "6.00 (4.14%)"
+        Pattern amountPattern = Pattern.compile("^([0-9.]+)");
+        Matcher amountMatcher = amountPattern.matcher(dividendText);
+        if (amountMatcher.find()) {
+            metrics.put("dividend", amountMatcher.group(1));
+            log.info("💵 Dividend: {}", amountMatcher.group(1));
+        }
+
+        Pattern percentPattern = Pattern.compile("\\(([0-9.]+)%\\)");
+        Matcher percentMatcher = percentPattern.matcher(dividendText);
+        if (percentMatcher.find()) {
+            metrics.put("dividendYield", percentMatcher.group(1));
+            log.info("💸 Dividend Yield: {}%", percentMatcher.group(1));
+        }
+    }
+
+    private void extractQuoteFromScript(String html, Map<String, String> metrics) {
+        // Look for quote data in script tags
+        Pattern quotePattern = Pattern.compile("\"quote\":\\s*\\{([^}]+)\\}");
+        Matcher quoteMatcher = quotePattern.matcher(html);
+
+        if (quoteMatcher.find()) {
+            String quoteContent = quoteMatcher.group(1);
+
+            // Extract values that might not have been found in tables
+            if (!metrics.containsKey("p")) extractJsonNumber(quoteContent, "p", metrics);
+            if (!metrics.containsKey("c")) extractJsonNumber(quoteContent, "c", metrics);
+            if (!metrics.containsKey("cp")) extractJsonNumber(quoteContent, "cp", metrics);
+            if (!metrics.containsKey("v")) extractJsonNumber(quoteContent, "v", metrics);
+            if (!metrics.containsKey("o")) extractJsonNumber(quoteContent, "o", metrics);
+            if (!metrics.containsKey("cl")) extractJsonNumber(quoteContent, "cl", metrics);
+            if (!metrics.containsKey("h")) extractJsonNumber(quoteContent, "h", metrics);
+            if (!metrics.containsKey("l")) extractJsonNumber(quoteContent, "l", metrics);
+            if (!metrics.containsKey("h52")) extractJsonNumber(quoteContent, "h52", metrics);
+            if (!metrics.containsKey("l52")) extractJsonNumber(quoteContent, "l52", metrics);
+        }
+    }
+
+    private void extractJsonNumber(String json, String key, Map<String, String> metrics) {
         Pattern pattern = Pattern.compile("\"" + key + "\":([0-9.]+)");
         Matcher matcher = pattern.matcher(json);
         if (matcher.find()) {
             metrics.put(key, matcher.group(1));
-            log.info("📊 {}: {}", key, matcher.group(1));
-        }
-    }
-
-    private void extractDirectValue(String html, String jsonKey, Map<String, String> metrics, String metricKey) {
-        Pattern pattern = Pattern.compile(Pattern.quote(jsonKey) + "([0-9.]+)");
-        Matcher matcher = pattern.matcher(html);
-        if (matcher.find()) {
-            metrics.put(metricKey, matcher.group(1));
-            log.info("📊 {}: {}", metricKey, matcher.group(1));
+            log.info("📊 {} (from JSON): {}", key, matcher.group(1));
         }
     }
 
@@ -344,8 +375,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
         if (metrics.containsKey("h52") && metrics.containsKey("l52")) {
             return;
         }
-
-        log.info("🔍 Extracting 52-week range from HTML tables...");
 
         try {
             Document doc = Jsoup.parse(html);
@@ -359,20 +388,9 @@ public class StockAnalysisProvider implements MarketDataProvider {
                         Elements cells = row.select("td");
                         if (cells.size() >= 2) {
                             String rangeText = cells.get(1).text().trim();
-                            Pattern rangePattern = Pattern.compile("([0-9.]+)\\s*-\\s*([0-9.]+)");
-                            Matcher matcher = rangePattern.matcher(rangeText);
-                            if (matcher.find()) {
-                                String low = matcher.group(1);
-                                String high = matcher.group(2);
-                                if (!metrics.containsKey("l52")) {
-                                    metrics.put("l52", low);
-                                    log.info("📊 l52: {}", low);
-                                }
-                                if (!metrics.containsKey("h52")) {
-                                    metrics.put("h52", high);
-                                    log.info("📊 h52: {}", high);
-                                }
-                                metrics.put("week52Range", rangeText);
+                            parseRange(rangeText, "l52", "h52", metrics);
+                            if (metrics.containsKey("l52") && metrics.containsKey("h52")) {
+                                log.info("📊 52-Week Low: {}, High: {}", metrics.get("l52"), metrics.get("h52"));
                                 return;
                             }
                         }
@@ -380,102 +398,108 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to parse HTML for 52-week range: {}", e.getMessage());
+            log.warn("Failed to parse 52-week range: {}", e.getMessage());
         }
     }
 
     private void extractDebtEquityFromRatiosTable(String html, Map<String, String> metrics) {
-        log.info("🔍 Looking for Debt/Equity in ratios table...");
+        log.info("🔍 Looking for Debt/Equity...");
 
-        Document doc = Jsoup.parse(html);
-        Elements rows = doc.select("tr");
+        try {
+            Document doc = Jsoup.parse(html);
+            Elements rows = doc.select("tr");
 
-        for (Element row : rows) {
-            if (row.text().contains("Debt / Equity Ratio")) {
-                Elements dataCells = row.select("td");
-                if (dataCells.size() >= 2) {
-                    String value = dataCells.get(1).text().trim();
-                    if (!value.isEmpty() && !value.equals("n/a") && !value.equals("Debt / Equity Ratio")) {
-                        metrics.put("debtToEquity", value);
-                        log.info("📊 debtToEquity: {}", value);
-                        return;
+            for (Element row : rows) {
+                if (row.text().contains("Debt / Equity Ratio")) {
+                    Elements dataCells = row.select("td");
+                    if (dataCells.size() >= 2) {
+                        String value = dataCells.get(1).text().trim();
+                        if (!value.isEmpty() && !value.equals("n/a") && !value.equals("Debt / Equity Ratio")) {
+                            metrics.put("debtToEquity", value);
+                            log.info("📊 Debt/Equity: {}", value);
+                            return;
+                        }
                     }
                 }
-                break;
             }
+        } catch (Exception e) {
+            log.warn("Failed to parse Debt/Equity: {}", e.getMessage());
         }
 
+        // Fallback to JSON
         Pattern pattern = Pattern.compile("\"debtequity\":\\[([0-9.\\-,\\s]+)\\]");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
-            String arrayStr = matcher.group(1);
-            String[] values = arrayStr.split(",");
+            String[] values = matcher.group(1).split(",");
             if (values.length > 0) {
-                String value = values[0].trim();
-                metrics.put("debtToEquity", value);
-                log.info("📊 debtToEquity (from JSON): {}", value);
+                metrics.put("debtToEquity", values[0].trim());
+                log.info("📊 Debt/Equity (from JSON): {}", values[0].trim());
             }
         }
     }
 
     private void extractProfitMarginFromStatisticsPage(String html, Map<String, String> metrics) {
-        log.info("🔍 Looking for Profit Margin in statistics page...");
+        log.info("🔍 Looking for Profit Margin...");
 
-        Document doc = Jsoup.parse(html);
-        Elements rows = doc.select("tr");
+        try {
+            Document doc = Jsoup.parse(html);
+            Elements rows = doc.select("tr");
 
-        for (Element row : rows) {
-            if (row.text().contains("Profit Margin")) {
-                Elements dataCells = row.select("td");
-                if (dataCells.size() >= 2) {
-                    String value = dataCells.get(1).text().trim();
-                    if (!value.isEmpty() && !value.equals("n/a")) {
-                        value = value.replace("%", "");
-                        metrics.put("profitMargin", value);
-                        log.info("📊 profitMargin: {}%", value);
-                        return;
+            for (Element row : rows) {
+                if (row.text().contains("Profit Margin")) {
+                    Elements dataCells = row.select("td");
+                    if (dataCells.size() >= 2) {
+                        String value = dataCells.get(1).text().trim();
+                        if (!value.isEmpty() && !value.equals("n/a")) {
+                            value = value.replace("%", "");
+                            metrics.put("profitMargin", value);
+                            log.info("📊 Profit Margin: {}%", value);
+                            return;
+                        }
                     }
                 }
-                break;
             }
+        } catch (Exception e) {
+            log.warn("Failed to parse Profit Margin: {}", e.getMessage());
         }
 
         Pattern pattern = Pattern.compile("\"profitMargin\":\"([0-9.]+)%\"");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
-            String value = matcher.group(1);
-            metrics.put("profitMargin", value);
-            log.info("📊 profitMargin (from JSON): {}%", value);
+            metrics.put("profitMargin", matcher.group(1));
+            log.info("📊 Profit Margin (from JSON): {}%", matcher.group(1));
         }
     }
 
     private void extractBookValueFromStatisticsPage(String html, Map<String, String> metrics) {
-        log.info("🔍 Looking for Book Value Per Share in statistics page...");
+        log.info("🔍 Looking for Book Value Per Share...");
 
-        Document doc = Jsoup.parse(html);
-        Elements rows = doc.select("tr");
+        try {
+            Document doc = Jsoup.parse(html);
+            Elements rows = doc.select("tr");
 
-        for (Element row : rows) {
-            if (row.text().contains("Book Value Per Share")) {
-                Elements dataCells = row.select("td");
-                if (dataCells.size() >= 2) {
-                    String value = dataCells.get(1).text().trim();
-                    if (!value.isEmpty() && !value.equals("n/a")) {
-                        metrics.put("bookValuePerShare", value);
-                        log.info("📊 bookValuePerShare: {}", value);
-                        return;
+            for (Element row : rows) {
+                if (row.text().contains("Book Value Per Share")) {
+                    Elements dataCells = row.select("td");
+                    if (dataCells.size() >= 2) {
+                        String value = dataCells.get(1).text().trim();
+                        if (!value.isEmpty() && !value.equals("n/a")) {
+                            metrics.put("bookValuePerShare", value);
+                            log.info("📚 Book Value Per Share: {}", value);
+                            return;
+                        }
                     }
                 }
-                break;
             }
+        } catch (Exception e) {
+            log.warn("Failed to parse Book Value: {}", e.getMessage());
         }
 
         Pattern pattern = Pattern.compile("\"bvps\":\"([0-9.]+)\"");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
-            String value = matcher.group(1);
-            metrics.put("bookValuePerShare", value);
-            log.info("📊 bookValuePerShare (from JSON): {}", value);
+            metrics.put("bookValuePerShare", matcher.group(1));
+            log.info("📚 Book Value Per Share (from JSON): {}", matcher.group(1));
         }
     }
 
@@ -526,6 +550,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
         html.append("  <div class='section dividends'>\n    <h3>Dividends</h3>\n");
         appendMetric(html, metrics, "dividendYield", "dividend-yield", "Dividend Yield %");
         appendMetric(html, metrics, "payoutRatio", "payout-ratio", "Payout Ratio %");
+        appendMetric(html, metrics, "dividend", "dividend-amount", "Dividend Amount");
         appendMetric(html, metrics, "exDividendDate", "ex-dividend-date", "Ex-Dividend Date");
         html.append("  </div>\n");
 

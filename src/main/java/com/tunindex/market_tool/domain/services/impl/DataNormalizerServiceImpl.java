@@ -62,7 +62,6 @@ public class DataNormalizerServiceImpl implements DataNormalizerService {
         stock.setSymbol(normalizedData.getSymbol());
         stock.setName(normalizedData.getName());
         stock.setUrl(normalizedData.getUrl());
-        stock.setIsin(normalizedData.getIsin());
         stock.setExchange(normalizedData.getExchange());
         stock.setExchangeFullName(normalizedData.getExchangeFullName());
         stock.setMarket(normalizedData.getMarket());
@@ -81,17 +80,12 @@ public class DataNormalizerServiceImpl implements DataNormalizerService {
         PriceData priceData = new PriceData();
         priceData.setLastPrice(normalizedData.getLastPrice());
         priceData.setPrevClose(normalizedData.getPrevClose());
-        priceData.setOpen(normalizedData.getOpen());
         priceData.setDayHigh(normalizedData.getDayHigh());
         priceData.setDayLow(normalizedData.getDayLow());
-        priceData.setChange(normalizedData.getChange());
-        priceData.setChangePct(normalizedData.getChangePct());
         priceData.setWeek52High(normalizedData.getWeek52High());
         priceData.setWeek52Low(normalizedData.getWeek52Low());
         priceData.setWeek52Range(normalizedData.getWeek52Range());
         priceData.setCloseTo52weekslowPct(normalizedData.getCloseTo52weekslowPct());
-        priceData.setBid(normalizedData.getBid());
-        priceData.setAsk(normalizedData.getAsk());
         priceData.setLastUpdateTimestamp(normalizedData.getLastUpdate());
         stock.setPriceData(priceData);
 

@@ -1,6 +1,5 @@
 package com.tunindex.market_tool.domain.providers.stockanalysis;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
@@ -133,7 +132,10 @@ public class StockAnalysisProvider implements MarketDataProvider {
         // Extract price data using multiple methods
         extractPriceDataFromOverview(overviewHtml, metrics);
 
-        // Extract 52-week range from HTML tables as fallback
+        // FALLBACK: Extract price data directly from HTML tables
+        extractPriceDataFromHtmlTables(overviewHtml, metrics);
+
+        // Extract 52-week range from HTML tables
         extract52WeekFromHtml(overviewHtml, metrics);
 
         // Extract Debt/Equity from ratios page
@@ -196,15 +198,12 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private void extractPriceDataFromOverview(String html, Map<String, String> metrics) {
         log.info("🔍 Extracting price data from overview page...");
 
-        // Method 1: Extract from the quote object in the script
-        // Look for "quote":{...} pattern
+        // Try to find the quote object
         Pattern quotePattern = Pattern.compile("\"quote\":\\s*\\{([^}]+)\\}");
         Matcher quoteMatcher = quotePattern.matcher(html);
 
         if (quoteMatcher.find()) {
             String quoteContent = quoteMatcher.group(1);
-            log.info("Found quote object, extracting values...");
-
             extractJsonValue(quoteContent, "p", metrics);
             extractJsonValue(quoteContent, "c", metrics);
             extractJsonValue(quoteContent, "cp", metrics);
@@ -213,37 +212,113 @@ public class StockAnalysisProvider implements MarketDataProvider {
             extractJsonValue(quoteContent, "cl", metrics);
             extractJsonValue(quoteContent, "h", metrics);
             extractJsonValue(quoteContent, "l", metrics);
-            extractJsonValue(quoteContent, "h52", metrics);
-            extractJsonValue(quoteContent, "l52", metrics);
         }
 
-        // Method 2: Direct search for patterns
-        if (!metrics.containsKey("p")) {
-            extractDirectValue(html, "\"p\":", metrics, "p");
+        // Direct search as fallback
+        if (!metrics.containsKey("p")) extractDirectValue(html, "\"p\":", metrics, "p");
+        if (!metrics.containsKey("cp")) extractDirectValue(html, "\"cp\":", metrics, "cp");
+        if (!metrics.containsKey("v")) extractDirectValue(html, "\"v\":", metrics, "v");
+        if (!metrics.containsKey("o")) extractDirectValue(html, "\"o\":", metrics, "o");
+        if (!metrics.containsKey("cl")) extractDirectValue(html, "\"cl\":", metrics, "cl");
+        if (!metrics.containsKey("h")) extractDirectValue(html, "\"h\":", metrics, "h");
+        if (!metrics.containsKey("l")) extractDirectValue(html, "\"l\":", metrics, "l");
+    }
+
+    /**
+     * CRITICAL FALLBACK: Extract price data directly from visible HTML elements
+     */
+    private void extractPriceDataFromHtmlTables(String html, Map<String, String> metrics) {
+        if (metrics.containsKey("p") && metrics.containsKey("v")) {
+            return; // Already have price data
         }
-        if (!metrics.containsKey("cp")) {
-            extractDirectValue(html, "\"cp\":", metrics, "cp");
-        }
-        if (!metrics.containsKey("v")) {
-            extractDirectValue(html, "\"v\":", metrics, "v");
-        }
-        if (!metrics.containsKey("o")) {
-            extractDirectValue(html, "\"o\":", metrics, "o");
-        }
-        if (!metrics.containsKey("cl")) {
-            extractDirectValue(html, "\"cl\":", metrics, "cl");
-        }
-        if (!metrics.containsKey("h")) {
-            extractDirectValue(html, "\"h\":", metrics, "h");
-        }
-        if (!metrics.containsKey("l")) {
-            extractDirectValue(html, "\"l\":", metrics, "l");
-        }
-        if (!metrics.containsKey("h52")) {
-            extractDirectValue(html, "\"h52\":", metrics, "h52");
-        }
-        if (!metrics.containsKey("l52")) {
-            extractDirectValue(html, "\"l52\":", metrics, "l52");
+
+        log.info("🔍 Extracting price data from HTML tables (critical fallback)...");
+
+        try {
+            Document doc = Jsoup.parse(html);
+
+            // Look for the price value in the main price div
+            Element priceElement = doc.selectFirst(".text-4xl.font-bold");
+            if (priceElement != null && !metrics.containsKey("p")) {
+                String price = priceElement.text().trim();
+                metrics.put("p", price);
+                log.info("📊 p (price from HTML): {}", price);
+            }
+
+            // Look for the change element
+            Element changeElement = doc.selectFirst(".font-semibold.inline-block.text-2xl");
+            if (changeElement != null && !metrics.containsKey("cp")) {
+                String changeText = changeElement.text().trim();
+                // Extract percentage from " +1.01 (0.70%) "
+                Pattern percentPattern = Pattern.compile("\\(([0-9.]+)%\\)");
+                Matcher percentMatcher = percentPattern.matcher(changeText);
+                if (percentMatcher.find()) {
+                    metrics.put("cp", percentMatcher.group(1));
+                    log.info("📊 cp (change % from HTML): {}", percentMatcher.group(1));
+                }
+                // Extract absolute change
+                Pattern amountPattern = Pattern.compile("([+-][0-9.]+)\\s*\\(");
+                Matcher amountMatcher = amountPattern.matcher(changeText);
+                if (amountMatcher.find()) {
+                    metrics.put("c", amountMatcher.group(1));
+                    log.info("📊 c (change amount from HTML): {}", amountMatcher.group(1));
+                }
+            }
+
+            // Find all tables and extract price-related data
+            Elements tables = doc.select("table");
+            for (Element table : tables) {
+                Elements rows = table.select("tr");
+                for (Element row : rows) {
+                    String rowText = row.text();
+                    Elements cells = row.select("td");
+                    if (cells.size() >= 2) {
+                        String label = cells.get(0).text().trim();
+                        String value = cells.get(1).text().trim();
+
+                        if (label.equals("Open") && !metrics.containsKey("o")) {
+                            metrics.put("o", value);
+                            log.info("📊 o (open from HTML): {}", value);
+                        } else if (label.equals("Previous Close") && !metrics.containsKey("cl")) {
+                            metrics.put("cl", value);
+                            log.info("📊 cl (prev close from HTML): {}", value);
+                        } else if (label.equals("Day's Range") && (!metrics.containsKey("l") || !metrics.containsKey("h"))) {
+                            Pattern rangePattern = Pattern.compile("([0-9.]+)\\s*-\\s*([0-9.]+)");
+                            Matcher rangeMatcher = rangePattern.matcher(value);
+                            if (rangeMatcher.find()) {
+                                if (!metrics.containsKey("l")) {
+                                    metrics.put("l", rangeMatcher.group(1));
+                                    log.info("📊 l (day low from HTML): {}", rangeMatcher.group(1));
+                                }
+                                if (!metrics.containsKey("h")) {
+                                    metrics.put("h", rangeMatcher.group(2));
+                                    log.info("📊 h (day high from HTML): {}", rangeMatcher.group(2));
+                                }
+                            }
+                        } else if (label.equals("Volume") && !metrics.containsKey("v")) {
+                            metrics.put("v", value.replace(",", ""));
+                            log.info("📊 v (volume from HTML): {}", value);
+                        } else if (label.equals("Average Volume") && !metrics.containsKey("averageVolume")) {
+                            metrics.put("averageVolume", value);
+                            log.info("📊 averageVolume from HTML: {}", value);
+                        } else if (label.equals("Beta") && !metrics.containsKey("beta")) {
+                            metrics.put("beta", value);
+                            log.info("📊 beta from HTML: {}", value);
+                        } else if (label.equals("RSI") && !metrics.containsKey("rsi")) {
+                            metrics.put("rsi", value);
+                            log.info("📊 rsi from HTML: {}", value);
+                        } else if (label.equals("Earnings Date") && !metrics.containsKey("earningsDate")) {
+                            metrics.put("earningsDate", value);
+                            log.info("📊 earningsDate from HTML: {}", value);
+                        } else if (label.equals("Ex-Dividend Date") && !metrics.containsKey("exDividendDate")) {
+                            metrics.put("exDividendDate", value);
+                            log.info("📊 exDividendDate from HTML: {}", value);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse HTML for price data: {}", e.getMessage());
         }
     }
 

@@ -3,6 +3,7 @@ package com.tunindex.market_tool.domain.services.impl;
 import com.tunindex.market_tool.core.config.properties.MarketToolProperties;
 import com.tunindex.market_tool.core.utils.constants.Constants;
 import com.tunindex.market_tool.domain.dto.providers.investingcom.EnrichedStockData;
+import com.tunindex.market_tool.domain.entities.Stock;
 import com.tunindex.market_tool.domain.providers.stockanalysis.StockAnalysisProvider;
 import com.tunindex.market_tool.domain.repository.jpa.StockRepository;
 import com.tunindex.market_tool.domain.services.orchestrator.DataOrchestrator;
@@ -13,7 +14,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -30,10 +33,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
         return stockAnalysisProvider.fetchAllStocks()
                 .collectList()
-                .flatMap(enrichedStocks -> {
-                    log.info("✅ Fetched {} stocks", enrichedStocks.size());
-                    return saveAllToDatabase(enrichedStocks);
-                })
+                .flatMap(this::saveAllToDatabase)
                 .doOnSuccess(v -> log.info("✅ Pipeline completed successfully"))
                 .doOnError(e -> log.error("❌ Pipeline failed: {}", e.getMessage()))
                 .then();
@@ -44,13 +44,11 @@ public class DataOrchestratorImpl implements DataOrchestrator {
         log.info("🚀 Running pipeline for stock: {}", symbol);
 
         return stockAnalysisProvider.fetchStockData(symbol)
-                .flatMap(enrichedData -> Mono.fromCallable(() -> {
-                            stockRepository.save(enrichedData.getStock());
-                            log.info("Saved stock: {}", symbol);
-                            return enrichedData;
-                        })
-                        .subscribeOn(Schedulers.boundedElastic()))
-                .doOnSuccess(stock -> log.info("✅ Successfully processed stock: {}", symbol))
+                .flatMap(enrichedData ->
+                        saveOrUpdateStock(enrichedData.getStock())
+                                .thenReturn(enrichedData)
+                )
+                .doOnSuccess(enrichedData -> log.info("✅ Successfully processed stock: {}", symbol))
                 .doOnError(e -> log.error("❌ Failed to process stock {}: {}", symbol, e.getMessage()));
     }
 
@@ -63,20 +61,67 @@ public class DataOrchestratorImpl implements DataOrchestrator {
         return activeProvider;
     }
 
+    /**
+     * Save or update a single stock - UPSERT operation
+     * Prevents duplicate key violations by updating existing records
+     */
+    private Mono<Stock> saveOrUpdateStock(Stock newStock) {
+        if (newStock == null) {
+            return Mono.empty();
+        }
+
+        // Set timestamps
+        LocalDateTime now = LocalDateTime.now();
+        newStock.setLastUpdate(now);
+        newStock.setUpdatedAt(now);
+
+        String symbol = newStock.getSymbol();
+        String exchange = newStock.getExchange();
+
+        log.debug("🔄 Processing stock: {} on exchange: {}", symbol, exchange);
+
+        // Check if stock already exists - using blocking findFirst to avoid Optional issues
+        return Mono.fromCallable(() -> stockRepository.findBySymbolAndExchange(symbol, exchange))
+                .flatMap(optionalStock -> {
+                    if (optionalStock.isPresent()) {
+                        // UPDATE existing stock
+                        Stock existingStock = optionalStock.get();
+                        log.info("📝 Updating existing stock: {} (ID: {})", symbol, existingStock.getId());
+
+                        // Preserve the ID and creation date
+                        newStock.setId(existingStock.getId());
+                        newStock.setCreatedAt(existingStock.getCreatedAt());
+
+                        return Mono.fromCallable(() -> stockRepository.save(newStock));
+                    } else {
+                        // INSERT new stock
+                        log.info("📝 Inserting new stock: {}", symbol);
+                        newStock.setCreatedAt(now);
+                        return Mono.fromCallable(() -> stockRepository.save(newStock));
+                    }
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnSuccess(savedStock -> {
+                    if (savedStock.getCreatedAt() != null && savedStock.getCreatedAt().equals(savedStock.getUpdatedAt())) {
+                        log.info("✅ Inserted stock: {}", savedStock.getSymbol());
+                    } else {
+                        log.info("✅ Updated stock: {}", savedStock.getSymbol());
+                    }
+                });
+    }
+
+    /**
+     * Save all stocks to database with UPSERT logic
+     */
     private Mono<Void> saveAllToDatabase(List<EnrichedStockData> stocks) {
-        log.info("💾 Saving {} stocks to database", stocks.size());
+        log.info("💾 Saving {} stocks to database (UPSERT mode)", stocks.size());
 
         return Flux.fromIterable(stocks)
                 .parallel(properties.getParallelism().getMaxWorkers())
                 .runOn(Schedulers.boundedElastic())
                 .flatMap(enrichedData -> {
                     if (enrichedData.getStock() != null) {
-                        return Mono.fromCallable(() -> {
-                                    stockRepository.save(enrichedData.getStock());
-                                    log.debug("Saved stock: {}", enrichedData.getStock().getSymbol());
-                                    return enrichedData;
-                                })
-                                .subscribeOn(Schedulers.boundedElastic())
+                        return saveOrUpdateStock(enrichedData.getStock())
                                 .onErrorResume(e -> {
                                     log.error("Failed to save stock {}: {}",
                                             enrichedData.getStock().getSymbol(), e.getMessage());

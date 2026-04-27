@@ -1,6 +1,5 @@
 package com.tunindex.market_tool.domain.providers.stockanalysis;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
@@ -42,7 +41,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
 
     @Override
     public Mono<EnrichedStockData> fetchStockData(String symbol) {
-        log.info("Fetching data for symbol: {}", symbol);
+        log.info("📊 StockAnalysis Provider - Fetching data for symbol: {}", symbol);
 
         Constants.StockInfo stockInfo = Constants.TUNISIAN_STOCKS_STOCK_ANALYSIS.get(symbol);
         if (stockInfo == null) {
@@ -58,27 +57,32 @@ public class StockAnalysisProvider implements MarketDataProvider {
         String url = Constants.STOCKANALYSIS_BASE_URL + symbol + "/";
 
         return fetchPage(url)
-                .map(html -> extractStockDataFromPage(html, symbol, stockInfo))
+                .flatMap(html -> extractStockDataFromPage(html, symbol, stockInfo))
+                .filter(rawData -> rawData.getMainPageHtml() != null && !rawData.getMainPageHtml().isEmpty())
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("⚠️ No data found for symbol: {}, skipping", symbol);
+                    return Mono.empty();
+                }))
                 .map(dataParserService::parseToNormalized)
                 .map(normalizer::toEntity)
                 .flatMap(enricher::enrich)
-                .doOnSuccess(data -> log.info("Successfully fetched and enriched data for {} from StockAnalysis", symbol))
-                .doOnError(error -> log.error("Failed to fetch data for {}: {}", symbol, error.getMessage()));
+                .doOnSuccess(data -> log.info("✨ Successfully enriched data for {} from StockAnalysis", symbol))
+                .doOnError(error -> log.error("❌ Failed to fetch data for {}: {}", symbol, error.getMessage()));
     }
 
     @Override
     public Flux<EnrichedStockData> fetchAllStocks() {
-        log.info("Fetching all stocks from StockAnalysis.com");
+        log.info("🚀 StockAnalysis Provider - Fetching all stocks");
 
         Map<String, Constants.StockInfo> stocks = Constants.TUNISIAN_STOCKS_STOCK_ANALYSIS;
 
         return Flux.fromIterable(stocks.entrySet())
                 .flatMap(entry -> fetchStockData(entry.getKey())
                         .onErrorResume(error -> {
-                            log.error("Failed to fetch {}: {}", entry.getKey(), error.getMessage());
+                            log.error("❌ Failed to fetch {}: {}", entry.getKey(), error.getMessage());
                             return Mono.empty();
                         }), 5)
-                .doOnComplete(() -> log.info("Completed fetching all stocks from StockAnalysis"));
+                .doOnComplete(() -> log.info("✅ Completed fetching all {} stocks from StockAnalysis", stocks.size()));
     }
 
     @Override
@@ -97,141 +101,157 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 .timeout(Duration.ofSeconds(30))
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
                 .onErrorResume(e -> {
-                    log.error("Failed to fetch page: {} - {}", url, e.getMessage());
+                    log.error("❌ Failed to fetch page: {} - {}", url, e.getMessage());
                     return Mono.empty();
                 });
     }
 
-    private RawStockData extractStockDataFromPage(String html, String symbol, Constants.StockInfo stockInfo) {
+    private Mono<RawStockData> extractStockDataFromPage(String html, String symbol, Constants.StockInfo stockInfo) {
         RawStockData rawData = new RawStockData();
         rawData.setSymbol(symbol);
         rawData.setStockInfo(stockInfo);
 
-        // Extract all metrics from the HTML
-        Map<String, String> extractedData = extractMetricsFromHtml(html);
+        Map<String, String> metrics = new LinkedHashMap<>();
 
-        // Build HTML with extracted data for the parser
-        String combinedHtml = buildHtmlWithMetrics(symbol, stockInfo, extractedData);
+        log.info("🔍 Extracting data for {} from page source", symbol);
+
+        try {
+            // Search the full HTML directly - the data is already there
+
+            // String fields (quoted values)
+            extractField(html, "marketCap", metrics);
+            extractField(html, "revenue", metrics);
+            extractField(html, "netIncome", metrics);
+            extractField(html, "eps", metrics);
+            extractField(html, "sharesOut", metrics);
+            extractField(html, "peRatio", metrics);
+            extractField(html, "forwardPE", metrics);
+            extractField(html, "dividend", metrics);
+            extractField(html, "averageVolume", metrics);
+            extractField(html, "beta", metrics);
+            extractField(html, "rsi", metrics);
+            extractField(html, "earningsDate", metrics);
+            extractField(html, "exDividendDate", metrics);
+            extractField(html, "exchange", metrics);
+            extractField(html, "exchange_code", metrics);
+
+            // Numeric fields from quote object (no quotes)
+            extractNumericField(html, "h52", metrics);  // 52-week high
+            extractNumericField(html, "l52", metrics);  // 52-week low
+            extractNumericField(html, "p", metrics);    // current price
+            extractNumericField(html, "cp", metrics);   // change percentage
+            extractNumericField(html, "v", metrics);    // volume
+            extractNumericField(html, "cl", metrics);   // previous close
+            extractNumericField(html, "o", metrics);    // open
+            extractNumericField(html, "h", metrics);    // day high
+            extractNumericField(html, "l", metrics);    // day low
+
+            // Extract dividend yield from dividend string
+            if (metrics.containsKey("dividend")) {
+                String dividendValue = metrics.get("dividend");
+                Pattern yieldPattern = Pattern.compile("\\(([0-9.]+)%\\)");
+                Matcher yieldMatcher = yieldPattern.matcher(dividendValue);
+                if (yieldMatcher.find()) {
+                    metrics.put("dividendYield", yieldMatcher.group(1));
+                    log.info("💸 Dividend Yield: {}%", yieldMatcher.group(1));
+                }
+                // Extract just the number part
+                Pattern numPattern = Pattern.compile("^([0-9.]+)");
+                Matcher numMatcher = numPattern.matcher(dividendValue);
+                if (numMatcher.find()) {
+                    metrics.put("dividend", numMatcher.group(1));
+                }
+            }
+
+            // Calculate week52 range string
+            if (metrics.containsKey("l52") && metrics.containsKey("h52")) {
+                metrics.put("week52Range", metrics.get("l52") + " - " + metrics.get("h52"));
+            }
+
+            // Check if we have any data
+            if (metrics.isEmpty()) {
+                log.warn("⚠️ No metrics extracted for {}", symbol);
+                return Mono.empty();
+            }
+
+        } catch (Exception e) {
+            log.error("Error extracting data for {}: {}", symbol, e.getMessage());
+            return Mono.empty();
+        }
+
+        // Log summary
+        log.info("========================================");
+        log.info("📊 EXTRACTED DATA FOR: {}", symbol);
+        log.info("========================================");
+        metrics.forEach((key, value) -> log.info("  {}: {}", key, value));
+        log.info("========================================");
+        log.info("✅ Successfully extracted {} metrics for {}", metrics.size(), symbol);
+
+        // Build HTML for parser
+        String combinedHtml = buildHtmlWithMetrics(symbol, stockInfo, metrics);
 
         rawData.setMainPageHtml(combinedHtml);
         rawData.setBalanceSheetHtml(combinedHtml);
         rawData.setIncomeStatementHtml(combinedHtml);
         rawData.setFinancialSummaryHtml(combinedHtml);
 
-        return rawData;
+        return Mono.just(rawData);
     }
 
-    private Map<String, String> extractMetricsFromHtml(String html) {
-        Map<String, String> metrics = new HashMap<>();
-
-        try {
-            // Extract Market Cap
-            String marketCap = extractValue(html, "Market Cap\\s*\\|\\s*([0-9.]+[MB]?)");
-            if (marketCap != null) metrics.put("marketCap", marketCap);
-
-            // Extract Revenue
-            String revenue = extractValue(html, "Revenue \\(ttm\\)\\s*\\|\\s*([0-9.]+[MB]?)");
-            if (revenue != null) metrics.put("revenue", revenue);
-
-            // Extract Net Income
-            String netIncome = extractValue(html, "Net Income\\s*\\|\\s*([0-9.]+[MB]?)");
-            if (netIncome != null) metrics.put("netIncome", netIncome);
-
-            // Extract EPS
-            String eps = extractValue(html, "EPS\\s*\\|\\s*([0-9.]+)");
-            if (eps != null) metrics.put("eps", eps);
-
-            // Extract Shares Outstanding
-            String sharesOut = extractValue(html, "Shares Out\\s*\\|\\s*([0-9.]+[MB]?)");
-            if (sharesOut != null) metrics.put("sharesOutstanding", sharesOut);
-
-            // Extract PE Ratio
-            String peRatio = extractValue(html, "PE Ratio\\s*\\|\\s*([0-9.]+)");
-            if (peRatio != null) metrics.put("peRatio", peRatio);
-
-            // Extract Forward PE
-            String forwardPe = extractValue(html, "Forward PE\\s*\\|\\s*([0-9.]+)");
-            if (forwardPe != null) metrics.put("forwardPE", forwardPe);
-
-            // Extract Dividend
-            String dividend = extractValue(html, "Dividend\\s*\\|\\s*([0-9.]+)\\s*\\(([0-9.]+)%\\)");
-            if (dividend != null) {
-                metrics.put("dividend", dividend);
-                String divYield = extractValue(html, "Dividend\\s*\\|\\s*[0-9.]+\\s*\\(([0-9.]+)%\\)");
-                if (divYield != null) metrics.put("dividendYield", divYield);
+    private void extractField(String html, String fieldName, Map<String, String> metrics) {
+        Pattern pattern = Pattern.compile(fieldName + ":\\s*\"([^\"]+)\"");
+        Matcher matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            String value = matcher.group(1);
+            if (value != null && !value.isEmpty() && !value.equals("n/a")) {
+                metrics.put(fieldName, value);
+                log.info("📊 {}: {}", getDisplayName(fieldName), value);
             }
-
-            // Extract Volume
-            String volume = extractValue(html, "Volume\\s*\\|\\s*([0-9,]+)");
-            if (volume != null) metrics.put("volume", volume.replace(",", ""));
-
-            // Extract Average Volume
-            String avgVolume = extractValue(html, "Average Volume\\s*\\|\\s*([0-9,]+)");
-            if (avgVolume != null) metrics.put("averageVolume", avgVolume.replace(",", ""));
-
-            // Extract Open
-            String open = extractValue(html, "Open\\s*\\|\\s*([0-9.]+)");
-            if (open != null) metrics.put("open", open);
-
-            // Extract Previous Close
-            String prevClose = extractValue(html, "Previous Close\\s*\\|\\s*([0-9.]+)");
-            if (prevClose != null) metrics.put("prevClose", prevClose);
-
-            // Extract Day's Range
-            String dayRange = extractValue(html, "Day's Range\\s*\\|\\s*([0-9.]+)\\s*-\\s*([0-9.]+)");
-            if (dayRange != null) {
-                metrics.put("dayLow", extractValue(html, "Day's Range\\s*\\|\\s*([0-9.]+)\\s*-"));
-                metrics.put("dayHigh", extractValue(html, "Day's Range\\s*\\|\\s*[0-9.]+\\s*-\\s*([0-9.]+)"));
-            }
-
-            // Extract 52-Week Range
-            String week52Range = extractValue(html, "52-Week Range\\s*\\|\\s*([0-9.]+)\\s*-\\s*([0-9.]+)");
-            if (week52Range != null) {
-                metrics.put("week52Low", extractValue(html, "52-Week Range\\s*\\|\\s*([0-9.]+)\\s*-"));
-                metrics.put("week52High", extractValue(html, "52-Week Range\\s*\\|\\s*[0-9.]+\\s*-\\s*([0-9.]+)"));
-                metrics.put("week52Range", week52Range);
-            }
-
-            // Extract Beta
-            String beta = extractValue(html, "Beta\\s*\\|\\s*([0-9.]+)");
-            if (beta != null) metrics.put("beta", beta);
-
-            // Extract RSI
-            String rsi = extractValue(html, "RSI\\s*\\|\\s*([0-9.]+)");
-            if (rsi != null) metrics.put("rsi", rsi);
-
-            // Extract price and change from the top of the page
-            String price = extractValue(html, "([0-9.]+)\\s*\\n\\s*[-+][0-9.]+\\s*\\([-+][0-9.]+%\\)");
-            if (price != null) metrics.put("price", price);
-
-            String change = extractValue(html, "[0-9.]+\\s*\\n\\s*([-+][0-9.]+)\\s*\\([-+][0-9.]+%\\)");
-            if (change != null) metrics.put("change", change);
-
-            String changePct = extractValue(html, "[0-9.]+\\s*\\n\\s*[-+][0-9.]+\\s*\\(([-+][0-9.]+)%\\)");
-            if (changePct != null) metrics.put("changePct", changePct);
-
-            // Extract 1Y Return
-            String oneYearReturn = extractValue(html, "([0-9.]+)%\\s*\\(1Y\\)");
-            if (oneYearReturn != null) metrics.put("oneYearReturn", oneYearReturn);
-
-        } catch (Exception e) {
-            log.warn("Error extracting metrics from HTML: {}", e.getMessage());
         }
-
-        return metrics;
     }
 
-    private String extractValue(String html, String pattern) {
-        try {
-            Pattern p = Pattern.compile(pattern, Pattern.DOTALL);
-            Matcher m = p.matcher(html);
-            if (m.find()) {
-                return m.group(1).trim();
+    private void extractNumericField(String html, String fieldName, Map<String, String> metrics) {
+        Pattern pattern = Pattern.compile("\\b" + fieldName + ":\\s*(-?[0-9]+(?:\\.[0-9]+)?)");
+        Matcher matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            String value = matcher.group(1);
+            if (value != null && !value.isEmpty()) {
+                metrics.put(fieldName, value);
+                log.info("📊 {}: {}", getDisplayName(fieldName), value);
             }
-        } catch (Exception e) {
-            log.debug("Failed to extract pattern: {}", pattern);
         }
-        return null;
+    }
+
+    private String getDisplayName(String fieldName) {
+        switch (fieldName) {
+            case "marketCap": return "🏦 Market Cap";
+            case "revenue": return "💰 Revenue";
+            case "netIncome": return "📊 Net Income";
+            case "eps": return "💵 EPS";
+            case "sharesOut": return "📋 Shares Outstanding";
+            case "peRatio": return "📐 P/E Ratio";
+            case "forwardPE": return "🔮 Forward P/E";
+            case "dividend": return "💸 Dividend";
+            case "dividendYield": return "💸 Dividend Yield";
+            case "averageVolume": return "📈 Average Volume";
+            case "beta": return "📊 Beta";
+            case "rsi": return "📈 RSI";
+            case "earningsDate": return "📅 Earnings Date";
+            case "exDividendDate": return "📅 Ex-Dividend Date";
+            case "exchange": return "🏛️ Exchange";
+            case "exchange_code": return "🏛️ Exchange Code";
+            case "h52": return "📈 52-Week High";
+            case "l52": return "📉 52-Week Low";
+            case "p": return "💰 Price";
+            case "cp": return "📉 Change %";
+            case "v": return "📊 Volume";
+            case "cl": return "🔚 Previous Close";
+            case "o": return "🎯 Open";
+            case "h": return "📈 Day High";
+            case "l": return "📉 Day Low";
+            case "week52Range": return "📆 52-Week Range";
+            default: return fieldName;
+        }
     }
 
     private String buildHtmlWithMetrics(String symbol, Constants.StockInfo stockInfo, Map<String, String> metrics) {
@@ -246,21 +266,17 @@ public class StockAnalysisProvider implements MarketDataProvider {
         if (stockInfo.country() != null && !stockInfo.country().isEmpty()) {
             html.append("  <div class='country'>Country: ").append(stockInfo.country()).append("</div>\n");
         }
-        if (stockInfo.ownershipType() != null) {
-            html.append("  <div class='ownership-type'>Ownership: ").append(stockInfo.ownershipType()).append("</div>\n");
-        }
 
         // Overview Section
         html.append("  <div class='section overview'>\n");
         html.append("    <h3>Overview</h3>\n");
         if (metrics.containsKey("marketCap")) html.append("    <div class='market-cap'>Market Cap: ").append(metrics.get("marketCap")).append("</div>\n");
-        if (metrics.containsKey("price")) html.append("    <div class='price'>Price: ").append(metrics.get("price")).append("</div>\n");
-        if (metrics.containsKey("changePct")) html.append("    <div class='change'>Change: ").append(metrics.get("changePct")).append("%</div>\n");
+        if (metrics.containsKey("p")) html.append("    <div class='price'>Price: ").append(metrics.get("p")).append("</div>\n");
+        if (metrics.containsKey("cp")) html.append("    <div class='change'>Change: ").append(metrics.get("cp")).append("%</div>\n");
         if (metrics.containsKey("revenue")) html.append("    <div class='revenue'>Revenue: ").append(metrics.get("revenue")).append("</div>\n");
         if (metrics.containsKey("netIncome")) html.append("    <div class='net-income'>Net Income: ").append(metrics.get("netIncome")).append("</div>\n");
         if (metrics.containsKey("eps")) html.append("    <div class='eps'>EPS: ").append(metrics.get("eps")).append("</div>\n");
-        if (metrics.containsKey("sharesOutstanding")) html.append("    <div class='shares-outstanding'>Shares Outstanding: ").append(metrics.get("sharesOutstanding")).append("</div>\n");
-        if (metrics.containsKey("oneYearReturn")) html.append("    <div class='one-year-return'>1Y Return: ").append(metrics.get("oneYearReturn")).append("%</div>\n");
+        if (metrics.containsKey("sharesOut")) html.append("    <div class='shares-outstanding'>Shares Outstanding: ").append(metrics.get("sharesOut")).append("</div>\n");
         html.append("  </div>\n");
 
         // Valuation Section
@@ -275,19 +291,20 @@ public class StockAnalysisProvider implements MarketDataProvider {
         html.append("    <h3>Dividends</h3>\n");
         if (metrics.containsKey("dividend")) html.append("    <div class='dividend'>Dividend: ").append(metrics.get("dividend")).append("</div>\n");
         if (metrics.containsKey("dividendYield")) html.append("    <div class='dividend-yield'>Dividend Yield: ").append(metrics.get("dividendYield")).append("%</div>\n");
+        if (metrics.containsKey("exDividendDate")) html.append("    <div class='ex-dividend-date'>Ex-Dividend Date: ").append(metrics.get("exDividendDate")).append("</div>\n");
         html.append("  </div>\n");
 
         // Price & Volume Section
         html.append("  <div class='section price-volume'>\n");
         html.append("    <h3>Price & Volume</h3>\n");
-        if (metrics.containsKey("volume")) html.append("    <div class='volume'>Volume: ").append(metrics.get("volume")).append("</div>\n");
+        if (metrics.containsKey("v")) html.append("    <div class='volume'>Volume: ").append(metrics.get("v")).append("</div>\n");
         if (metrics.containsKey("averageVolume")) html.append("    <div class='avg-volume'>Average Volume: ").append(metrics.get("averageVolume")).append("</div>\n");
-        if (metrics.containsKey("open")) html.append("    <div class='open'>Open: ").append(metrics.get("open")).append("</div>\n");
-        if (metrics.containsKey("prevClose")) html.append("    <div class='prev-close'>Previous Close: ").append(metrics.get("prevClose")).append("</div>\n");
-        if (metrics.containsKey("dayLow")) html.append("    <div class='day-low'>Day Low: ").append(metrics.get("dayLow")).append("</div>\n");
-        if (metrics.containsKey("dayHigh")) html.append("    <div class='day-high'>Day High: ").append(metrics.get("dayHigh")).append("</div>\n");
-        if (metrics.containsKey("week52Low")) html.append("    <div class='week52-low'>52-Week Low: ").append(metrics.get("week52Low")).append("</div>\n");
-        if (metrics.containsKey("week52High")) html.append("    <div class='week52-high'>52-Week High: ").append(metrics.get("week52High")).append("</div>\n");
+        if (metrics.containsKey("o")) html.append("    <div class='open'>Open: ").append(metrics.get("o")).append("</div>\n");
+        if (metrics.containsKey("cl")) html.append("    <div class='prev-close'>Previous Close: ").append(metrics.get("cl")).append("</div>\n");
+        if (metrics.containsKey("l")) html.append("    <div class='day-low'>Day Low: ").append(metrics.get("l")).append("</div>\n");
+        if (metrics.containsKey("h")) html.append("    <div class='day-high'>Day High: ").append(metrics.get("h")).append("</div>\n");
+        if (metrics.containsKey("l52")) html.append("    <div class='week52-low'>52-Week Low: ").append(metrics.get("l52")).append("</div>\n");
+        if (metrics.containsKey("h52")) html.append("    <div class='week52-high'>52-Week High: ").append(metrics.get("h52")).append("</div>\n");
         if (metrics.containsKey("week52Range")) html.append("    <div class='week52-range'>52-Week Range: ").append(metrics.get("week52Range")).append("</div>\n");
         html.append("  </div>\n");
 
@@ -296,6 +313,14 @@ public class StockAnalysisProvider implements MarketDataProvider {
         html.append("    <h3>Technical</h3>\n");
         if (metrics.containsKey("beta")) html.append("    <div class='beta'>Beta: ").append(metrics.get("beta")).append("</div>\n");
         if (metrics.containsKey("rsi")) html.append("    <div class='rsi'>RSI: ").append(metrics.get("rsi")).append("</div>\n");
+        html.append("  </div>\n");
+
+        // Exchange Info Section
+        html.append("  <div class='section exchange-info'>\n");
+        html.append("    <h3>Exchange Info</h3>\n");
+        if (metrics.containsKey("exchange")) html.append("    <div class='exchange'>Exchange: ").append(metrics.get("exchange")).append("</div>\n");
+        if (metrics.containsKey("exchange_code")) html.append("    <div class='exchange-code'>Exchange Code: ").append(metrics.get("exchange_code")).append("</div>\n");
+        if (metrics.containsKey("earningsDate")) html.append("    <div class='earnings-date'>Earnings Date: ").append(metrics.get("earningsDate")).append("</div>\n");
         html.append("  </div>\n");
 
         html.append("</div>");

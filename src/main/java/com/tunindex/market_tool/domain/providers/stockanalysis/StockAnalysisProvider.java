@@ -1,6 +1,5 @@
 package com.tunindex.market_tool.domain.providers.stockanalysis;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
 import com.tunindex.market_tool.core.utils.constants.Constants;
@@ -36,7 +35,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
     private final WebClient webClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public String getProviderName() {

@@ -32,10 +32,6 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
     // Price based queries
     List<Stock> findByPriceDataLastPriceBetween(BigDecimal minPrice, BigDecimal maxPrice);
 
-    List<Stock> findByPriceDataChangePctGreaterThan(BigDecimal percentage);
-
-    List<Stock> findByPriceDataChangePctLessThan(BigDecimal percentage);
-
     // Fundamental based queries
     List<Stock> findByFundamentalDataPeRatioLessThan(BigDecimal peRatio);
 
@@ -132,14 +128,6 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
     // Average dividend yield by sector
     @Query("SELECT s.sector, AVG(s.fundamentalData.dividendYield) FROM Stock s WHERE s.fundamentalData.dividendYield IS NOT NULL GROUP BY s.sector")
     List<Object[]> averageDividendYieldBySector();
-
-    // Top gainers
-    @Query("SELECT s FROM Stock s WHERE s.priceData.changePct IS NOT NULL ORDER BY s.priceData.changePct DESC")
-    Page<Stock> findTopGainers(Pageable pageable);
-
-    // Top losers
-    @Query("SELECT s FROM Stock s WHERE s.priceData.changePct IS NOT NULL ORDER BY s.priceData.changePct ASC")
-    Page<Stock> findTopLosers(Pageable pageable);
 
     // Most active by volume
     @Query("SELECT s FROM Stock s WHERE s.volumeData.volume IS NOT NULL ORDER BY s.volumeData.volume DESC")

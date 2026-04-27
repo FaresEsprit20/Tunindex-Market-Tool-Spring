@@ -23,11 +23,8 @@ public class NormalizedStockData {
     // Price Data
     private BigDecimal lastPrice;
     private BigDecimal prevClose;
-    private BigDecimal open;
     private BigDecimal dayHigh;
     private BigDecimal dayLow;
-    private BigDecimal change;
-    private BigDecimal changePct;
     private Long lastUpdate;
 
     // 52 Week Range

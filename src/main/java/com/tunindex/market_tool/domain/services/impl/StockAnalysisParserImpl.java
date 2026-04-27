@@ -12,11 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -68,20 +65,6 @@ public class StockAnalysisParserImpl implements DataParserService {
 
         // Post-process calculations
         calculateDerivedFields(normalizedData);
-
-        // Log extracted data for debugging
-        log.info("📝 Parsed data for {}: price={}, change={}, changePct={}, open={}, prevClose={}, dayHigh={}, dayLow={}, volume={}, 52WeekLow={}, 52WeekHigh={}",
-                normalizedData.getSymbol(),
-                normalizedData.getLastPrice(),
-                normalizedData.getChange(),
-                normalizedData.getChangePct(),
-                normalizedData.getOpen(),
-                normalizedData.getPrevClose(),
-                normalizedData.getDayHigh(),
-                normalizedData.getDayLow(),
-                normalizedData.getVolume(),
-                normalizedData.getWeek52Low(),
-                normalizedData.getWeek52High());
 
         return normalizedData;
     }
@@ -178,36 +161,6 @@ public class StockAnalysisParserImpl implements DataParserService {
             log.info("💰 Extracted price: {}", value);
         }
 
-        // Change - from .change class (format: "+1.01 (0.70%)")
-        Element changeElem = doc.selectFirst(".change");
-        if (changeElem != null) {
-            String value = cleanLabel(changeElem.text(), "Change %");
-            if (value != null && !value.isEmpty()) {
-                // Extract percentage from "(0.70%)"
-                Pattern percentPattern = Pattern.compile("\\(([0-9.]+)%\\)");
-                Matcher percentMatcher = percentPattern.matcher(value);
-                if (percentMatcher.find()) {
-                    setBigDecimal(percentMatcher.group(1), normalizedData::setChangePct);
-                    log.info("📈 Extracted change percent: {}%", percentMatcher.group(1));
-                }
-
-                // Extract absolute change from "+1.01"
-                Pattern amountPattern = Pattern.compile("([+-][0-9.]+)\\s*\\(");
-                Matcher amountMatcher = amountPattern.matcher(value);
-                if (amountMatcher.find()) {
-                    setBigDecimal(amountMatcher.group(1), normalizedData::setChange);
-                    log.info("📈 Extracted change amount: {}", amountMatcher.group(1));
-                }
-            }
-        }
-
-        // Open price
-        Element openElem = doc.selectFirst(".open");
-        if (openElem != null) {
-            String value = cleanLabel(openElem.text(), "Open");
-            setBigDecimal(value, normalizedData::setOpen);
-            log.info("🎯 Extracted open: {}", value);
-        }
 
         // Previous Close
         Element prevCloseElem = doc.selectFirst(".prev-close");

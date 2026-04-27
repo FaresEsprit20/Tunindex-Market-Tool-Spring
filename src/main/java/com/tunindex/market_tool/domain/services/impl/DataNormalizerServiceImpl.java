@@ -22,11 +22,8 @@ public class DataNormalizerServiceImpl implements DataNormalizerService {
         // Clean numeric values
         normalizedData.setLastPrice(cleanNumberValue(normalizedData.getLastPrice()));
         normalizedData.setPrevClose(cleanNumberValue(normalizedData.getPrevClose()));
-        normalizedData.setOpen(cleanNumberValue(normalizedData.getOpen()));
         normalizedData.setDayHigh(cleanNumberValue(normalizedData.getDayHigh()));
         normalizedData.setDayLow(cleanNumberValue(normalizedData.getDayLow()));
-        normalizedData.setChange(cleanNumberValue(normalizedData.getChange()));
-        normalizedData.setChangePct(cleanNumberValue(normalizedData.getChangePct()));
 
         normalizedData.setVolume(cleanLongValue(normalizedData.getVolume()));
         normalizedData.setAvgVolume3m(cleanLongValue(normalizedData.getAvgVolume3m()));

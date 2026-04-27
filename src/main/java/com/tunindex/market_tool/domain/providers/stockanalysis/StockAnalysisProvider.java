@@ -12,6 +12,10 @@ import com.tunindex.market_tool.domain.services.normalizer.DataNormalizerService
 import com.tunindex.market_tool.domain.services.parser.DataParserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -54,10 +58,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
             ));
         }
 
-        String url = Constants.STOCKANALYSIS_BASE_URL + symbol + "/";
+        String overviewUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/";
+        String ratiosUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/financials/ratios/";
 
-        return fetchPage(url)
-                .flatMap(html -> extractStockDataFromPage(html, symbol, stockInfo))
+        return Mono.zip(
+                        fetchPage(overviewUrl),
+                        fetchPage(ratiosUrl)
+                ).flatMap(tuple -> extractStockDataFromPages(tuple.getT1(), tuple.getT2(), symbol, stockInfo))
                 .filter(rawData -> rawData.getMainPageHtml() != null && !rawData.getMainPageHtml().isEmpty())
                 .switchIfEmpty(Mono.defer(() -> {
                     log.warn("⚠️ No data found for symbol: {}, skipping", symbol);
@@ -90,15 +97,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
         return Constants.TUNISIAN_STOCKS_STOCK_ANALYSIS.containsKey(symbol);
     }
 
-    // ── HTTP ─────────────────────────────────────────────────────────────────
-
     private Mono<String> fetchPage(String url) {
         return webClient.get()
                 .uri(url)
                 .header("User-Agent", Constants.DEFAULT_USER_AGENT)
                 .header("Accept", Constants.DEFAULT_ACCEPT)
                 .header("Accept-Language", Constants.DEFAULT_ACCEPT_LANGUAGE)
-                .header("Accept-Encoding", "identity") // disable gzip — get plain text
+                .header("Accept-Encoding", "identity")
                 .retrieve()
                 .bodyToMono(String.class)
                 .timeout(Duration.ofSeconds(30))
@@ -109,88 +114,52 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 });
     }
 
-    // ── Extraction ────────────────────────────────────────────────────────────
-
-    private Mono<RawStockData> extractStockDataFromPage(String html, String symbol, Constants.StockInfo stockInfo) {
+    private Mono<RawStockData> extractStockDataFromPages(String overviewHtml, String ratiosHtml,
+                                                         String symbol, Constants.StockInfo stockInfo) {
         RawStockData rawData = new RawStockData();
         rawData.setSymbol(symbol);
         rawData.setStockInfo(stockInfo);
 
         Map<String, String> metrics = new LinkedHashMap<>();
 
-        log.info("🔍 [{}}] HTML length: {}, contains 'marketCap': {}",
-                symbol, html.length(), html.contains("marketCap"));
+        log.info("🔍 Extracting data for {}", symbol);
 
-        // ── Quoted string fields  →  fieldName:"value" ────────────────────────
-        extractQuoted(html, "marketCap",      metrics);
-        extractQuoted(html, "revenue",        metrics);
-        extractQuoted(html, "netIncome",      metrics);
-        extractQuoted(html, "eps",            metrics);
-        extractQuoted(html, "sharesOut",      metrics);
-        extractQuoted(html, "peRatio",        metrics);
-        extractQuoted(html, "forwardPE",      metrics);
-        extractQuoted(html, "dividend",       metrics);
-        extractQuoted(html, "averageVolume",  metrics);
-        extractQuoted(html, "beta",           metrics);
-        extractQuoted(html, "rsi",            metrics);
-        extractQuoted(html, "earningsDate",   metrics);
-        extractQuoted(html, "exDividendDate", metrics);
-        extractQuoted(html, "exchange",       metrics);
-        extractQuoted(html, "exchange_code",  metrics);
-        extractQuoted(html, "dividendYield",  metrics);
+        // Extract from overview page
+        extractFromOverviewPage(overviewHtml, metrics);
 
-        // ── Numeric fields  →  ,fieldName:123.45  or  {fieldName:123.45 ───────
-        // Longer keys extracted first so the [,{] anchor prevents short-key
-        // patterns from greedily matching inside longer key names.
-        extractNumeric(html, "h52", metrics);
-        extractNumeric(html, "l52", metrics);
-        extractNumeric(html, "cp",  metrics);
-        extractNumeric(html, "cl",  metrics);
-        extractNumeric(html, "pd",  metrics);
-        extractNumeric(html, "p",   metrics);
-        extractNumeric(html, "v",   metrics);
-        extractNumeric(html, "o",   metrics);
-        extractNumeric(html, "h",   metrics);
-        extractNumeric(html, "l",   metrics);
-        extractNumeric(html, "c",   metrics);
+        // Extract price data
+        extractPriceData(overviewHtml, metrics);
 
-        // ── Post-processing ───────────────────────────────────────────────────
+        // Extract Debt/Equity from ratios page - FIXED to get the VALUE cell
+        extractDebtEquityFromRatiosTable(ratiosHtml, metrics);
 
-        // Parse dividend yield out of "6.00 (4.14%)" when not already present
-        if (metrics.containsKey("dividend") && !metrics.containsKey("dividendYield")) {
-            Matcher ym = Pattern.compile("\\(([0-9.]+)%\\)").matcher(metrics.get("dividend"));
-            if (ym.find()) {
-                metrics.put("dividendYield", ym.group(1));
-                log.info("📊 dividendYield (parsed from dividend): {}%", ym.group(1));
-            }
-        }
+        // Extract Profit Margin from ratios table
+        extractProfitMarginFromRatiosTable(ratiosHtml, metrics);
 
-        // Strip yield suffix from dividend — keep only the number
-        if (metrics.containsKey("dividend")) {
-            Matcher nm = Pattern.compile("^([0-9.]+)").matcher(metrics.get("dividend"));
-            if (nm.find()) metrics.put("dividend", nm.group(1));
-        }
+        // Extract Book Value Per Share
+        extractBookValue(overviewHtml, metrics);
 
-        // Build 52-week range string
+        // Post-processing
         if (metrics.containsKey("l52") && metrics.containsKey("h52")) {
             metrics.put("week52Range", metrics.get("l52") + " - " + metrics.get("h52"));
         }
 
-        // ── Guard ─────────────────────────────────────────────────────────────
+        if (metrics.containsKey("ch1y")) {
+            String oneYearReturn = metrics.get("ch1y").replace("+", "").replace("%", "");
+            metrics.put("oneYearReturn", oneYearReturn);
+        }
+
         if (metrics.isEmpty()) {
-            log.warn("⚠️ [{}}] No metrics extracted — page may not contain embedded data", symbol);
+            log.warn("⚠️ No metrics extracted for {}", symbol);
             return Mono.empty();
         }
 
-        // ── Log summary ───────────────────────────────────────────────────────
         log.info("========================================");
         log.info("📊 EXTRACTED DATA FOR: {}", symbol);
         log.info("========================================");
         metrics.forEach((key, value) -> log.info("  {}: {}", key, value));
         log.info("========================================");
-        log.info("✅ Successfully extracted {} metrics for {}", metrics.size(), symbol);
 
-        // ── Build HTML for downstream parser ──────────────────────────────────
         String combinedHtml = buildHtmlWithMetrics(symbol, stockInfo, metrics);
         rawData.setMainPageHtml(combinedHtml);
         rawData.setBalanceSheetHtml(combinedHtml);
@@ -200,38 +169,151 @@ public class StockAnalysisProvider implements MarketDataProvider {
         return Mono.just(rawData);
     }
 
+    private void extractFromOverviewPage(String html, Map<String, String> metrics) {
+        extractQuoted(html, "marketCap", metrics);
+        extractQuoted(html, "revenue", metrics);
+        extractQuoted(html, "netIncome", metrics);
+        extractQuoted(html, "sharesOut", metrics);
+        extractQuoted(html, "eps", metrics);
+        extractQuoted(html, "peRatio", metrics);
+        extractQuoted(html, "forwardPE", metrics);
+        extractQuoted(html, "averageVolume", metrics);
+        extractQuoted(html, "beta", metrics);
+        extractQuoted(html, "rsi", metrics);
+        extractQuoted(html, "earningsDate", metrics);
+        extractQuoted(html, "exDividendDate", metrics);
+        extractQuoted(html, "exchange", metrics);
+        extractQuoted(html, "exchange_code", metrics);
+        extractQuoted(html, "dividendYield", metrics);
+        extractQuoted(html, "ch1y", metrics);
+        extractQuoted(html, "payoutRatio", metrics);
+    }
+
+    private void extractPriceData(String html, Map<String, String> metrics) {
+        extractQuoteValue(html, "p", metrics);
+        extractQuoteValue(html, "c", metrics);
+        extractQuoteValue(html, "cp", metrics);
+        extractQuoteValue(html, "v", metrics);
+        extractQuoteValue(html, "o", metrics);
+        extractQuoteValue(html, "cl", metrics);
+        extractQuoteValue(html, "h", metrics);
+        extractQuoteValue(html, "l", metrics);
+        extractQuoteValue(html, "h52", metrics);
+        extractQuoteValue(html, "l52", metrics);
+    }
+
+    private void extractQuoteValue(String html, String key, Map<String, String> metrics) {
+        Pattern pattern = Pattern.compile("\"" + key + "\":([0-9.]+)");
+        Matcher matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            metrics.put(key, matcher.group(1));
+            log.info("📊 {}: {}", key, matcher.group(1));
+        }
+    }
+
     /**
-     * Matches  fieldName:"some value"  in JS object literal HTML.
-     * Skips empty strings and literal "n/a".
+     * Extract Debt/Equity - gets the VALUE from the data cell (not the label)
      */
+    private void extractDebtEquityFromRatiosTable(String html, Map<String, String> metrics) {
+        log.info("🔍 Looking for Debt/Equity in ratios table...");
+
+        Document doc = Jsoup.parse(html);
+
+        // Find the row containing "Debt / Equity Ratio"
+        Elements rows = doc.select("tr");
+        for (Element row : rows) {
+            // Check if this row contains the label in any cell
+            if (row.text().contains("Debt / Equity Ratio")) {
+                // Get all data cells (td elements) in this row
+                Elements dataCells = row.select("td");
+                if (dataCells.size() >= 2) {
+                    // The FIRST cell is the label, the SECOND cell is the current/TTM value
+                    String value = dataCells.get(1).text().trim();
+                    if (!value.isEmpty() && !value.equals("n/a") && !value.equals("Debt / Equity Ratio")) {
+                        metrics.put("debtToEquity", value);
+                        log.info("📊 debtToEquity: {}", value);
+                        return;
+                    }
+                }
+                break;
+            }
+        }
+
+        // Fallback: search in JSON
+        Pattern pattern = Pattern.compile("\"debtequity\":\\[([0-9.\\-,\\s]+)\\]");
+        Matcher matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            String arrayStr = matcher.group(1);
+            String[] values = arrayStr.split(",");
+            if (values.length > 0) {
+                String value = values[0].trim();
+                metrics.put("debtToEquity", value);
+                log.info("📊 debtToEquity (from JSON): {}", value);
+                return;
+            }
+        }
+
+        log.warn("⚠️ debtequity not found in ratios page");
+    }
+
+    /**
+     * Extract Profit Margin - gets the VALUE from the data cell
+     */
+    private void extractProfitMarginFromRatiosTable(String html, Map<String, String> metrics) {
+        log.info("🔍 Looking for Profit Margin in ratios table...");
+
+        Document doc = Jsoup.parse(html);
+
+        Elements rows = doc.select("tr");
+        for (Element row : rows) {
+            if (row.text().contains("Profit Margin")) {
+                Elements dataCells = row.select("td");
+                if (dataCells.size() >= 2) {
+                    String value = dataCells.get(1).text().trim();
+                    if (!value.isEmpty() && !value.equals("n/a")) {
+                        value = value.replace("%", "");
+                        metrics.put("profitMargin", value);
+                        log.info("📊 profitMargin: {}%", value);
+                        return;
+                    }
+                }
+                break;
+            }
+        }
+
+        Pattern pattern = Pattern.compile("\"profitMargin\":\"([0-9.]+)%\"");
+        Matcher matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            String value = matcher.group(1);
+            metrics.put("profitMargin", value);
+            log.info("📊 profitMargin (from JSON): {}%", value);
+            return;
+        }
+
+        log.warn("⚠️ profitMargin not found in ratios page");
+    }
+
+    private void extractBookValue(String html, Map<String, String> metrics) {
+        Pattern pattern = Pattern.compile("\"bvps\":\"([0-9.]+)\"");
+        Matcher matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            String value = matcher.group(1);
+            metrics.put("bookValuePerShare", value);
+            log.info("📊 bookValuePerShare: {}", value);
+        }
+    }
+
     private void extractQuoted(String html, String fieldName, Map<String, String> metrics) {
         Pattern p = Pattern.compile(Pattern.quote(fieldName) + ":\"([^\"]+)\"");
         Matcher m = p.matcher(html);
         if (m.find()) {
             String value = m.group(1).trim();
-            if (!value.isEmpty() && !value.equalsIgnoreCase("n/a")) {
+            if (!value.isEmpty() && !value.equalsIgnoreCase("n/a") && !value.equalsIgnoreCase("null")) {
                 metrics.put(fieldName, value);
                 log.info("📊 {}: {}", fieldName, value);
             }
         }
     }
-
-    /**
-     * Matches  ,fieldName:123.45  or  {fieldName:123.45  — the leading [,{]
-     * ensures we never match a short key name inside a longer one (e.g. "h"
-     * won't fire on "h52:10.3" because that starts with a comma, not a brace
-     * followed by "h52" which is a different key).
-     */
-    private void extractNumeric(String html, String fieldName, Map<String, String> metrics) {
-        Pattern p = Pattern.compile("[,{]" + Pattern.quote(fieldName) + ":(-?[0-9]+(?:\\.[0-9]+)?)");
-        Matcher m = p.matcher(html);
-        if (m.find()) {
-            metrics.put(fieldName, m.group(1));
-            log.info("📊 {}: {}", fieldName, m.group(1));
-        }
-    }
-
-    // ── HTML builder ──────────────────────────────────────────────────────────
 
     private String buildHtmlWithMetrics(String symbol, Constants.StockInfo stockInfo,
                                         Map<String, String> metrics) {
@@ -245,54 +327,61 @@ public class StockAnalysisProvider implements MarketDataProvider {
         if (stockInfo.country() != null && !stockInfo.country().isEmpty())
             html.append("  <div class='country'>Country: ").append(stockInfo.country()).append("</div>\n");
 
-        // Overview
         html.append("  <div class='section overview'>\n    <h3>Overview</h3>\n");
-        appendMetric(html, metrics, "marketCap",  "market-cap",         "Market Cap");
-        appendMetric(html, metrics, "p",          "price",              "Price");
-        appendMetric(html, metrics, "cp",         "change",             "Change %");
-        appendMetric(html, metrics, "revenue",    "revenue",            "Revenue");
-        appendMetric(html, metrics, "netIncome",  "net-income",         "Net Income");
-        appendMetric(html, metrics, "eps",        "eps",                "EPS");
-        appendMetric(html, metrics, "sharesOut",  "shares-outstanding", "Shares Outstanding");
+        appendMetric(html, metrics, "marketCap", "market-cap", "Market Cap");
+        appendMetric(html, metrics, "p", "price", "Price");
+        appendMetric(html, metrics, "cp", "change", "Change %");
+        appendMetric(html, metrics, "revenue", "revenue", "Revenue");
+        appendMetric(html, metrics, "netIncome", "net-income", "Net Income");
+        appendMetric(html, metrics, "eps", "eps", "EPS");
+        appendMetric(html, metrics, "sharesOut", "shares-outstanding", "Shares Outstanding");
         html.append("  </div>\n");
 
-        // Valuation
         html.append("  <div class='section valuation'>\n    <h3>Valuation</h3>\n");
-        appendMetric(html, metrics, "peRatio",   "pe-ratio",   "P/E Ratio");
+        appendMetric(html, metrics, "peRatio", "pe-ratio", "P/E Ratio");
         appendMetric(html, metrics, "forwardPE", "forward-pe", "Forward P/E");
         html.append("  </div>\n");
 
-        // Dividends
+        html.append("  <div class='section financial-health'>\n    <h3>Financial Health</h3>\n");
+        appendMetric(html, metrics, "debtToEquity", "debt-equity", "Debt/Equity");
+        appendMetric(html, metrics, "profitMargin", "profit-margin", "Profit Margin %");
+        html.append("  </div>\n");
+
         html.append("  <div class='section dividends'>\n    <h3>Dividends</h3>\n");
-        appendMetric(html, metrics, "dividend",       "dividend",         "Dividend");
-        appendMetric(html, metrics, "dividendYield",  "dividend-yield",   "Dividend Yield %");
+        appendMetric(html, metrics, "dividendYield", "dividend-yield", "Dividend Yield %");
+        appendMetric(html, metrics, "payoutRatio", "payout-ratio", "Payout Ratio %");
         appendMetric(html, metrics, "exDividendDate", "ex-dividend-date", "Ex-Dividend Date");
         html.append("  </div>\n");
 
-        // Price & Volume
-        html.append("  <div class='section price-volume'>\n    <h3>Price & Volume</h3>\n");
-        appendMetric(html, metrics, "v",             "volume",       "Volume");
-        appendMetric(html, metrics, "averageVolume", "avg-volume",   "Average Volume");
-        appendMetric(html, metrics, "o",             "open",         "Open");
-        appendMetric(html, metrics, "cl",            "prev-close",   "Previous Close");
-        appendMetric(html, metrics, "l",             "day-low",      "Day Low");
-        appendMetric(html, metrics, "h",             "day-high",     "Day High");
-        appendMetric(html, metrics, "l52",           "week52-low",   "52-Week Low");
-        appendMetric(html, metrics, "h52",           "week52-high",  "52-Week High");
-        appendMetric(html, metrics, "week52Range",   "week52-range", "52-Week Range");
+        html.append("  <div class='section book-value'>\n    <h3>Book Value</h3>\n");
+        appendMetric(html, metrics, "bookValuePerShare", "book-value-per-share", "Book Value Per Share");
         html.append("  </div>\n");
 
-        // Technical
+        html.append("  <div class='section price-volume'>\n    <h3>Price & Volume</h3>\n");
+        appendMetric(html, metrics, "v", "volume", "Volume");
+        appendMetric(html, metrics, "averageVolume", "avg-volume", "Average Volume");
+        appendMetric(html, metrics, "o", "open", "Open");
+        appendMetric(html, metrics, "cl", "prev-close", "Previous Close");
+        appendMetric(html, metrics, "l", "day-low", "Day Low");
+        appendMetric(html, metrics, "h", "day-high", "Day High");
+        appendMetric(html, metrics, "l52", "week52-low", "52-Week Low");
+        appendMetric(html, metrics, "h52", "week52-high", "52-Week High");
+        appendMetric(html, metrics, "week52Range", "week52-range", "52-Week Range");
+        html.append("  </div>\n");
+
         html.append("  <div class='section technical'>\n    <h3>Technical</h3>\n");
         appendMetric(html, metrics, "beta", "beta", "Beta");
-        appendMetric(html, metrics, "rsi",  "rsi",  "RSI");
+        appendMetric(html, metrics, "rsi", "rsi", "RSI");
         html.append("  </div>\n");
 
-        // Exchange Info
+        html.append("  <div class='section performance'>\n    <h3>Performance</h3>\n");
+        appendMetric(html, metrics, "oneYearReturn", "one-year-return", "1 Year Return %");
+        html.append("  </div>\n");
+
         html.append("  <div class='section exchange-info'>\n    <h3>Exchange Info</h3>\n");
-        appendMetric(html, metrics, "exchange",      "exchange",      "Exchange");
+        appendMetric(html, metrics, "exchange", "exchange", "Exchange");
         appendMetric(html, metrics, "exchange_code", "exchange-code", "Exchange Code");
-        appendMetric(html, metrics, "earningsDate",  "earnings-date", "Earnings Date");
+        appendMetric(html, metrics, "earningsDate", "earnings-date", "Earnings Date");
         html.append("  </div>\n");
 
         html.append("</div>");
@@ -301,9 +390,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
 
     private void appendMetric(StringBuilder html, Map<String, String> metrics,
                               String key, String cssClass, String label) {
-        if (metrics.containsKey(key)) {
+        if (metrics.containsKey(key) && metrics.get(key) != null && !metrics.get(key).isEmpty()) {
+            String value = metrics.get(key);
+            if (value.endsWith("%")) {
+                value = value.replace("%", "");
+            }
             html.append("    <div class='").append(cssClass).append("'>")
-                    .append(label).append(": ").append(metrics.get(key))
+                    .append(label).append(": ").append(value)
                     .append("</div>\n");
         }
     }

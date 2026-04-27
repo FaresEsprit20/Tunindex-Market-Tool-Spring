@@ -51,27 +51,33 @@ public class StockAnalysisParserImpl implements DataParserService {
             // Extract ALL fields
             extractBasicInfo(doc, normalizedData);
             extractMarketCap(doc, normalizedData);
-            extractPriceData(doc, normalizedData);
+            extractPriceData(doc, normalizedData);      // ← THIS NEEDS TO BE FIXED
             extractVolumeData(doc, normalizedData);
             extractRevenueAndEarnings(doc, normalizedData);
-            extractRatios(doc, normalizedData);
+            extractRatios(doc, normalizedData);        // ← ADDED PB RATIO
             extractDividends(doc, normalizedData);
             extract52WeekRange(doc, normalizedData);
             extractTechnicalData(doc, normalizedData);
             extractExchangeInfo(doc, normalizedData);
+            extractDebtToEquity(doc, normalizedData);   // ← NEW
+            extractProfitMargin(doc, normalizedData);   // ← NEW
+            extractBookValuePerShare(doc, normalizedData); // ← NEW
         }
 
         // Post-process calculations
         calculateDerivedFields(normalizedData);
 
         // Log extracted data for debugging
-        log.info("📝 Parsed data for {}: exchange='{}', exchangeFullName='{}', market='{}', currency='{}', price={}",
+        log.info("📝 Parsed data for {}: price={}, change={}, changePct={}, open={}, prevClose={}, dayHigh={}, dayLow={}, volume={}",
                 normalizedData.getSymbol(),
-                normalizedData.getExchange(),
-                normalizedData.getExchangeFullName(),
-                normalizedData.getMarket(),
-                normalizedData.getCurrency(),
-                normalizedData.getLastPrice());
+                normalizedData.getLastPrice(),
+                normalizedData.getChange(),
+                normalizedData.getChangePct(),
+                normalizedData.getOpen(),
+                normalizedData.getPrevClose(),
+                normalizedData.getDayHigh(),
+                normalizedData.getDayLow(),
+                normalizedData.getVolume());
 
         return normalizedData;
     }
@@ -80,31 +86,26 @@ public class StockAnalysisParserImpl implements DataParserService {
      * Extract basic info including exchange, market, currency
      */
     private void extractBasicInfo(Document doc, NormalizedStockData normalizedData) {
-        // Extract country (already set from stockInfo, but can override from HTML)
         Element countryElem = doc.selectFirst(".country");
         if (countryElem != null && normalizedData.getCountry() == null) {
             String countryText = cleanLabel(countryElem.text(), "Country");
             normalizedData.setCountry(countryText);
         }
 
-        // Set market from country
         if (normalizedData.getCountry() != null) {
             normalizedData.setMarket(normalizedData.getCountry());
         } else {
             normalizedData.setMarket("Tunisia");
         }
 
-        // Set currency (TND for Tunisia)
         if ("Tunisia".equals(normalizedData.getCountry()) ||
                 "Tunis Stock Exchange".equals(normalizedData.getExchange())) {
             normalizedData.setCurrency("TND");
         } else {
-            normalizedData.setCurrency("TND"); // Default for BVMT
+            normalizedData.setCurrency("TND");
         }
 
-        // Extract sector from industry or set default
         if (normalizedData.getIndustry() != null) {
-            // Determine sector based on industry
             String industry = normalizedData.getIndustry().toLowerCase();
             if (industry.contains("bank") || industry.contains("financial")) {
                 normalizedData.setSector("Financials");
@@ -121,10 +122,9 @@ public class StockAnalysisParserImpl implements DataParserService {
     }
 
     /**
-     * Extract exchange information - CRITICAL for database save
+     * Extract exchange information
      */
     private void extractExchangeInfo(Document doc, NormalizedStockData normalizedData) {
-        // Extract exchange name from .exchange element
         Element exchangeElem = doc.selectFirst(".exchange");
         if (exchangeElem != null) {
             String exchangeText = cleanLabel(exchangeElem.text(), "Exchange");
@@ -134,13 +134,11 @@ public class StockAnalysisParserImpl implements DataParserService {
             }
         }
 
-        // If exchange not found, set default
         if (normalizedData.getExchange() == null || normalizedData.getExchange().isEmpty()) {
             normalizedData.setExchange("Tunis Stock Exchange");
-            log.warn("Exchange not found in HTML, using default: Tunis Stock Exchange");
+            log.warn("Exchange not found, using default");
         }
 
-        // Extract exchange code from .exchange-code element
         Element exchangeCodeElem = doc.selectFirst(".exchange-code");
         if (exchangeCodeElem != null) {
             String exchangeCode = cleanLabel(exchangeCodeElem.text(), "Exchange Code");
@@ -150,19 +148,9 @@ public class StockAnalysisParserImpl implements DataParserService {
             }
         }
 
-        // If exchange code not found, try to derive from symbol or use default
         if (normalizedData.getExchangeFullName() == null || normalizedData.getExchangeFullName().isEmpty()) {
-            // Try to extract from exchange name
-            if (normalizedData.getExchange() != null) {
-                if (normalizedData.getExchange().contains("Tunis")) {
-                    normalizedData.setExchangeFullName("BVMT");
-                } else {
-                    normalizedData.setExchangeFullName(normalizedData.getExchange().substring(0, Math.min(4, normalizedData.getExchange().length())));
-                }
-            } else {
-                normalizedData.setExchangeFullName("BVMT");
-            }
-            log.warn("Exchange code not found, using derived: {}", normalizedData.getExchangeFullName());
+            normalizedData.setExchangeFullName("BVMT");
+            log.warn("Exchange code not found, using default");
         }
     }
 
@@ -174,37 +162,47 @@ public class StockAnalysisParserImpl implements DataParserService {
         }
     }
 
+    /**
+     * FIXED: Extract ALL price data including price, change, open, close, high, low
+     */
     private void extractPriceData(Document doc, NormalizedStockData normalizedData) {
-        // Current price
+        // Current price - from .price class
         Element priceElem = doc.selectFirst(".price");
         if (priceElem != null) {
             String value = cleanLabel(priceElem.text(), "Price");
             setBigDecimal(value, normalizedData::setLastPrice);
+            log.info("💰 Extracted price: {}", value);
         }
 
-        // Change percentage
+        // Change - from .change class (format: "+1.01 (0.70%)")
         Element changeElem = doc.selectFirst(".change");
         if (changeElem != null) {
             String value = cleanLabel(changeElem.text(), "Change %");
             if (value != null && !value.isEmpty()) {
-                String cleanValue = value.replace("%", "");
-                setBigDecimal(cleanValue, normalizedData::setChangePct);
-                // Also set the change amount separately if available
-                if (value.contains("(") && value.contains(")")) {
-                    // Pattern like "+1.01 (0.70%)" - extract the number before parenthesis
-                    String[] parts = value.split("\\(");
-                    if (parts.length > 0) {
-                        setBigDecimal(parts[0].trim(), normalizedData::setChange);
-                    }
+                // Extract percentage from "(0.70%)"
+                java.util.regex.Pattern percentPattern = java.util.regex.Pattern.compile("\\(([0-9.]+)%\\)");
+                java.util.regex.Matcher percentMatcher = percentPattern.matcher(value);
+                if (percentMatcher.find()) {
+                    setBigDecimal(percentMatcher.group(1), normalizedData::setChangePct);
+                    log.info("📈 Extracted change percent: {}%", percentMatcher.group(1));
+                }
+
+                // Extract absolute change from "+1.01"
+                java.util.regex.Pattern amountPattern = java.util.regex.Pattern.compile("([+-][0-9.]+)\\s*\\(");
+                java.util.regex.Matcher amountMatcher = amountPattern.matcher(value);
+                if (amountMatcher.find()) {
+                    setBigDecimal(amountMatcher.group(1), normalizedData::setChange);
+                    log.info("📈 Extracted change amount: {}", amountMatcher.group(1));
                 }
             }
         }
 
-        // Open
+        // Open price
         Element openElem = doc.selectFirst(".open");
         if (openElem != null) {
             String value = cleanLabel(openElem.text(), "Open");
             setBigDecimal(value, normalizedData::setOpen);
+            log.info("🎯 Extracted open: {}", value);
         }
 
         // Previous Close
@@ -212,6 +210,7 @@ public class StockAnalysisParserImpl implements DataParserService {
         if (prevCloseElem != null) {
             String value = cleanLabel(prevCloseElem.text(), "Previous Close");
             setBigDecimal(value, normalizedData::setPrevClose);
+            log.info("🔚 Extracted previous close: {}", value);
         }
 
         // Day High
@@ -219,6 +218,7 @@ public class StockAnalysisParserImpl implements DataParserService {
         if (dayHighElem != null) {
             String value = cleanLabel(dayHighElem.text(), "Day High");
             setBigDecimal(value, normalizedData::setDayHigh);
+            log.info("📈 Extracted day high: {}", value);
         }
 
         // Day Low
@@ -226,6 +226,7 @@ public class StockAnalysisParserImpl implements DataParserService {
         if (dayLowElem != null) {
             String value = cleanLabel(dayLowElem.text(), "Day Low");
             setBigDecimal(value, normalizedData::setDayLow);
+            log.info("📉 Extracted day low: {}", value);
         }
     }
 
@@ -237,6 +238,7 @@ public class StockAnalysisParserImpl implements DataParserService {
                 try {
                     String cleanValue = value.replace(",", "");
                     normalizedData.setVolume(Long.parseLong(cleanValue));
+                    log.info("📊 Extracted volume: {}", cleanValue);
                 } catch (NumberFormatException e) {
                     log.warn("Failed to parse volume: {}", value);
                 }
@@ -281,14 +283,14 @@ public class StockAnalysisParserImpl implements DataParserService {
             String value = cleanLabel(sharesOutElem.text(), "Shares Outstanding");
             if (value != null && !value.isEmpty()) {
                 try {
-                    String cleanValue = value.replace(",", "");
-                    BigDecimal shares = new BigDecimal(cleanValue);
-                    if (value.contains("M") || value.contains("m")) {
-                        shares = shares.multiply(new BigDecimal("1000000"));
-                    } else if (value.contains("B") || value.contains("b")) {
-                        shares = shares.multiply(new BigDecimal("1000000000"));
+                    if (value.endsWith("M")) {
+                        value = value.substring(0, value.length() - 1);
+                        BigDecimal shares = new BigDecimal(value);
+                        normalizedData.setSharesOutstanding(shares.multiply(new BigDecimal("1000000")).longValue());
+                    } else {
+                        normalizedData.setSharesOutstanding(Long.parseLong(value.replace(",", "")));
                     }
-                    normalizedData.setSharesOutstanding(shares.longValue());
+                    log.info("📋 Extracted shares outstanding: {}", normalizedData.getSharesOutstanding());
                 } catch (NumberFormatException e) {
                     log.warn("Failed to parse shares outstanding: {}", value);
                 }
@@ -303,66 +305,59 @@ public class StockAnalysisParserImpl implements DataParserService {
             setBigDecimal(value, normalizedData::setPeRatio);
         }
 
-        Element forwardPEElem = doc.selectFirst(".forward-pe");
-        if (forwardPEElem != null) {
-            String value = cleanLabel(forwardPEElem.text(), "Forward P/E");
-            // Could store in a separate field if needed
+        // Extract PB Ratio (Price to Book)
+        Element pbElem = doc.selectFirst(".pb-ratio");
+        if (pbElem != null) {
+            String value = cleanLabel(pbElem.text(), "P/B Ratio");
+            setBigDecimal(value, normalizedData::setPriceToBook);
+            log.info("📐 Extracted P/B Ratio: {}", value);
         }
     }
 
     private void extractDividends(Document doc, NormalizedStockData normalizedData) {
-        Element divElem = doc.selectFirst(".dividend");
-        if (divElem != null) {
-            String value = cleanLabel(divElem.text(), "Dividend");
-            // Dividend might be like "6.00 (4.14%)"
-            if (value != null && value.contains("(")) {
-                String[] parts = value.split("\\(");
-                if (parts.length > 0) {
-                    // Extract the percentage
-                    String yieldPart = parts[1].replace(")", "").replace("%", "");
-                    setBigDecimal(yieldPart, normalizedData::setDividendYield);
-                }
-            }
-        }
-
         Element divYieldElem = doc.selectFirst(".dividend-yield");
         if (divYieldElem != null) {
             String value = cleanLabel(divYieldElem.text(), "Dividend Yield %");
             if (value != null) {
                 String cleanValue = value.replace("%", "");
                 setBigDecimal(cleanValue, normalizedData::setDividendYield);
+                log.info("💸 Extracted dividend yield: {}%", cleanValue);
             }
         }
 
+        Element payoutElem = doc.selectFirst(".payout-ratio");
+        if (payoutElem != null) {
+            String value = cleanLabel(payoutElem.text(), "Payout Ratio %");
+            if (value != null) {
+                String cleanValue = value.replace("%", "");
+                setBigDecimal(cleanValue, normalizedData::setPayoutRatio);
+            }
+        }
     }
 
     private void extract52WeekRange(Document doc, NormalizedStockData normalizedData) {
+        Element lowElem = doc.selectFirst(".week52-low");
+        if (lowElem != null) {
+            String value = cleanLabel(lowElem.text(), "52-Week Low");
+            setBigDecimal(value, normalizedData::setWeek52Low);
+            log.info("📉 Extracted 52-week low: {}", value);
+        }
+
+        Element highElem = doc.selectFirst(".week52-high");
+        if (highElem != null) {
+            String value = cleanLabel(highElem.text(), "52-Week High");
+            setBigDecimal(value, normalizedData::setWeek52High);
+            log.info("📈 Extracted 52-week high: {}", value);
+        }
+
         Element rangeElem = doc.selectFirst(".week52-range");
         if (rangeElem != null) {
             String value = cleanLabel(rangeElem.text(), "52-Week Range");
             normalizedData.setWeek52Range(value);
+        }
 
-            // Parse individual values
-            if (value != null && value.contains("-")) {
-                String[] parts = value.split("-");
-                if (parts.length == 2) {
-                    setBigDecimal(parts[0].trim(), normalizedData::setWeek52Low);
-                    setBigDecimal(parts[1].trim(), normalizedData::setWeek52High);
-                }
-            }
-        } else {
-            // Try individual elements
-            Element lowElem = doc.selectFirst(".week52-low");
-            if (lowElem != null) {
-                String value = cleanLabel(lowElem.text(), "52-Week Low");
-                setBigDecimal(value, normalizedData::setWeek52Low);
-            }
-
-            Element highElem = doc.selectFirst(".week52-high");
-            if (highElem != null) {
-                String value = cleanLabel(highElem.text(), "52-Week High");
-                setBigDecimal(value, normalizedData::setWeek52High);
-            }
+        if (normalizedData.getWeek52Low() != null && normalizedData.getWeek52High() != null) {
+            normalizedData.setWeek52Range(normalizedData.getWeek52Low() + " - " + normalizedData.getWeek52High());
         }
     }
 
@@ -372,25 +367,48 @@ public class StockAnalysisParserImpl implements DataParserService {
             String value = cleanLabel(betaElem.text(), "Beta");
             setBigDecimal(value, normalizedData::setBeta);
         }
+    }
 
-        Element rsiElem = doc.selectFirst(".rsi");
-        if (rsiElem != null) {
-            String value = cleanLabel(rsiElem.text(), "RSI");
-            // RSI can be stored if there's a field, or logged
-            log.debug("RSI for {}: {}", normalizedData.getSymbol(), value);
+    /**
+     * NEW: Extract Debt/Equity ratio
+     */
+    private void extractDebtToEquity(Document doc, NormalizedStockData normalizedData) {
+        Element debtEquityElem = doc.selectFirst(".debt-equity");
+        if (debtEquityElem != null) {
+            String value = cleanLabel(debtEquityElem.text(), "Debt/Equity");
+            setBigDecimal(value, normalizedData::setDebtToEquity);
+            log.info("💼 Extracted Debt/Equity: {}", value);
         }
     }
 
+    /**
+     * NEW: Extract Profit Margin
+     */
+    private void extractProfitMargin(Document doc, NormalizedStockData normalizedData) {
+        Element profitMarginElem = doc.selectFirst(".profit-margin");
+        if (profitMarginElem != null) {
+            String value = cleanLabel(profitMarginElem.text(), "Profit Margin %");
+            if (value != null) {
+                String cleanValue = value.replace("%", "");
+                setBigDecimal(cleanValue, normalizedData::setProfitMargin);
+                log.info("📊 Extracted Profit Margin: {}%", cleanValue);
+            }
+        }
+    }
 
+    /**
+     * NEW: Extract Book Value Per Share
+     */
+    private void extractBookValuePerShare(Document doc, NormalizedStockData normalizedData) {
+        Element bvpsElem = doc.selectFirst(".book-value-per-share");
+        if (bvpsElem != null) {
+            String value = cleanLabel(bvpsElem.text(), "Book Value Per Share");
+            setBigDecimal(value, normalizedData::setBookValuePerShare);
+            log.info("📚 Extracted Book Value Per Share: {}", value);
+        }
+    }
 
     private void calculateDerivedFields(NormalizedStockData normalizedData) {
-        // Calculate 52-week range string if not already set
-        if (normalizedData.getWeek52Range() == null &&
-                normalizedData.getWeek52Low() != null &&
-                normalizedData.getWeek52High() != null) {
-            normalizedData.setWeek52Range(normalizedData.getWeek52Low() + " - " + normalizedData.getWeek52High());
-        }
-
         // Calculate profit margin if not set
         if (normalizedData.getProfitMargin() == null &&
                 normalizedData.getNetIncome() != null &&
@@ -401,18 +419,6 @@ public class StockAnalysisParserImpl implements DataParserService {
                     .multiply(new BigDecimal("100"));
             normalizedData.setProfitMargin(profitMargin);
         }
-
-        // Calculate close to 52-week low percentage
-        if (normalizedData.getCloseTo52weekslowPct() == null &&
-                normalizedData.getLastPrice() != null &&
-                normalizedData.getWeek52Low() != null &&
-                normalizedData.getWeek52Low().compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal pct = normalizedData.getLastPrice()
-                    .subtract(normalizedData.getWeek52Low())
-                    .divide(normalizedData.getWeek52Low(), 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
-            normalizedData.setCloseTo52weekslowPct(pct);
-        }
     }
 
     private String cleanLabel(String text, String label) {
@@ -421,7 +427,6 @@ public class StockAnalysisParserImpl implements DataParserService {
         if (cleaned.contains(":")) {
             cleaned = cleaned.substring(cleaned.indexOf(":") + 1).trim();
         }
-        // Remove the label if it's at the beginning
         if (cleaned.startsWith(label)) {
             cleaned = cleaned.substring(label.length()).trim();
         }
@@ -435,7 +440,6 @@ public class StockAnalysisParserImpl implements DataParserService {
             value = value.trim().toUpperCase();
             double multiplier = 1.0;
 
-            // Remove any negative sign temporarily
             boolean isNegative = value.startsWith("-");
             if (isNegative) {
                 value = value.substring(1);
@@ -455,7 +459,6 @@ public class StockAnalysisParserImpl implements DataParserService {
                 multiplier = 1.0;
             }
 
-            // Remove commas
             value = value.replace(",", "");
 
             BigDecimal result = BigDecimal.valueOf(Double.parseDouble(value) * multiplier);
@@ -473,11 +476,9 @@ public class StockAnalysisParserImpl implements DataParserService {
         if (value == null || value.isEmpty()) return;
         try {
             String cleanValue = value.trim();
-            // Remove % if present
             if (cleanValue.endsWith("%")) {
                 cleanValue = cleanValue.substring(0, cleanValue.length() - 1);
             }
-            // Remove commas
             cleanValue = cleanValue.replace(",", "");
             setter.accept(new BigDecimal(cleanValue));
         } catch (NumberFormatException e) {

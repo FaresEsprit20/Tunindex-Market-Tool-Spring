@@ -10,6 +10,7 @@ import com.tunindex.market_tool.domain.dto.providers.investingcom.RawStockData;
 import com.tunindex.market_tool.domain.providers.base.MarketDataProvider;
 import com.tunindex.market_tool.domain.services.enricher.DataEnricherService;
 import com.tunindex.market_tool.domain.services.normalizer.DataNormalizerService;
+import com.tunindex.market_tool.domain.services.parser.DataParserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

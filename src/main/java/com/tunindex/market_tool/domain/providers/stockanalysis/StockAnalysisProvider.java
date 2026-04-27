@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.domain.providers.stockanalysis;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tunindex.market_tool.core.exception.DataFetchException;
 import com.tunindex.market_tool.core.exception.ErrorCodes;
@@ -129,13 +130,11 @@ public class StockAnalysisProvider implements MarketDataProvider {
         // Extract from overview page
         extractFromOverviewPage(overviewHtml, metrics);
 
-        // Extract price data (including 52-week from JSON)
-        extractPriceData(overviewHtml, metrics);
+        // Extract price data using multiple methods
+        extractPriceDataFromOverview(overviewHtml, metrics);
 
-        // FALLBACK: Extract 52-week range from HTML tables if JSON extraction failed
-        if (!metrics.containsKey("h52") || !metrics.containsKey("l52")) {
-            extract52WeekFromHtml(overviewHtml, metrics);
-        }
+        // Extract 52-week range from HTML tables as fallback
+        extract52WeekFromHtml(overviewHtml, metrics);
 
         // Extract Debt/Equity from ratios page
         extractDebtEquityFromRatiosTable(ratiosHtml, metrics);
@@ -194,40 +193,89 @@ public class StockAnalysisProvider implements MarketDataProvider {
         extractQuoted(html, "payoutRatio", metrics);
     }
 
-    private void extractPriceData(String html, Map<String, String> metrics) {
-        // Extract from JSON quote object
-        extractQuoteValue(html, "p", metrics);
-        extractQuoteValue(html, "c", metrics);
-        extractQuoteValue(html, "cp", metrics);
-        extractQuoteValue(html, "v", metrics);
-        extractQuoteValue(html, "o", metrics);
-        extractQuoteValue(html, "cl", metrics);
-        extractQuoteValue(html, "h", metrics);
-        extractQuoteValue(html, "l", metrics);
-        extractQuoteValue(html, "h52", metrics);
-        extractQuoteValue(html, "l52", metrics);
+    private void extractPriceDataFromOverview(String html, Map<String, String> metrics) {
+        log.info("🔍 Extracting price data from overview page...");
+
+        // Method 1: Extract from the quote object in the script
+        // Look for "quote":{...} pattern
+        Pattern quotePattern = Pattern.compile("\"quote\":\\s*\\{([^}]+)\\}");
+        Matcher quoteMatcher = quotePattern.matcher(html);
+
+        if (quoteMatcher.find()) {
+            String quoteContent = quoteMatcher.group(1);
+            log.info("Found quote object, extracting values...");
+
+            extractJsonValue(quoteContent, "p", metrics);
+            extractJsonValue(quoteContent, "c", metrics);
+            extractJsonValue(quoteContent, "cp", metrics);
+            extractJsonValue(quoteContent, "v", metrics);
+            extractJsonValue(quoteContent, "o", metrics);
+            extractJsonValue(quoteContent, "cl", metrics);
+            extractJsonValue(quoteContent, "h", metrics);
+            extractJsonValue(quoteContent, "l", metrics);
+            extractJsonValue(quoteContent, "h52", metrics);
+            extractJsonValue(quoteContent, "l52", metrics);
+        }
+
+        // Method 2: Direct search for patterns
+        if (!metrics.containsKey("p")) {
+            extractDirectValue(html, "\"p\":", metrics, "p");
+        }
+        if (!metrics.containsKey("cp")) {
+            extractDirectValue(html, "\"cp\":", metrics, "cp");
+        }
+        if (!metrics.containsKey("v")) {
+            extractDirectValue(html, "\"v\":", metrics, "v");
+        }
+        if (!metrics.containsKey("o")) {
+            extractDirectValue(html, "\"o\":", metrics, "o");
+        }
+        if (!metrics.containsKey("cl")) {
+            extractDirectValue(html, "\"cl\":", metrics, "cl");
+        }
+        if (!metrics.containsKey("h")) {
+            extractDirectValue(html, "\"h\":", metrics, "h");
+        }
+        if (!metrics.containsKey("l")) {
+            extractDirectValue(html, "\"l\":", metrics, "l");
+        }
+        if (!metrics.containsKey("h52")) {
+            extractDirectValue(html, "\"h52\":", metrics, "h52");
+        }
+        if (!metrics.containsKey("l52")) {
+            extractDirectValue(html, "\"l52\":", metrics, "l52");
+        }
     }
 
-    private void extractQuoteValue(String html, String key, Map<String, String> metrics) {
+    private void extractJsonValue(String json, String key, Map<String, String> metrics) {
         Pattern pattern = Pattern.compile("\"" + key + "\":([0-9.]+)");
-        Matcher matcher = pattern.matcher(html);
+        Matcher matcher = pattern.matcher(json);
         if (matcher.find()) {
             metrics.put(key, matcher.group(1));
             log.info("📊 {}: {}", key, matcher.group(1));
         }
     }
 
-    /**
-     * Fallback method to extract 52-week range from HTML tables
-     */
+    private void extractDirectValue(String html, String jsonKey, Map<String, String> metrics, String metricKey) {
+        Pattern pattern = Pattern.compile(Pattern.quote(jsonKey) + "([0-9.]+)");
+        Matcher matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            metrics.put(metricKey, matcher.group(1));
+            log.info("📊 {}: {}", metricKey, matcher.group(1));
+        }
+    }
+
     private void extract52WeekFromHtml(String html, Map<String, String> metrics) {
-        log.info("🔍 Extracting 52-week range from HTML tables (fallback)...");
+        if (metrics.containsKey("h52") && metrics.containsKey("l52")) {
+            return;
+        }
+
+        log.info("🔍 Extracting 52-week range from HTML tables...");
 
         try {
             Document doc = Jsoup.parse(html);
-
-            // Look for tables containing 52-Week Range
             Elements tables = doc.select("table");
+
             for (Element table : tables) {
                 Elements rows = table.select("tr");
                 for (Element row : rows) {
@@ -243,43 +291,14 @@ public class StockAnalysisProvider implements MarketDataProvider {
                                 String high = matcher.group(2);
                                 if (!metrics.containsKey("l52")) {
                                     metrics.put("l52", low);
-                                    log.info("📊 l52 (52-week low from HTML): {}", low);
+                                    log.info("📊 l52: {}", low);
                                 }
                                 if (!metrics.containsKey("h52")) {
                                     metrics.put("h52", high);
-                                    log.info("📊 h52 (52-week high from HTML): {}", high);
+                                    log.info("📊 h52: {}", high);
                                 }
                                 metrics.put("week52Range", rangeText);
-                                log.info("📊 week52Range: {}", rangeText);
                                 return;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Also extract Day's Range
-            for (Element table : tables) {
-                Elements rows = table.select("tr");
-                for (Element row : rows) {
-                    String rowText = row.text();
-                    if (rowText.contains("Day's Range")) {
-                        Elements cells = row.select("td");
-                        if (cells.size() >= 2) {
-                            String rangeText = cells.get(1).text().trim();
-                            Pattern rangePattern = Pattern.compile("([0-9.]+)\\s*-\\s*([0-9.]+)");
-                            Matcher matcher = rangePattern.matcher(rangeText);
-                            if (matcher.find()) {
-                                String dayLow = matcher.group(1);
-                                String dayHigh = matcher.group(2);
-                                if (!metrics.containsKey("l")) {
-                                    metrics.put("l", dayLow);
-                                    log.info("📊 l (day low from HTML): {}", dayLow);
-                                }
-                                if (!metrics.containsKey("h")) {
-                                    metrics.put("h", dayHigh);
-                                    log.info("📊 h (day high from HTML): {}", dayHigh);
-                                }
                             }
                         }
                     }
@@ -294,8 +313,8 @@ public class StockAnalysisProvider implements MarketDataProvider {
         log.info("🔍 Looking for Debt/Equity in ratios table...");
 
         Document doc = Jsoup.parse(html);
-
         Elements rows = doc.select("tr");
+
         for (Element row : rows) {
             if (row.text().contains("Debt / Equity Ratio")) {
                 Elements dataCells = row.select("td");
@@ -320,19 +339,16 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 String value = values[0].trim();
                 metrics.put("debtToEquity", value);
                 log.info("📊 debtToEquity (from JSON): {}", value);
-                return;
             }
         }
-
-        log.warn("⚠️ debtequity not found in ratios page");
     }
 
     private void extractProfitMarginFromStatisticsPage(String html, Map<String, String> metrics) {
         log.info("🔍 Looking for Profit Margin in statistics page...");
 
         Document doc = Jsoup.parse(html);
-
         Elements rows = doc.select("tr");
+
         for (Element row : rows) {
             if (row.text().contains("Profit Margin")) {
                 Elements dataCells = row.select("td");
@@ -355,18 +371,15 @@ public class StockAnalysisProvider implements MarketDataProvider {
             String value = matcher.group(1);
             metrics.put("profitMargin", value);
             log.info("📊 profitMargin (from JSON): {}%", value);
-            return;
         }
-
-        log.warn("⚠️ profitMargin not found in statistics page");
     }
 
     private void extractBookValueFromStatisticsPage(String html, Map<String, String> metrics) {
         log.info("🔍 Looking for Book Value Per Share in statistics page...");
 
         Document doc = Jsoup.parse(html);
-
         Elements rows = doc.select("tr");
+
         for (Element row : rows) {
             if (row.text().contains("Book Value Per Share")) {
                 Elements dataCells = row.select("td");
@@ -388,10 +401,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
             String value = matcher.group(1);
             metrics.put("bookValuePerShare", value);
             log.info("📊 bookValuePerShare (from JSON): {}", value);
-            return;
         }
-
-        log.warn("⚠️ bookValuePerShare not found in statistics page");
     }
 
     private void extractQuoted(String html, String fieldName, Map<String, String> metrics) {

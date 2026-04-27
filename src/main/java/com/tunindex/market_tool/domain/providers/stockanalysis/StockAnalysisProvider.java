@@ -129,8 +129,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
         // Extract from overview page
         extractFromOverviewPage(overviewHtml, metrics);
 
-        // Extract price data
+        // Extract price data (including 52-week from JSON)
         extractPriceData(overviewHtml, metrics);
+
+        // FALLBACK: Extract 52-week range from HTML tables if JSON extraction failed
+        if (!metrics.containsKey("h52") || !metrics.containsKey("l52")) {
+            extract52WeekFromHtml(overviewHtml, metrics);
+        }
 
         // Extract Debt/Equity from ratios page
         extractDebtEquityFromRatiosTable(ratiosHtml, metrics);
@@ -190,6 +195,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
     }
 
     private void extractPriceData(String html, Map<String, String> metrics) {
+        // Extract from JSON quote object
         extractQuoteValue(html, "p", metrics);
         extractQuoteValue(html, "c", metrics);
         extractQuoteValue(html, "cp", metrics);
@@ -208,6 +214,79 @@ public class StockAnalysisProvider implements MarketDataProvider {
         if (matcher.find()) {
             metrics.put(key, matcher.group(1));
             log.info("📊 {}: {}", key, matcher.group(1));
+        }
+    }
+
+    /**
+     * Fallback method to extract 52-week range from HTML tables
+     */
+    private void extract52WeekFromHtml(String html, Map<String, String> metrics) {
+        log.info("🔍 Extracting 52-week range from HTML tables (fallback)...");
+
+        try {
+            Document doc = Jsoup.parse(html);
+
+            // Look for tables containing 52-Week Range
+            Elements tables = doc.select("table");
+            for (Element table : tables) {
+                Elements rows = table.select("tr");
+                for (Element row : rows) {
+                    String rowText = row.text();
+                    if (rowText.contains("52-Week Range")) {
+                        Elements cells = row.select("td");
+                        if (cells.size() >= 2) {
+                            String rangeText = cells.get(1).text().trim();
+                            Pattern rangePattern = Pattern.compile("([0-9.]+)\\s*-\\s*([0-9.]+)");
+                            Matcher matcher = rangePattern.matcher(rangeText);
+                            if (matcher.find()) {
+                                String low = matcher.group(1);
+                                String high = matcher.group(2);
+                                if (!metrics.containsKey("l52")) {
+                                    metrics.put("l52", low);
+                                    log.info("📊 l52 (52-week low from HTML): {}", low);
+                                }
+                                if (!metrics.containsKey("h52")) {
+                                    metrics.put("h52", high);
+                                    log.info("📊 h52 (52-week high from HTML): {}", high);
+                                }
+                                metrics.put("week52Range", rangeText);
+                                log.info("📊 week52Range: {}", rangeText);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Also extract Day's Range
+            for (Element table : tables) {
+                Elements rows = table.select("tr");
+                for (Element row : rows) {
+                    String rowText = row.text();
+                    if (rowText.contains("Day's Range")) {
+                        Elements cells = row.select("td");
+                        if (cells.size() >= 2) {
+                            String rangeText = cells.get(1).text().trim();
+                            Pattern rangePattern = Pattern.compile("([0-9.]+)\\s*-\\s*([0-9.]+)");
+                            Matcher matcher = rangePattern.matcher(rangeText);
+                            if (matcher.find()) {
+                                String dayLow = matcher.group(1);
+                                String dayHigh = matcher.group(2);
+                                if (!metrics.containsKey("l")) {
+                                    metrics.put("l", dayLow);
+                                    log.info("📊 l (day low from HTML): {}", dayLow);
+                                }
+                                if (!metrics.containsKey("h")) {
+                                    metrics.put("h", dayHigh);
+                                    log.info("📊 h (day high from HTML): {}", dayHigh);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse HTML for 52-week range: {}", e.getMessage());
         }
     }
 
@@ -248,16 +327,11 @@ public class StockAnalysisProvider implements MarketDataProvider {
         log.warn("⚠️ debtequity not found in ratios page");
     }
 
-    /**
-     * Extract Profit Margin from statistics page
-     * Looking for the row with "Profit Margin" in the Margins table
-     */
     private void extractProfitMarginFromStatisticsPage(String html, Map<String, String> metrics) {
         log.info("🔍 Looking for Profit Margin in statistics page...");
 
         Document doc = Jsoup.parse(html);
 
-        // Find the section with Margins table
         Elements rows = doc.select("tr");
         for (Element row : rows) {
             if (row.text().contains("Profit Margin")) {
@@ -265,7 +339,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 if (dataCells.size() >= 2) {
                     String value = dataCells.get(1).text().trim();
                     if (!value.isEmpty() && !value.equals("n/a")) {
-                        // Remove % sign
                         value = value.replace("%", "");
                         metrics.put("profitMargin", value);
                         log.info("📊 profitMargin: {}%", value);
@@ -276,7 +349,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
             }
         }
 
-        // Fallback: search in JSON
         Pattern pattern = Pattern.compile("\"profitMargin\":\"([0-9.]+)%\"");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
@@ -289,16 +361,11 @@ public class StockAnalysisProvider implements MarketDataProvider {
         log.warn("⚠️ profitMargin not found in statistics page");
     }
 
-    /**
-     * Extract Book Value Per Share from statistics page
-     * Looking for the row with "Book Value Per Share" in Balance Sheet section
-     */
     private void extractBookValueFromStatisticsPage(String html, Map<String, String> metrics) {
         log.info("🔍 Looking for Book Value Per Share in statistics page...");
 
         Document doc = Jsoup.parse(html);
 
-        // Find the row with "Book Value Per Share"
         Elements rows = doc.select("tr");
         for (Element row : rows) {
             if (row.text().contains("Book Value Per Share")) {
@@ -315,7 +382,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
             }
         }
 
-        // Fallback: search in JSON
         Pattern pattern = Pattern.compile("\"bvps\":\"([0-9.]+)\"");
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {

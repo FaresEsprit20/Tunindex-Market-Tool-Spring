@@ -37,7 +37,6 @@ public class MarketToolApplication {
 
     private static final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
     private static ExecutorService backgroundExecutor;
-    private Thread schedulerThread;
 
     public static void main(String[] args) {
         ConfigurableApplicationContext context = SpringApplication.run(MarketToolApplication.class, args);
@@ -86,7 +85,7 @@ public class MarketToolApplication {
     }
 
     private void startScheduler() {
-        schedulerThread = new Thread(() -> {
+        Thread schedulerThread = new Thread(() -> {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
                     Thread.sleep(schedulerIntervalMinutes * 60 * 1000L);
@@ -106,10 +105,10 @@ public class MarketToolApplication {
 
     static class DaemonThreadFactory implements ThreadFactory {
         private final AtomicInteger threadNumber = new AtomicInteger(1);
-        private final String namePrefix = "pipeline-worker-";
 
         @Override
         public Thread newThread(Runnable r) {
+            String namePrefix = "pipeline-worker-";
             Thread t = new Thread(r, namePrefix + threadNumber.getAndIncrement());
             t.setDaemon(true);
             return t;

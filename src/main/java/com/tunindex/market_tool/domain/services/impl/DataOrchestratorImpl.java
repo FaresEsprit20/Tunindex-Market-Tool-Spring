@@ -16,7 +16,6 @@ import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -44,11 +43,29 @@ public class DataOrchestratorImpl implements DataOrchestrator {
         log.info("🚀 Running pipeline for stock: {}", symbol);
 
         return stockAnalysisProvider.fetchStockData(symbol)
-                .flatMap(enrichedData ->
-                        saveOrUpdateStock(enrichedData.getStock())
-                                .thenReturn(enrichedData)
-                )
-                .doOnSuccess(enrichedData -> log.info("✅ Successfully processed stock: {}", symbol))
+                .flatMap(enrichedData -> {
+                    // Log calculated values before saving
+                    Stock stock = enrichedData.getStock();
+                    if (stock != null && stock.getCalculatedValues() != null) {
+                        log.info("📊 BEFORE SAVE - Stock: {}, Graham Fair Value: {}, Margin of Safety: {}%",
+                                symbol,
+                                stock.getCalculatedValues().getGrahamFairValue(),
+                                stock.getCalculatedValues().getMarginOfSafety());
+                    }
+                    return saveOrUpdateStock(stock)
+                            .thenReturn(enrichedData);
+                })
+                .doOnSuccess(enrichedData -> {
+                    // Log after save
+                    Stock stock = enrichedData.getStock();
+                    if (stock != null && stock.getCalculatedValues() != null) {
+                        log.info("✅ AFTER SAVE - Stock: {}, Graham Fair Value: {}, Margin of Safety: {}%",
+                                symbol,
+                                stock.getCalculatedValues().getGrahamFairValue(),
+                                stock.getCalculatedValues().getMarginOfSafety());
+                    }
+                    log.info("✅ Successfully processed stock: {}", symbol);
+                })
                 .doOnError(e -> log.error("❌ Failed to process stock {}: {}", symbol, e.getMessage()));
     }
 
@@ -80,7 +97,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
         log.debug("🔄 Processing stock: {} on exchange: {}", symbol, exchange);
 
-        // Check if stock already exists - using blocking findFirst to avoid Optional issues
+        // Check if stock already exists
         return Mono.fromCallable(() -> stockRepository.findBySymbolAndExchange(symbol, exchange))
                 .flatMap(optionalStock -> {
                     if (optionalStock.isPresent()) {
@@ -92,20 +109,37 @@ public class DataOrchestratorImpl implements DataOrchestrator {
                         newStock.setId(existingStock.getId());
                         newStock.setCreatedAt(existingStock.getCreatedAt());
 
+                        // Log calculated values for debugging
+                        if (newStock.getCalculatedValues() != null) {
+                            log.info("📊 UPDATING with Graham Fair Value: {}, Margin of Safety: {}%",
+                                    newStock.getCalculatedValues().getGrahamFairValue(),
+                                    newStock.getCalculatedValues().getMarginOfSafety());
+                        }
+
                         return Mono.fromCallable(() -> stockRepository.save(newStock));
                     } else {
                         // INSERT new stock
                         log.info("📝 Inserting new stock: {}", symbol);
                         newStock.setCreatedAt(now);
+
+                        // Log calculated values for debugging
+                        if (newStock.getCalculatedValues() != null) {
+                            log.info("📊 INSERTING with Graham Fair Value: {}, Margin of Safety: {}%",
+                                    newStock.getCalculatedValues().getGrahamFairValue(),
+                                    newStock.getCalculatedValues().getMarginOfSafety());
+                        }
+
                         return Mono.fromCallable(() -> stockRepository.save(newStock));
                     }
                 })
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnSuccess(savedStock -> {
-                    if (savedStock.getCreatedAt() != null && savedStock.getCreatedAt().equals(savedStock.getUpdatedAt())) {
-                        log.info("✅ Inserted stock: {}", savedStock.getSymbol());
-                    } else {
-                        log.info("✅ Updated stock: {}", savedStock.getSymbol());
+                    // Verify the saved values
+                    if (savedStock.getCalculatedValues() != null) {
+                        log.info("✅ SAVED - Stock: {}, Graham Fair Value: {}, Margin of Safety: {}%",
+                                savedStock.getSymbol(),
+                                savedStock.getCalculatedValues().getGrahamFairValue(),
+                                savedStock.getCalculatedValues().getMarginOfSafety());
                     }
                 });
     }
@@ -121,10 +155,18 @@ public class DataOrchestratorImpl implements DataOrchestrator {
                 .runOn(Schedulers.boundedElastic())
                 .flatMap(enrichedData -> {
                     if (enrichedData.getStock() != null) {
-                        return saveOrUpdateStock(enrichedData.getStock())
+                        Stock stock = enrichedData.getStock();
+                        // Log before saving
+                        if (stock.getCalculatedValues() != null) {
+                            log.debug("📊 Stock: {} - Graham: {}, MOS: {}%",
+                                    stock.getSymbol(),
+                                    stock.getCalculatedValues().getGrahamFairValue(),
+                                    stock.getCalculatedValues().getMarginOfSafety());
+                        }
+                        return saveOrUpdateStock(stock)
                                 .onErrorResume(e -> {
                                     log.error("Failed to save stock {}: {}",
-                                            enrichedData.getStock().getSymbol(), e.getMessage());
+                                            stock.getSymbol(), e.getMessage());
                                     return Mono.empty();
                                 });
                     }

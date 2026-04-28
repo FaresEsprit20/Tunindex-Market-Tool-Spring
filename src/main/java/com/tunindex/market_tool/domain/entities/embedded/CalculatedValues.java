@@ -1,20 +1,22 @@
 package com.tunindex.market_tool.domain.entities.embedded;
 
-import jakarta.persistence.Embeddable;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import java.math.BigDecimal;
 
-@Embeddable
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class CalculatedValues {
 
+    @JsonProperty("graham_fair_value")
     private BigDecimal grahamFairValue;
+
+    @JsonProperty("margin_of_safety")
     private BigDecimal marginOfSafety;
+
+    @JsonProperty("book_value_per_share")
     private BigDecimal bookValuePerShare;
 }

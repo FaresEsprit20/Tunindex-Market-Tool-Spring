@@ -56,6 +56,8 @@ public class StockAnalysisEnricherImpl extends BaseDataEnricher {
                     if (peRatio != null && price != null && peRatio.compareTo(BigDecimal.ZERO) > 0) {
                         eps = price.divide(peRatio, 4, RoundingMode.HALF_UP);
                         log.info("📈 Calculated EPS from PE ratio: {}", eps);
+                        // Set the calculated EPS back to fundamental data
+                        stock.getFundamentalData().setEps(eps);
                     }
                 }
 
@@ -66,10 +68,14 @@ public class StockAnalysisEnricherImpl extends BaseDataEnricher {
                     log.info("📚 BVPS from CalculatedValues: {}", bvps);
                 }
 
-                // Fallback: Calculate BVPS if missing
-                if (bvps == null) {
-                    bvps = calculateBvps(stock);
-                    log.info("📚 Calculated BVPS: {}", bvps);
+                // Fallback: Calculate BVPS from Price to Book ratio
+                if (bvps == null && stock.getRatiosData() != null && stock.getPriceData() != null) {
+                    BigDecimal priceToBook = stock.getRatiosData().getPriceToBook();
+                    BigDecimal price = stock.getPriceData().getLastPrice();
+                    if (priceToBook != null && price != null && priceToBook.compareTo(BigDecimal.ZERO) > 0) {
+                        bvps = price.divide(priceToBook, 4, RoundingMode.HALF_UP);
+                        log.info("📚 Calculated BVPS from P/B ratio: {}", bvps);
+                    }
                 }
 
                 // ========== 3. GET CURRENT PRICE ==========
@@ -79,7 +85,37 @@ public class StockAnalysisEnricherImpl extends BaseDataEnricher {
                     log.info("💰 Current Price: {}", price);
                 }
 
-                // ========== 4. GET 52-WEEK DATA ==========
+                // ========== 4. CALCULATE GRAHAM FAIR VALUE ==========
+                BigDecimal fairValue = null;
+                if (eps != null && bvps != null) {
+                    fairValue = grahamCalculator.calculateGrahamFairValue(eps, bvps);
+                    log.info("📈 Graham Fair Value calculated: {}", fairValue);
+
+                    // CRITICAL: Set the fair value to CalculatedValues
+                    if (fairValue != null) {
+                        stock.getCalculatedValues().setGrahamFairValue(fairValue);
+                        log.info("✅ Set Graham Fair Value to CalculatedValues: {}", fairValue);
+                    }
+                } else {
+                    log.warn("⚠️ Cannot calculate Graham Fair Value - EPS: {}, BVPS: {}", eps, bvps);
+                }
+
+                // ========== 5. CALCULATE MARGIN OF SAFETY ==========
+                BigDecimal marginOfSafety = null;
+                if (price != null && fairValue != null && fairValue.compareTo(BigDecimal.ZERO) > 0) {
+                    marginOfSafety = grahamCalculator.calculateMarginOfSafety(price, fairValue);
+                    log.info("🛡️ Margin of Safety calculated: {}%", marginOfSafety);
+
+                    // CRITICAL: Set the margin of safety to CalculatedValues
+                    if (marginOfSafety != null) {
+                        stock.getCalculatedValues().setMarginOfSafety(marginOfSafety);
+                        log.info("✅ Set Margin of Safety to CalculatedValues: {}%", marginOfSafety);
+                    }
+                } else {
+                    log.debug("Cannot calculate Margin of Safety - Price: {}, FairValue: {}", price, fairValue);
+                }
+
+                // ========== 6. GET 52-WEEK DATA ==========
                 BigDecimal week52Low = null;
                 BigDecimal week52High = null;
                 if (stock.getPriceData() != null) {
@@ -88,64 +124,24 @@ public class StockAnalysisEnricherImpl extends BaseDataEnricher {
                     log.info("📊 52-Week Low: {}, High: {}", week52Low, week52High);
                 }
 
-                // ========== 5. CALCULATE GRAHAM FAIR VALUE ==========
-                BigDecimal fairValue = null;
-                if (eps != null && bvps != null) {
-                    fairValue = grahamCalculator.calculateGrahamFairValue(eps, bvps);
-                    log.info("📈 Graham Fair Value: {}", fairValue);
-                } else {
-                    log.warn("⚠️ Cannot calculate Graham Fair Value - EPS: {}, BVPS: {}", eps, bvps);
-                }
-
-                // ========== 6. CALCULATE MARGIN OF SAFETY ==========
-                BigDecimal marginOfSafety = null;
-                if (price != null && fairValue != null && fairValue.compareTo(BigDecimal.ZERO) > 0) {
-                    marginOfSafety = grahamCalculator.calculateMarginOfSafety(price, fairValue);
-                    log.info("🛡️ Margin of Safety: {}%", marginOfSafety);
-                } else {
-                    log.debug("Cannot calculate Margin of Safety - Price: {}, FairValue: {}", price, fairValue);
-                }
-
                 // ========== 7. CALCULATE CLOSE TO 52-WEEK LOW PERCENTAGE ==========
-                // This is the percentage of how far the current price is above the 52-week low
-                // Example: If low=90 and current=146, result is ~62.22% (price is 62.22% above low)
                 BigDecimal closeTo52WeekLowPct = null;
                 if (price != null && week52Low != null && week52Low.compareTo(BigDecimal.ZERO) > 0) {
                     closeTo52WeekLowPct = grahamCalculator.calculateCloseTo52WeekLowPercentage(price, week52Low, week52High);
                     if (closeTo52WeekLowPct != null) {
                         stock.getPriceData().setCloseTo52weekslowPct(closeTo52WeekLowPct);
-                        log.info("📊 Close to 52-Week Low: {}% (price is {}% above low)", closeTo52WeekLowPct, closeTo52WeekLowPct);
+                        log.info("📊 Close to 52-Week Low: {}%", closeTo52WeekLowPct);
                     }
                 }
 
-                // ========== 8. CALCULATE DISTANCE FROM 52-WEEK LOW ==========
-                // This is the percentage distance from the 52-week low (100% - closeTo52WeekLowPct)
-                // Example: 100% - 62.22% = 37.78% away from low
-                BigDecimal distanceFrom52WeekLow = null;
-                if (closeTo52WeekLowPct != null) {
-                    distanceFrom52WeekLow = grahamCalculator.calculateDistanceFrom52WeekLow(price, week52Low, week52High);
-                    log.info("📊 Distance from 52-Week Low: {}%", distanceFrom52WeekLow);
-                }
-
-                // ========== 9. CALCULATE PRICE TO BOOK RATIO ==========
-                BigDecimal priceToBook = null;
-                if (price != null && bvps != null && bvps.compareTo(BigDecimal.ZERO) > 0) {
-                    priceToBook = price.divide(bvps, 2, RoundingMode.HALF_UP);
+                // ========== 8. CALCULATE PRICE TO BOOK RATIO ==========
+                if (stock.getRatiosData().getPriceToBook() == null && price != null && bvps != null && bvps.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal priceToBook = price.divide(bvps, 2, RoundingMode.HALF_UP);
                     stock.getRatiosData().setPriceToBook(priceToBook);
-                    log.info("📐 Price to Book Ratio: {}", priceToBook);
+                    log.info("📐 Calculated Price to Book Ratio: {}", priceToBook);
                 }
 
-                // ========== 10. CALCULATE PRICE TO EARNINGS RATIO (if not already set) ==========
-                if (stock.getFundamentalData() != null && stock.getFundamentalData().getPeRatio() == null && eps != null && eps.compareTo(BigDecimal.ZERO) > 0 && price != null) {
-                    BigDecimal peRatio = price.divide(eps, 2, RoundingMode.HALF_UP);
-                    stock.getFundamentalData().setPeRatio(peRatio);
-                    log.info("📐 Calculated P/E Ratio: {}", peRatio);
-                }
-
-                // ========== 11. SET ALL CALCULATED VALUES ==========
-                setCalculatedValues(stock, fairValue, marginOfSafety, bvps);
-
-                // ========== 12. UPDATE 52-WEEK RANGE STRING ==========
+                // ========== 9. UPDATE 52-WEEK RANGE STRING ==========
                 if (stock.getPriceData().getWeek52Range() == null && week52Low != null && week52High != null) {
                     stock.getPriceData().setWeek52Range(week52Low + " - " + week52High);
                     log.info("📊 52-Week Range: {}", stock.getPriceData().getWeek52Range());
@@ -158,14 +154,21 @@ public class StockAnalysisEnricherImpl extends BaseDataEnricher {
                 log.info("   💰 Price: {}", price);
                 log.info("   📈 EPS: {}", eps);
                 log.info("   📚 BVPS: {}", bvps);
-                log.info("   📐 P/B Ratio: {}", priceToBook);
-                log.info("   📊 Graham Fair Value: {}", fairValue);
-                log.info("   🛡️ Margin of Safety: {}%", marginOfSafety);
+                log.info("   📐 P/B Ratio: {}", stock.getRatiosData().getPriceToBook());
+                log.info("   📊 Graham Fair Value: {}", stock.getCalculatedValues().getGrahamFairValue());
+                log.info("   🛡️ Margin of Safety: {}%", stock.getCalculatedValues().getMarginOfSafety());
                 log.info("   📉 52-Week Low: {}", week52Low);
                 log.info("   📈 52-Week High: {}", week52High);
                 log.info("   📊 Close to 52W Low: {}%", closeTo52WeekLowPct);
-                log.info("   📊 Distance from 52W Low: {}%", distanceFrom52WeekLow);
                 log.info("========================================");
+
+                // Verify values are set
+                if (stock.getCalculatedValues().getGrahamFairValue() == null) {
+                    log.warn("⚠️ WARNING: Graham Fair Value is NULL after enrichment for {}", stock.getSymbol());
+                }
+                if (stock.getCalculatedValues().getMarginOfSafety() == null) {
+                    log.warn("⚠️ WARNING: Margin of Safety is NULL after enrichment for {}", stock.getSymbol());
+                }
 
                 return new EnrichedStockData(stock);
 

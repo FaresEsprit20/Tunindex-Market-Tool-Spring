@@ -8,30 +8,36 @@ import java.util.List;
 
 public interface StockService {
 
-    // Basic CRUD operations
+    // ========== BASIC CRUD WITH PAGINATION ==========
+
     PagedResponse<StockDto> findAllStocks(PaginationAndFilteringDto paginationDto);
 
     StockDto findBySymbol(String symbol);
 
     StockDto findBySymbolAndExchange(String symbol, String exchange);
 
-    // Advanced filtering
+    // ========== FILTERING WITH SPECIFICATIONS (USING JpaSpecificationExecutor) ==========
+
     PagedResponse<StockDto> filterStocks(PaginationAndFilteringDto paginationDto);
 
-    // Value-based filters
+    // ========== VALUE-BASED FILTERS ==========
+
     PagedResponse<StockDto> findUndervaluedStocks(PaginationAndFilteringDto paginationDto);
 
     PagedResponse<StockDto> findOvervaluedStocks(PaginationAndFilteringDto paginationDto);
 
-    // 52-week filters
+    // ========== 52-WEEK FILTERS ==========
+
     PagedResponse<StockDto> findStocksNear52WeekLow(PaginationAndFilteringDto paginationDto);
 
     PagedResponse<StockDto> findStocksNear52WeekHigh(PaginationAndFilteringDto paginationDto);
 
-    // Graham filters
+    // ========== GRAHAM FILTERS ==========
+
     PagedResponse<StockDto> findUndervaluedByGraham(PaginationAndFilteringDto paginationDto);
 
-    // Investment strategies
+    // ========== INVESTMENT STRATEGIES ==========
+
     PagedResponse<StockDto> findValueInvestorFavorites(PaginationAndFilteringDto paginationDto);
 
     PagedResponse<StockDto> findGrowthInvestorFavorites(PaginationAndFilteringDto paginationDto);
@@ -39,16 +45,22 @@ public interface StockService {
     PagedResponse<StockDto> findIncomeInvestorFavorites(PaginationAndFilteringDto paginationDto);
 
     PagedResponse<StockDto> findContrarianFavorites(PaginationAndFilteringDto paginationDto);
+    PagedResponse<StockDto> findGrahamCriteriaStocks(PaginationAndFilteringDto paginationDto);
 
-    // Search
-    List<StockDto> searchByKeyword(String keyword);
+    // ========== SORTING & RANKING ==========
 
-    // Sorting & ranking
     PagedResponse<StockDto> findMostActive(PaginationAndFilteringDto paginationDto);
 
     PagedResponse<StockDto> findLargestMarketCap(PaginationAndFilteringDto paginationDto);
 
-    // Statistics
+    PagedResponse<StockDto> findHighestDividendYield(PaginationAndFilteringDto paginationDto);
+
+    PagedResponse<StockDto> findBestMarginOfSafety(PaginationAndFilteringDto paginationDto);
+
+    PagedResponse<StockDto> findLowestPERatio(PaginationAndFilteringDto paginationDto);
+
+    // ========== STATISTICS (No pagination needed) ==========
+
     List<Object[]> countStocksBySector();
 
     List<Object[]> countStocksByOwnership();
@@ -57,6 +69,7 @@ public interface StockService {
 
     List<Object[]> averageDividendYieldBySector();
 
-    // Actions
+    // ========== ACTIONS ==========
+
     void refreshStockData(String symbol);
 }

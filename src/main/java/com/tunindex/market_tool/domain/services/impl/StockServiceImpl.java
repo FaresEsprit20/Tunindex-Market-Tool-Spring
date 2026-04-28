@@ -36,22 +36,6 @@ public class StockServiceImpl implements StockService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findAllStocks(PaginationAndFilteringDto paginationDto) {
-        log.info("📊 Finding all stocks with pagination: page={}, size={}, sortField={}, sortDirection={}",
-                paginationDto.getPage(), paginationDto.getSize(),
-                paginationDto.getSortField(), paginationDto.getSortDirection());
-
-        validatePaginationDto(paginationDto);
-
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        // Using empty specification to get all stocks
-        Page<Stock> stockPage = stockRepository.findAll(StockSpecification.empty(), pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public StockDto findBySymbol(String symbol) {
         log.info("🔍 Finding stock by symbol: {}", symbol);
 
@@ -120,219 +104,6 @@ public class StockServiceImpl implements StockService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findUndervaluedStocks(PaginationAndFilteringDto paginationDto) {
-        log.info("📈 Finding undervalued stocks (margin of safety > 0)");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.undervalued();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findOvervaluedStocks(PaginationAndFilteringDto paginationDto) {
-        log.info("📉 Finding overvalued stocks (margin of safety < 0)");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.overvalued();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findStocksNear52WeekLow(PaginationAndFilteringDto paginationDto) {
-        log.info("📉 Finding stocks near 52-week low");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.near52WeekLow(new BigDecimal("10"));
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findStocksNear52WeekHigh(PaginationAndFilteringDto paginationDto) {
-        log.info("📈 Finding stocks near 52-week high");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.near52WeekHigh(new BigDecimal("90"));
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findUndervaluedByGraham(PaginationAndFilteringDto paginationDto) {
-        log.info("📊 Finding stocks undervalued by Graham criteria (price < Graham fair value)");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.priceBelowGrahamValue();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findValueInvestorFavorites(PaginationAndFilteringDto paginationDto) {
-        log.info("💎 Finding value investor favorites (MOS > 20%, profitable, low debt)");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.valueInvestorFavorites();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findGrowthInvestorFavorites(PaginationAndFilteringDto paginationDto) {
-        log.info("🚀 Finding growth investor favorites (high profit margin, reasonable PE, positive MOS)");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.growthInvestorFavorites();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findIncomeInvestorFavorites(PaginationAndFilteringDto paginationDto) {
-        log.info("💰 Finding income investor favorites (high dividend yield, profitable, low debt)");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.incomeInvestorFavorites();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findContrarianFavorites(PaginationAndFilteringDto paginationDto) {
-        log.info("🎯 Finding contrarian favorites (near 52-week low but profitable)");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.contrarianFavorites();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findGrahamCriteriaStocks(PaginationAndFilteringDto paginationDto) {
-        log.info("📚 Finding stocks meeting Graham criteria");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.grahamCriteria();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findMostActive(PaginationAndFilteringDto paginationDto) {
-        log.info("📊 Finding most active stocks by volume");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.volumeGreaterThan(0L);
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findLargestMarketCap(PaginationAndFilteringDto paginationDto) {
-        log.info("🏦 Finding largest market cap stocks");
-
-        validatePaginationDto(paginationDto);
-
-        // Sort by market cap descending
-        paginationDto.setSortField("fundamentalData.marketCap");
-        paginationDto.setSortDirection(com.tunindex.market_tool.core.utils.pagination.enums.SortingDirection.DESC);
-
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(StockSpecification.empty(), pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findHighestDividendYield(PaginationAndFilteringDto paginationDto) {
-        log.info("💰 Finding highest dividend yield stocks");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.highDividend();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findBestMarginOfSafety(PaginationAndFilteringDto paginationDto) {
-        log.info("🛡️ Finding best margin of safety stocks");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.undervalued();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<StockDto> findLowestPERatio(PaginationAndFilteringDto paginationDto) {
-        log.info("📐 Finding lowest P/E ratio stocks");
-
-        validatePaginationDto(paginationDto);
-
-        Specification<Stock> specification = StockSpecification.lowPeRatio();
-        Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
-        Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
-
-        return buildPagedResponse(stockPage);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public List<Object[]> countStocksBySector() {
         log.info("📊 Counting stocks by sector");
         return stockRepository.countStocksBySector();
@@ -343,20 +114,6 @@ public class StockServiceImpl implements StockService {
     public List<Object[]> countStocksByOwnership() {
         log.info("📊 Counting stocks by ownership type");
         return stockRepository.countStocksByOwnership();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Object[]> averagePeRatioBySector() {
-        log.info("📈 Calculating average P/E ratio by sector");
-        return stockRepository.averagePeRatioBySector();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Object[]> averageDividendYieldBySector() {
-        log.info("💰 Calculating average dividend yield by sector");
-        return stockRepository.averageDividendYieldBySector();
     }
 
     @Override
@@ -535,4 +292,5 @@ public class StockServiceImpl implements StockService {
 
         return spec;
     }
+    
 }

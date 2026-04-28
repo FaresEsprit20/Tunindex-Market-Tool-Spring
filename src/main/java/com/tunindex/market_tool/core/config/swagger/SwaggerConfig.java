@@ -12,9 +12,10 @@ public class SwaggerConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Stock Management API ")
+                        .title("Market Stocks Tool API ")
                         .version("1.0")
-                        .description("API for managing stock, and the related entities."));
+                        .description("API for financial market tools, and the related " +
+                                "fundamental/technical analysis."));
     }
 
 

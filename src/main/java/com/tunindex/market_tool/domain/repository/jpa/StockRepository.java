@@ -14,41 +14,53 @@ import java.util.Optional;
 @Repository
 public interface StockRepository extends JpaRepository<Stock, Long>, JpaSpecificationExecutor<Stock> {
 
-    // JpaSpecificationExecutor already provides these methods:
-    // - List<T> findAll(Specification<T> spec)
-    // - Page<T> findAll(Specification<T> spec, Pageable pageable)
-    // - long count(Specification<T> spec)
+    // ========== SINGLE ENTITY FINDERS (For direct lookups by unique fields) ==========
 
-    // ========== SINGLE ENTITY FINDERS (No pagination needed) ==========
-
+    /**
+     * Find a single stock by its unique symbol
+     */
     Optional<Stock> findBySymbol(String symbol);
 
+    /**
+     * Find a single stock by its unique symbol and exchange combination
+     */
     Optional<Stock> findBySymbolAndExchange(String symbol, String exchange);
 
+    // ========== EXISTENCE CHECKS ==========
+
+    /**
+     * Check if a stock exists by symbol
+     */
     boolean existsBySymbol(String symbol);
 
+    /**
+     * Check if a stock exists by symbol and exchange
+     */
     boolean existsBySymbolAndExchange(String symbol, String exchange);
 
-    void deleteBySymbol(String symbol);
+    // ========== STATISTICS AGGREGATION (Dashboard/Reporting endpoints) ==========
 
-    void deleteBySymbolAndExchange(String symbol, String exchange);
-
-    // ========== STATISTICS AGGREGATION (returns raw data, not paginated) ==========
-
+    /**
+     * Count stocks grouped by sector
+     * Used for dashboard statistics
+     */
     @Query("SELECT s.sector, COUNT(s) FROM Stock s GROUP BY s.sector")
     List<Object[]> countStocksBySector();
 
+    /**
+     * Count stocks grouped by ownership type
+     * Used for dashboard statistics
+     */
     @Query("SELECT s.ownershipType, COUNT(s) FROM Stock s GROUP BY s.ownershipType")
     List<Object[]> countStocksByOwnership();
 
-    @Query("SELECT s.sector, AVG(s.fundamentalData.peRatio) FROM Stock s WHERE s.fundamentalData.peRatio IS NOT NULL GROUP BY s.sector")
-    List<Object[]> averagePeRatioBySector();
+    // ========== MAINTENANCE OPERATIONS ==========
 
-    @Query("SELECT s.sector, AVG(s.fundamentalData.dividendYield) FROM Stock s WHERE s.fundamentalData.dividendYield IS NOT NULL GROUP BY s.sector")
-    List<Object[]> averageDividendYieldBySector();
-
-    // Update operations
+    /**
+     * Update the last update timestamp for a stock
+     * Used when refreshing stock data
+     */
     @Modifying
-    @Query("UPDATE Stock s SET s.lastUpdate = CURRENT_TIMESTAMP WHERE s.symbol = :symbol")
+    @Query("UPDATE Stock s SET s.updatedAt = CURRENT_TIMESTAMP WHERE s.symbol = :symbol")
     void updateLastUpdateTime(@Param("symbol") String symbol);
 }

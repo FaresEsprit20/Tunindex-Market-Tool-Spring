@@ -20,14 +20,24 @@ public class StockSpecification {
     public static Specification<Stock> symbolContains(String symbol) {
         return (root, query, cb) -> {
             if (symbol == null || symbol.isEmpty()) return cb.conjunction();
-            return cb.like(cb.lower(root.get("symbol")), "%" + symbol.toLowerCase() + "%");
+            // Use exact match for better precision, or keep LIKE if you want partial
+            // Changed to exact match to fix "AST" matching "ASTREE"
+            return cb.equal(cb.upper(root.get("symbol")), symbol.toUpperCase());
+        };
+    }
+
+    // For partial symbol search (if you need it)
+    public static Specification<Stock> symbolContainsPartial(String symbol) {
+        return (root, query, cb) -> {
+            if (symbol == null || symbol.isEmpty()) return cb.conjunction();
+            return cb.like(cb.upper(root.get("symbol")), "%" + symbol.toUpperCase() + "%");
         };
     }
 
     public static Specification<Stock> nameContains(String name) {
         return (root, query, cb) -> {
             if (name == null || name.isEmpty()) return cb.conjunction();
-            return cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%");
+            return cb.like(cb.upper(root.get("name")), "%" + name.toUpperCase() + "%");
         };
     }
 
@@ -95,14 +105,20 @@ public class StockSpecification {
     public static Specification<Stock> near52WeekLow(BigDecimal thresholdPercent) {
         return (root, query, cb) -> {
             BigDecimal threshold = thresholdPercent != null ? thresholdPercent : new BigDecimal("10");
-            return cb.lessThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold);
+            return cb.and(
+                    cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")),
+                    cb.lessThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold)
+            );
         };
     }
 
     public static Specification<Stock> near52WeekHigh(BigDecimal thresholdPercent) {
         return (root, query, cb) -> {
             BigDecimal threshold = thresholdPercent != null ? thresholdPercent : new BigDecimal("90");
-            return cb.greaterThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold);
+            return cb.and(
+                    cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")),
+                    cb.greaterThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold)
+            );
         };
     }
 
@@ -127,10 +143,12 @@ public class StockSpecification {
     }
 
     // ========== MARGIN OF SAFETY FILTERS ==========
+    // FIXED: Added null checks to exclude stocks with null marginOfSafety
 
     public static Specification<Stock> marginOfSafetyBetween(BigDecimal minMargin, BigDecimal maxMargin) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")));
             if (minMargin != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("calculatedValues").get("marginOfSafety"), minMargin));
             }
@@ -143,24 +161,35 @@ public class StockSpecification {
 
     public static Specification<Stock> undervalued() {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), BigDecimal.ZERO);
+                cb.and(
+                        cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")),
+                        cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), BigDecimal.ZERO)
+                );
     }
 
     public static Specification<Stock> overvalued() {
         return (root, query, cb) ->
-                cb.lessThan(root.get("calculatedValues").get("marginOfSafety"), BigDecimal.ZERO);
+                cb.and(
+                        cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")),
+                        cb.lessThan(root.get("calculatedValues").get("marginOfSafety"), BigDecimal.ZERO)
+                );
     }
 
     public static Specification<Stock> marginOfSafetyGreaterThan(BigDecimal margin) {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), margin);
+                cb.and(
+                        cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")),
+                        cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), margin)
+                );
     }
 
     // ========== GRAHAM VALUE FILTERS ==========
+    // FIXED: Added null checks
 
     public static Specification<Stock> grahamFairValueBetween(BigDecimal minValue, BigDecimal maxValue) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")));
             if (minValue != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("calculatedValues").get("grahamFairValue"), minValue));
             }
@@ -173,12 +202,20 @@ public class StockSpecification {
 
     public static Specification<Stock> priceBelowGrahamValue() {
         return (root, query, cb) ->
-                cb.lessThan(root.get("priceData").get("lastPrice"), root.get("calculatedValues").get("grahamFairValue"));
+                cb.and(
+                        cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")),
+                        cb.isNotNull(root.get("priceData").get("lastPrice")),
+                        cb.lessThan(root.get("priceData").get("lastPrice"), root.get("calculatedValues").get("grahamFairValue"))
+                );
     }
 
     public static Specification<Stock> priceAboveGrahamValue() {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("priceData").get("lastPrice"), root.get("calculatedValues").get("grahamFairValue"));
+                cb.and(
+                        cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")),
+                        cb.isNotNull(root.get("priceData").get("lastPrice")),
+                        cb.greaterThan(root.get("priceData").get("lastPrice"), root.get("calculatedValues").get("grahamFairValue"))
+                );
     }
 
     // ========== DEBT/EQUITY FILTERS ==========
@@ -186,6 +223,7 @@ public class StockSpecification {
     public static Specification<Stock> debtToEquityBetween(BigDecimal minRatio, BigDecimal maxRatio) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("ratiosData").get("debtToEquity")));
             if (minRatio != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("ratiosData").get("debtToEquity"), minRatio));
             }
@@ -198,12 +236,18 @@ public class StockSpecification {
 
     public static Specification<Stock> lowDebt() {
         return (root, query, cb) ->
-                cb.lessThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("0.5"));
+                cb.and(
+                        cb.isNotNull(root.get("ratiosData").get("debtToEquity")),
+                        cb.lessThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("0.5"))
+                );
     }
 
     public static Specification<Stock> highDebt() {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("1.0"));
+                cb.and(
+                        cb.isNotNull(root.get("ratiosData").get("debtToEquity")),
+                        cb.greaterThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("1.0"))
+                );
     }
 
     // ========== EPS/BVPS FILTERS ==========
@@ -211,6 +255,7 @@ public class StockSpecification {
     public static Specification<Stock> epsBetween(BigDecimal minEps, BigDecimal maxEps) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("eps")));
             if (minEps != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("eps"), minEps));
             }
@@ -223,12 +268,16 @@ public class StockSpecification {
 
     public static Specification<Stock> profitable() {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("fundamentalData").get("eps"), BigDecimal.ZERO);
+                cb.and(
+                        cb.isNotNull(root.get("fundamentalData").get("eps")),
+                        cb.greaterThan(root.get("fundamentalData").get("eps"), BigDecimal.ZERO)
+                );
     }
 
     public static Specification<Stock> bvpsBetween(BigDecimal minBvps, BigDecimal maxBvps) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("calculatedValues").get("bookValuePerShare")));
             if (minBvps != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("calculatedValues").get("bookValuePerShare"), minBvps));
             }
@@ -244,6 +293,7 @@ public class StockSpecification {
     public static Specification<Stock> peRatioBetween(BigDecimal minPe, BigDecimal maxPe) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("peRatio")));
             if (minPe != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("peRatio"), minPe));
             }
@@ -256,7 +306,10 @@ public class StockSpecification {
 
     public static Specification<Stock> lowPeRatio() {
         return (root, query, cb) ->
-                cb.lessThan(root.get("fundamentalData").get("peRatio"), new BigDecimal("15"));
+                cb.and(
+                        cb.isNotNull(root.get("fundamentalData").get("peRatio")),
+                        cb.lessThan(root.get("fundamentalData").get("peRatio"), new BigDecimal("15"))
+                );
     }
 
     // ========== DIVIDEND YIELD FILTERS ==========
@@ -264,6 +317,7 @@ public class StockSpecification {
     public static Specification<Stock> dividendYieldBetween(BigDecimal minYield, BigDecimal maxYield) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("dividendYield")));
             if (minYield != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("dividendYield"), minYield));
             }
@@ -276,7 +330,10 @@ public class StockSpecification {
 
     public static Specification<Stock> highDividend() {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("fundamentalData").get("dividendYield"), new BigDecimal("4"));
+                cb.and(
+                        cb.isNotNull(root.get("fundamentalData").get("dividendYield")),
+                        cb.greaterThan(root.get("fundamentalData").get("dividendYield"), new BigDecimal("4"))
+                );
     }
 
     // ========== MARKET CAP FILTERS ==========
@@ -284,6 +341,7 @@ public class StockSpecification {
     public static Specification<Stock> marketCapBetween(BigDecimal minCap, BigDecimal maxCap) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("marketCap")));
             if (minCap != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("marketCap"), minCap));
             }
@@ -298,22 +356,30 @@ public class StockSpecification {
 
     public static Specification<Stock> volumeGreaterThan(Long minVolume) {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("volumeData").get("volume"), minVolume);
+                cb.and(
+                        cb.isNotNull(root.get("volumeData").get("volume")),
+                        cb.greaterThan(root.get("volumeData").get("volume"), minVolume)
+                );
     }
 
     // ========== DATE FILTERS ==========
 
     public static Specification<Stock> updatedAfter(LocalDateTime dateTime) {
-        return (root, query, cb) ->
-                cb.greaterThan(root.get("updatedAt"), dateTime);
+        return (root, query, cb) -> {
+            if (dateTime == null) return cb.conjunction();
+            return cb.greaterThan(root.get("updatedAt"), dateTime);
+        };
     }
 
     public static Specification<Stock> updatedBefore(LocalDateTime dateTime) {
-        return (root, query, cb) ->
-                cb.lessThan(root.get("updatedAt"), dateTime);
+        return (root, query, cb) -> {
+            if (dateTime == null) return cb.conjunction();
+            return cb.lessThan(root.get("updatedAt"), dateTime);
+        };
     }
 
     // ========== COMBINED FILTERS ==========
+    // These already use the fixed methods above
 
     public static Specification<Stock> valueInvestorFavorites() {
         return undervalued()
@@ -346,19 +412,12 @@ public class StockSpecification {
                 .and(lowDebt());
     }
 
-    // ========== UTILITY METHODS (NO DEPRECATED API) ==========
+    // ========== UTILITY METHODS ==========
 
-    /**
-     * Creates an empty specification that matches all records
-     */
     public static Specification<Stock> empty() {
         return (root, query, cb) -> cb.conjunction();
     }
 
-    /**
-     * Combines multiple specifications with AND logic
-     * This replaces the deprecated Specification.where()
-     */
     @SafeVarargs
     public static Specification<Stock> allOf(Specification<Stock>... specs) {
         return (root, query, cb) -> {
@@ -375,9 +434,6 @@ public class StockSpecification {
         };
     }
 
-    /**
-     * Combines multiple specifications with OR logic
-     */
     @SafeVarargs
     public static Specification<Stock> anyOf(Specification<Stock>... specs) {
         return (root, query, cb) -> {

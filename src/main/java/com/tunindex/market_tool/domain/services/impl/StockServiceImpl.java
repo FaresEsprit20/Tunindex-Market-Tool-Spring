@@ -292,5 +292,5 @@ public class StockServiceImpl implements StockService {
 
         return spec;
     }
-    
+
 }

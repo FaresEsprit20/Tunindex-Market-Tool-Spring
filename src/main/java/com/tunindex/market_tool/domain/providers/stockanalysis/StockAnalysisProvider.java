@@ -155,13 +155,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
             return Mono.empty();
         }
 
-        log.info("========================================");
-        log.info("📊 EXTRACTED DATA FOR: {}", symbol);
-        log.info("========================================");
-        metrics.forEach((key, value) -> log.info("  {}: {}", key, value));
-        log.info("========================================");
-        log.info("✅ Successfully extracted {} metrics for {}", metrics.size(), symbol);
-
         String combinedHtml = buildHtmlWithMetrics(symbol, stockInfo, metrics);
         rawData.setMainPageHtml(combinedHtml);
         rawData.setBalanceSheetHtml(combinedHtml);
@@ -208,7 +201,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
             if (priceElement != null) {
                 String price = priceElement.text().trim();
                 metrics.put("p", price);
-                log.info("💰 Price: {}", price);
             }
 
             // 2. Extract change and change percentage
@@ -225,7 +217,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 Matcher amountMatcher = amountPattern.matcher(changeText);
                 if (amountMatcher.find()) {
                     metrics.put("c", amountMatcher.group(1));
-                    log.info("📈 Change amount: {}", amountMatcher.group(1));
                 }
 
                 // Extract percentage (e.g., "0.70")
@@ -233,7 +224,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 Matcher percentMatcher = percentPattern.matcher(changeText);
                 if (percentMatcher.find()) {
                     metrics.put("cp", percentMatcher.group(1));
-                    log.info("📈 Change percent: {}%", percentMatcher.group(1));
                 }
             }
 
@@ -250,54 +240,42 @@ public class StockAnalysisProvider implements MarketDataProvider {
                         switch (label) {
                             case "Open":
                                 metrics.put("o", value);
-                                log.info("🎯 Open: {}", value);
                                 break;
                             case "Previous Close":
                                 metrics.put("cl", value);
-                                log.info("🔚 Previous Close: {}", value);
                                 break;
                             case "Day's Range":
                                 parseRange(value, "l", "h", metrics);
-                                log.info("📊 Day's Range: {}", value);
                                 break;
                             case "52-Week Range":
                                 parseRange(value, "l52", "h52", metrics);
-                                log.info("📊 52-Week Range: {}", value);
                                 break;
                             case "Volume":
                                 metrics.put("v", value.replace(",", ""));
-                                log.info("📊 Volume: {}", value);
                                 break;
                             case "Average Volume":
                                 metrics.put("averageVolume", value);
-                                log.info("📊 Average Volume: {}", value);
                                 break;
                             case "Beta":
                                 metrics.put("beta", value);
-                                log.info("📊 Beta: {}", value);
                                 break;
                             case "RSI":
                                 metrics.put("rsi", value);
-                                log.info("📊 RSI: {}", value);
                                 break;
                             case "PE Ratio":
                                 metrics.put("peRatio", value);
-                                log.info("📊 PE Ratio: {}", value);
                                 break;
                             case "Forward PE":
                                 metrics.put("forwardPE", value);
-                                log.info("📊 Forward PE: {}", value);
                                 break;
                             case "Dividend":
                                 extractDividendInfo(value, metrics);
                                 break;
                             case "Ex-Dividend Date":
                                 metrics.put("exDividendDate", value);
-                                log.info("📊 Ex-Dividend Date: {}", value);
                                 break;
                             case "Earnings Date":
                                 metrics.put("earningsDate", value);
-                                log.info("📊 Earnings Date: {}", value);
                                 break;
                         }
                     }
@@ -327,14 +305,12 @@ public class StockAnalysisProvider implements MarketDataProvider {
         Matcher amountMatcher = amountPattern.matcher(dividendText);
         if (amountMatcher.find()) {
             metrics.put("dividend", amountMatcher.group(1));
-            log.info("💵 Dividend: {}", amountMatcher.group(1));
         }
 
         Pattern percentPattern = Pattern.compile("\\(([0-9.]+)%\\)");
         Matcher percentMatcher = percentPattern.matcher(dividendText);
         if (percentMatcher.find()) {
             metrics.put("dividendYield", percentMatcher.group(1));
-            log.info("💸 Dividend Yield: {}%", percentMatcher.group(1));
         }
     }
 
@@ -388,7 +364,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                             String rangeText = cells.get(1).text().trim();
                             parseRange(rangeText, "l52", "h52", metrics);
                             if (metrics.containsKey("l52") && metrics.containsKey("h52")) {
-                                log.info("📊 52-Week Low: {}, High: {}", metrics.get("l52"), metrics.get("h52"));
                                 return;
                             }
                         }
@@ -414,7 +389,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                         String value = dataCells.get(1).text().trim();
                         if (!value.isEmpty() && !value.equals("n/a") && !value.equals("Debt / Equity Ratio")) {
                             metrics.put("debtToEquity", value);
-                            log.info("📊 Debt/Equity: {}", value);
                             return;
                         }
                     }
@@ -431,7 +405,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
             String[] values = matcher.group(1).split(",");
             if (values.length > 0) {
                 metrics.put("debtToEquity", values[0].trim());
-                log.info("📊 Debt/Equity (from JSON): {}", values[0].trim());
             }
         }
     }
@@ -451,7 +424,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                         if (!value.isEmpty() && !value.equals("n/a")) {
                             value = value.replace("%", "");
                             metrics.put("profitMargin", value);
-                            log.info("📊 Profit Margin: {}%", value);
                             return;
                         }
                     }
@@ -465,7 +437,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
             metrics.put("profitMargin", matcher.group(1));
-            log.info("📊 Profit Margin (from JSON): {}%", matcher.group(1));
         }
     }
 
@@ -483,7 +454,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
                         String value = dataCells.get(1).text().trim();
                         if (!value.isEmpty() && !value.equals("n/a")) {
                             metrics.put("bookValuePerShare", value);
-                            log.info("📚 Book Value Per Share: {}", value);
                             return;
                         }
                     }
@@ -497,7 +467,6 @@ public class StockAnalysisProvider implements MarketDataProvider {
         Matcher matcher = pattern.matcher(html);
         if (matcher.find()) {
             metrics.put("bookValuePerShare", matcher.group(1));
-            log.info("📚 Book Value Per Share (from JSON): {}", matcher.group(1));
         }
     }
 

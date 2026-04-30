@@ -1,18 +1,6 @@
-package com.tunindex.market_tool.api.services.impl;
+package com.tunindex.market_tool.api.services;
 
-import com.tunindex.market_tool.common.exception.EntityNotFoundException;
-import com.tunindex.market_tool.common.exception.ErrorCodes;
-import com.tunindex.market_tool.common.exception.InvalidEntityException;
-import com.tunindex.market_tool.core.specification.StockSpecification;
-import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
-import com.tunindex.market_tool.common.utils.pagination.PaginationUtil;
-import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
-import com.tunindex.market_tool.common.dto.providers.investingcom.StockDto;
-import com.tunindex.market_tool.common.entities.Stock;
-import com.tunindex.market_tool.common.entities.enums.OwnershipType;
-import com.tunindex.market_tool.common.entities.enums.SectorType;
-import com.tunindex.market_tool.common.repository.jpa.StockRepository;
-import com.tunindex.market_tool.domain.services.stock.StockService;
+import com.tunindex.market_tool.api.services.stock.StockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;

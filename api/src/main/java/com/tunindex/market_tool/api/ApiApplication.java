@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootApplication
 @Slf4j
 @EntityScan("com.tunindex.market_tool.common.entities")
-@EnableJpaRepositories("com.tunindex.market_tool.common.repository")
+@EnableJpaRepositories("com.tunindex.market_tool.common.repository.jpa")
 public class ApiApplication {
 
     public static void main(String[] args) {

@@ -1,7 +1,6 @@
 package com.tunindex.market_tool.collector.services.impl;
 
 import com.tunindex.market_tool.collector.providers.stockanalysis.StockAnalysisProvider;
-import com.tunindex.market_tool.common.config.properties.MarketToolProperties;
 import com.tunindex.market_tool.common.utils.constants.Constants;
 import com.tunindex.market_tool.common.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.common.entities.Stock;
@@ -22,7 +21,6 @@ import java.util.List;
 @Slf4j
 public class DataOrchestratorImpl implements DataOrchestrator {
 
-    private MarketToolProperties properties;
     private StockRepository stockRepository;
     private final StockAnalysisProvider stockAnalysisProvider;
 
@@ -71,11 +69,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
     @Override
     public String getActiveProviderName() {
-        String activeProvider = properties.getProvider().getActive();
-        if (activeProvider == null || activeProvider.isEmpty()) {
             return Constants.PROVIDER_STOCKANALYSIS;
-        }
-        return activeProvider;
     }
 
     /**
@@ -151,7 +145,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
         log.info("💾 Saving {} stocks to database (UPSERT mode)", stocks.size());
 
         return Flux.fromIterable(stocks)
-                .parallel(properties.getParallelism().getMaxWorkers())
+                .parallel(10)
                 .runOn(Schedulers.boundedElastic())
                 .flatMap(enrichedData -> {
                     if (enrichedData.getStock() != null) {

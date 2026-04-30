@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @EnableJpaRepositories("com.tunindex.market_tool.common.repository.jpa")
 public class CollectorApplication {
 
-    @Autowired
     private DataOrchestrator dataOrchestrator;
 
     @Value("${market-tool.scheduler.run-on-startup:true}")

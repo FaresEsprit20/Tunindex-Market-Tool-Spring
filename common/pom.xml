@@ -45,15 +45,7 @@
             <artifactId>postgresql</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- Selenium is ONLY in collector - NOT in common, NOT in api -->
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-java</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.bonigarcia</groupId>
-            <artifactId>webdrivermanager</artifactId>
-        </dependency>
+
 
     </dependencies>
 </project>

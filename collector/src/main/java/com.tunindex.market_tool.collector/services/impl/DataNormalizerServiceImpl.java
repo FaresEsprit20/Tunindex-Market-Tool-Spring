@@ -2,6 +2,7 @@ package com.tunindex.market_tool.collector.services.impl;
 
 import com.tunindex.market_tool.common.dto.providers.investingcom.NormalizedStockData;
 import com.tunindex.market_tool.common.entities.Stock;
+import com.tunindex.market_tool.common.entities.embedded.*;
 import com.tunindex.market_tool.common.entities.enums.SectorType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

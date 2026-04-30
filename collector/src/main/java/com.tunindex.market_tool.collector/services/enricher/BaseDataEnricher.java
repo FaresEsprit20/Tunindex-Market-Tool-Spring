@@ -1,8 +1,8 @@
 package com.tunindex.market_tool.collector.services.enricher;
 
+import com.tunindex.market_tool.collector.services.calculator.GrahamCalculator;
 import com.tunindex.market_tool.common.entities.Stock;
 import com.tunindex.market_tool.common.entities.embedded.CalculatedValues;
-import com.tunindex.market_tool.domain.services.calculator.GrahamCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

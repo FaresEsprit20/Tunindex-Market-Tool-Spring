@@ -1,7 +1,6 @@
 package com.tunindex.market_tool.common.dto.providers.investingcom;
 
 import com.tunindex.market_tool.common.entities.Stock;
-import com.tunindex.market_tool.domain.entities.embedded.*;
 import com.tunindex.market_tool.common.entities.enums.OwnershipType;
 import com.tunindex.market_tool.common.entities.enums.SectorType;
 import lombok.AllArgsConstructor;

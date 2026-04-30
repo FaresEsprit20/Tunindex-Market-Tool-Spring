@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.collector.providers.stockanalysis;
 
 import com.tunindex.market_tool.common.exception.DataFetchException;
+import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.utils.constants.Constants;
 import com.tunindex.market_tool.common.dto.providers.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.common.dto.providers.investingcom.RawStockData;

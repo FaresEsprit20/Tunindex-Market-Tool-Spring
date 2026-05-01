@@ -24,7 +24,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
+        <spring-cloud.version>2023.0.0</spring-cloud.version>
         <!-- Dependency versions -->
         <jsoup.version>1.17.2</jsoup.version>
         <selenium.version>4.31.0</selenium.version>
@@ -40,6 +40,15 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Spring Cloud Dependencies -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- Internal modules -->
             <dependency>
                 <groupId>com.tunindex</groupId>

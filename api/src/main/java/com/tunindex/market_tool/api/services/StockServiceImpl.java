@@ -32,7 +32,7 @@ import java.util.Map;
 @Slf4j
 public class StockServiceImpl implements StockService {
 
-    private StockRepository stockRepository;
+    private final StockRepository stockRepository;  // ← FIXED: added 'final'
 
     @Override
     @Transactional(readOnly = true)

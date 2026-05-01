@@ -21,6 +21,11 @@
             <version>1.0.0</version>
         </dependency>
 
+        <!-- Eureka Client -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
 
         <!-- Spring Boot Web MVC for REST APIs -->
         <dependency>

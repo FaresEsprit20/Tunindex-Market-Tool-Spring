@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.common.repository.jpa;
 
+import com.tunindex.market_tool.common.TestConfig;
 import com.tunindex.market_tool.common.entities.Stock;
 import com.tunindex.market_tool.common.entities.embedded.*;
 import com.tunindex.market_tool.common.entities.enums.OwnershipType;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @RequiredArgsConstructor
+@ContextConfiguration(classes = TestConfig.class)
 @ActiveProfiles("test")
 class StockRepositoryTest {
 

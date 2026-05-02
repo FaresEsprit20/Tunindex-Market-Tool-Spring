@@ -20,13 +20,10 @@ public class StockSpecification {
     public static Specification<Stock> symbolContains(String symbol) {
         return (root, query, cb) -> {
             if (symbol == null || symbol.isEmpty()) return cb.conjunction();
-            // Use exact match for better precision, or keep LIKE if you want partial
-            // Changed to exact match to fix "AST" matching "ASTREE"
             return cb.equal(cb.upper(root.get("symbol")), symbol.toUpperCase());
         };
     }
 
-    // For partial symbol search (if you need it)
     public static Specification<Stock> symbolContainsPartial(String symbol) {
         return (root, query, cb) -> {
             if (symbol == null || symbol.isEmpty()) return cb.conjunction();
@@ -67,6 +64,8 @@ public class StockSpecification {
     public static Specification<Stock> priceBetween(BigDecimal minPrice, BigDecimal maxPrice) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("priceData")));
+            predicates.add(cb.isNotNull(root.get("priceData").get("lastPrice")));
             if (minPrice != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("priceData").get("lastPrice"), minPrice));
             }
@@ -79,12 +78,20 @@ public class StockSpecification {
 
     public static Specification<Stock> priceGreaterThan(BigDecimal price) {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("priceData").get("lastPrice"), price);
+                cb.and(
+                        cb.isNotNull(root.get("priceData")),
+                        cb.isNotNull(root.get("priceData").get("lastPrice")),
+                        cb.greaterThan(root.get("priceData").get("lastPrice"), price)
+                );
     }
 
     public static Specification<Stock> priceLessThan(BigDecimal price) {
         return (root, query, cb) ->
-                cb.lessThan(root.get("priceData").get("lastPrice"), price);
+                cb.and(
+                        cb.isNotNull(root.get("priceData")),
+                        cb.isNotNull(root.get("priceData").get("lastPrice")),
+                        cb.lessThan(root.get("priceData").get("lastPrice"), price)
+                );
     }
 
     // ========== 52-WEEK FILTERS ==========
@@ -92,6 +99,8 @@ public class StockSpecification {
     public static Specification<Stock> closeTo52WeekLowPercentageBetween(BigDecimal minPct, BigDecimal maxPct) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("priceData")));
+            predicates.add(cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")));
             if (minPct != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), minPct));
             }
@@ -106,6 +115,7 @@ public class StockSpecification {
         return (root, query, cb) -> {
             BigDecimal threshold = thresholdPercent != null ? thresholdPercent : new BigDecimal("10");
             return cb.and(
+                    cb.isNotNull(root.get("priceData")),
                     cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")),
                     cb.lessThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold)
             );
@@ -116,6 +126,7 @@ public class StockSpecification {
         return (root, query, cb) -> {
             BigDecimal threshold = thresholdPercent != null ? thresholdPercent : new BigDecimal("90");
             return cb.and(
+                    cb.isNotNull(root.get("priceData")),
                     cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")),
                     cb.greaterThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold)
             );
@@ -127,6 +138,8 @@ public class StockSpecification {
     public static Specification<Stock> profitMarginBetween(BigDecimal minMargin, BigDecimal maxMargin) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("ratiosData")));
+            predicates.add(cb.isNotNull(root.get("ratiosData").get("profitMargin")));
             if (minMargin != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("ratiosData").get("profitMargin"), minMargin));
             }
@@ -139,15 +152,19 @@ public class StockSpecification {
 
     public static Specification<Stock> profitMarginGreaterThan(BigDecimal margin) {
         return (root, query, cb) ->
-                cb.greaterThan(root.get("ratiosData").get("profitMargin"), margin);
+                cb.and(
+                        cb.isNotNull(root.get("ratiosData")),
+                        cb.isNotNull(root.get("ratiosData").get("profitMargin")),
+                        cb.greaterThan(root.get("ratiosData").get("profitMargin"), margin)
+                );
     }
 
     // ========== MARGIN OF SAFETY FILTERS ==========
-    // FIXED: Added null checks to exclude stocks with null marginOfSafety
 
     public static Specification<Stock> marginOfSafetyBetween(BigDecimal minMargin, BigDecimal maxMargin) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("calculatedValues")));
             predicates.add(cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")));
             if (minMargin != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("calculatedValues").get("marginOfSafety"), minMargin));
@@ -162,6 +179,7 @@ public class StockSpecification {
     public static Specification<Stock> undervalued() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("calculatedValues")),
                         cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")),
                         cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), BigDecimal.ZERO)
                 );
@@ -170,6 +188,7 @@ public class StockSpecification {
     public static Specification<Stock> overvalued() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("calculatedValues")),
                         cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")),
                         cb.lessThan(root.get("calculatedValues").get("marginOfSafety"), BigDecimal.ZERO)
                 );
@@ -178,17 +197,18 @@ public class StockSpecification {
     public static Specification<Stock> marginOfSafetyGreaterThan(BigDecimal margin) {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("calculatedValues")),
                         cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")),
                         cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), margin)
                 );
     }
 
     // ========== GRAHAM VALUE FILTERS ==========
-    // FIXED: Added null checks
 
     public static Specification<Stock> grahamFairValueBetween(BigDecimal minValue, BigDecimal maxValue) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("calculatedValues")));
             predicates.add(cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")));
             if (minValue != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("calculatedValues").get("grahamFairValue"), minValue));
@@ -203,18 +223,24 @@ public class StockSpecification {
     public static Specification<Stock> priceBelowGrahamValue() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("calculatedValues")),
                         cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")),
+                        cb.isNotNull(root.get("priceData")),
                         cb.isNotNull(root.get("priceData").get("lastPrice")),
-                        cb.lessThan(root.get("priceData").get("lastPrice"), root.get("calculatedValues").get("grahamFairValue"))
+                        cb.lessThan(root.get("priceData").get("lastPrice"),
+                                root.get("calculatedValues").get("grahamFairValue"))
                 );
     }
 
     public static Specification<Stock> priceAboveGrahamValue() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("calculatedValues")),
                         cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")),
+                        cb.isNotNull(root.get("priceData")),
                         cb.isNotNull(root.get("priceData").get("lastPrice")),
-                        cb.greaterThan(root.get("priceData").get("lastPrice"), root.get("calculatedValues").get("grahamFairValue"))
+                        cb.greaterThan(root.get("priceData").get("lastPrice"),
+                                root.get("calculatedValues").get("grahamFairValue"))
                 );
     }
 
@@ -223,6 +249,7 @@ public class StockSpecification {
     public static Specification<Stock> debtToEquityBetween(BigDecimal minRatio, BigDecimal maxRatio) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("ratiosData")));
             predicates.add(cb.isNotNull(root.get("ratiosData").get("debtToEquity")));
             if (minRatio != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("ratiosData").get("debtToEquity"), minRatio));
@@ -237,6 +264,7 @@ public class StockSpecification {
     public static Specification<Stock> lowDebt() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("ratiosData")),
                         cb.isNotNull(root.get("ratiosData").get("debtToEquity")),
                         cb.lessThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("0.5"))
                 );
@@ -245,6 +273,7 @@ public class StockSpecification {
     public static Specification<Stock> highDebt() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("ratiosData")),
                         cb.isNotNull(root.get("ratiosData").get("debtToEquity")),
                         cb.greaterThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("1.0"))
                 );
@@ -255,6 +284,7 @@ public class StockSpecification {
     public static Specification<Stock> epsBetween(BigDecimal minEps, BigDecimal maxEps) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
             predicates.add(cb.isNotNull(root.get("fundamentalData").get("eps")));
             if (minEps != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("eps"), minEps));
@@ -269,6 +299,7 @@ public class StockSpecification {
     public static Specification<Stock> profitable() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("fundamentalData")),
                         cb.isNotNull(root.get("fundamentalData").get("eps")),
                         cb.greaterThan(root.get("fundamentalData").get("eps"), BigDecimal.ZERO)
                 );
@@ -277,6 +308,7 @@ public class StockSpecification {
     public static Specification<Stock> bvpsBetween(BigDecimal minBvps, BigDecimal maxBvps) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("calculatedValues")));
             predicates.add(cb.isNotNull(root.get("calculatedValues").get("bookValuePerShare")));
             if (minBvps != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("calculatedValues").get("bookValuePerShare"), minBvps));
@@ -293,6 +325,7 @@ public class StockSpecification {
     public static Specification<Stock> peRatioBetween(BigDecimal minPe, BigDecimal maxPe) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
             predicates.add(cb.isNotNull(root.get("fundamentalData").get("peRatio")));
             if (minPe != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("peRatio"), minPe));
@@ -307,6 +340,7 @@ public class StockSpecification {
     public static Specification<Stock> lowPeRatio() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("fundamentalData")),
                         cb.isNotNull(root.get("fundamentalData").get("peRatio")),
                         cb.lessThan(root.get("fundamentalData").get("peRatio"), new BigDecimal("15"))
                 );
@@ -317,6 +351,7 @@ public class StockSpecification {
     public static Specification<Stock> dividendYieldBetween(BigDecimal minYield, BigDecimal maxYield) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
             predicates.add(cb.isNotNull(root.get("fundamentalData").get("dividendYield")));
             if (minYield != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("dividendYield"), minYield));
@@ -331,6 +366,7 @@ public class StockSpecification {
     public static Specification<Stock> highDividend() {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("fundamentalData")),
                         cb.isNotNull(root.get("fundamentalData").get("dividendYield")),
                         cb.greaterThan(root.get("fundamentalData").get("dividendYield"), new BigDecimal("4"))
                 );
@@ -341,6 +377,7 @@ public class StockSpecification {
     public static Specification<Stock> marketCapBetween(BigDecimal minCap, BigDecimal maxCap) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
             predicates.add(cb.isNotNull(root.get("fundamentalData").get("marketCap")));
             if (minCap != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("marketCap"), minCap));
@@ -357,6 +394,7 @@ public class StockSpecification {
     public static Specification<Stock> volumeGreaterThan(Long minVolume) {
         return (root, query, cb) ->
                 cb.and(
+                        cb.isNotNull(root.get("volumeData")),
                         cb.isNotNull(root.get("volumeData").get("volume")),
                         cb.greaterThan(root.get("volumeData").get("volume"), minVolume)
                 );
@@ -378,38 +416,152 @@ public class StockSpecification {
         };
     }
 
-    // ========== COMBINED FILTERS ==========
-    // These already use the fixed methods above
+    // ========== COMBINED FILTERS (MUTUALLY EXCLUSIVE - USE ONLY ONE) ==========
 
     public static Specification<Stock> valueInvestorFavorites() {
-        return undervalued()
-                .and(marginOfSafetyGreaterThan(new BigDecimal("20")))
-                .and(profitable())
-                .and(lowDebt());
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // marginOfSafety > 20%
+            predicates.add(cb.isNotNull(root.get("calculatedValues")));
+            predicates.add(cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")));
+            predicates.add(cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), new BigDecimal("20")));
+
+            // profitable (EPS > 0)
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("eps")));
+            predicates.add(cb.greaterThan(root.get("fundamentalData").get("eps"), BigDecimal.ZERO));
+
+            // low debt (D/E < 0.5)
+            predicates.add(cb.isNotNull(root.get("ratiosData")));
+            predicates.add(cb.isNotNull(root.get("ratiosData").get("debtToEquity")));
+            predicates.add(cb.lessThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("0.5")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     public static Specification<Stock> growthInvestorFavorites() {
-        return profitMarginGreaterThan(new BigDecimal("15"))
-                .and(peRatioBetween(BigDecimal.ZERO, new BigDecimal("25")))
-                .and(marginOfSafetyGreaterThan(BigDecimal.ZERO));
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // profit margin > 15%
+            predicates.add(cb.isNotNull(root.get("ratiosData")));
+            predicates.add(cb.isNotNull(root.get("ratiosData").get("profitMargin")));
+            predicates.add(cb.greaterThan(root.get("ratiosData").get("profitMargin"), new BigDecimal("15")));
+
+            // PE ratio between 0 and 25
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("peRatio")));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("fundamentalData").get("peRatio"), BigDecimal.ZERO));
+            predicates.add(cb.lessThanOrEqualTo(root.get("fundamentalData").get("peRatio"), new BigDecimal("25")));
+
+            // positive margin of safety
+            predicates.add(cb.isNotNull(root.get("calculatedValues")));
+            predicates.add(cb.isNotNull(root.get("calculatedValues").get("marginOfSafety")));
+            predicates.add(cb.greaterThan(root.get("calculatedValues").get("marginOfSafety"), BigDecimal.ZERO));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     public static Specification<Stock> incomeInvestorFavorites() {
-        return highDividend()
-                .and(profitable())
-                .and(lowDebt());
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // high dividend (> 4%) AND profitable — guard fundamentalData once for both fields
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("dividendYield")));
+            predicates.add(cb.greaterThan(root.get("fundamentalData").get("dividendYield"), new BigDecimal("4")));
+            // FIX: added missing isNotNull guard for eps (was piggy-backing on the dividendYield parent check)
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("eps")));
+            predicates.add(cb.greaterThan(root.get("fundamentalData").get("eps"), BigDecimal.ZERO));
+
+            // low debt (D/E < 0.5)
+            predicates.add(cb.isNotNull(root.get("ratiosData")));
+            predicates.add(cb.isNotNull(root.get("ratiosData").get("debtToEquity")));
+            predicates.add(cb.lessThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("0.5")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     public static Specification<Stock> contrarianFavorites() {
-        return near52WeekLow(new BigDecimal("10"))
-                .and(profitable())
-                .and(marketCapBetween(new BigDecimal("1000000000"), null));
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // near 52-week low (within 10%)
+            predicates.add(cb.isNotNull(root.get("priceData")));
+            predicates.add(cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")));
+            predicates.add(cb.lessThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), new BigDecimal("10")));
+
+            // profitable (EPS > 0)
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("eps")));
+            predicates.add(cb.greaterThan(root.get("fundamentalData").get("eps"), BigDecimal.ZERO));
+
+            // FIX: added missing isNotNull guard for marketCap (was missing the parent null check re-assertion)
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("marketCap")));
+            predicates.add(cb.greaterThan(root.get("fundamentalData").get("marketCap"), new BigDecimal("1000000000")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     public static Specification<Stock> grahamCriteria() {
-        return priceBelowGrahamValue()
-                .and(lowPeRatio())
-                .and(lowDebt());
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // price below graham fair value
+            predicates.add(cb.isNotNull(root.get("calculatedValues")));
+            predicates.add(cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")));
+            predicates.add(cb.isNotNull(root.get("priceData")));
+            predicates.add(cb.isNotNull(root.get("priceData").get("lastPrice")));
+            predicates.add(cb.lessThan(root.get("priceData").get("lastPrice"),
+                    root.get("calculatedValues").get("grahamFairValue")));
+
+            // low PE ratio (< 15)
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("peRatio")));
+            predicates.add(cb.lessThan(root.get("fundamentalData").get("peRatio"), new BigDecimal("15")));
+
+            // low debt (D/E < 0.5)
+            predicates.add(cb.isNotNull(root.get("ratiosData")));
+            predicates.add(cb.isNotNull(root.get("ratiosData").get("debtToEquity")));
+            predicates.add(cb.lessThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("0.5")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    public static Specification<Stock> grahamCriteriaRelaxed() {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // FIX: replaced cb.prod(..., 1.2) double literal (type mismatch with BigDecimal lastPrice)
+            // with a properly typed BigDecimal literal expression to avoid ClassCastException at runtime
+            predicates.add(cb.isNotNull(root.get("calculatedValues")));
+            predicates.add(cb.isNotNull(root.get("calculatedValues").get("grahamFairValue")));
+            predicates.add(cb.isNotNull(root.get("priceData")));
+            predicates.add(cb.isNotNull(root.get("priceData").get("lastPrice")));
+            predicates.add(cb.lessThan(
+                    root.<BigDecimal>get("priceData").get("lastPrice"),
+                    cb.prod(root.<BigDecimal>get("calculatedValues").get("grahamFairValue"),
+                            cb.literal(new BigDecimal("1.2")))
+            ));
+
+            // PE ratio < 20 (relaxed)
+            predicates.add(cb.isNotNull(root.get("fundamentalData")));
+            predicates.add(cb.isNotNull(root.get("fundamentalData").get("peRatio")));
+            predicates.add(cb.lessThan(root.get("fundamentalData").get("peRatio"), new BigDecimal("20")));
+
+            // debt < 1.0 (relaxed)
+            predicates.add(cb.isNotNull(root.get("ratiosData")));
+            predicates.add(cb.isNotNull(root.get("ratiosData").get("debtToEquity")));
+            predicates.add(cb.lessThan(root.get("ratiosData").get("debtToEquity"), new BigDecimal("1.0")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     // ========== UTILITY METHODS ==========

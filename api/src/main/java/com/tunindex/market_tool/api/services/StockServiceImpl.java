@@ -32,7 +32,7 @@ import java.util.Map;
 @Slf4j
 public class StockServiceImpl implements StockService {
 
-    private final StockRepository stockRepository;  // ← FIXED: added 'final'
+    private final StockRepository stockRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -140,9 +140,6 @@ public class StockServiceImpl implements StockService {
 
     // ========== PRIVATE HELPER METHODS ==========
 
-    /**
-     * Validates the pagination DTO
-     */
     private void validatePaginationDto(PaginationAndFilteringDto paginationDto) {
         List<String> errors = new ArrayList<>();
 
@@ -163,9 +160,6 @@ public class StockServiceImpl implements StockService {
         }
     }
 
-    /**
-     * Builds a PagedResponse from a Page of Stock entities
-     */
     private PagedResponse<StockDto> buildPagedResponse(Page<Stock> stockPage) {
         List<StockDto> content = stockPage.getContent()
                 .stream()
@@ -182,8 +176,33 @@ public class StockServiceImpl implements StockService {
     }
 
     /**
-     * Builds a Specification from filter parameters
+     * Safely parses a BigDecimal from the filters map.
+     * Returns null (and logs a warning) if the value is missing or malformed.
      */
+    private BigDecimal parseBigDecimal(Map<String, String> filters, String key) {
+        String value = filters.get(key);
+        if (!StringUtils.hasLength(value)) return null;
+        try {
+            return new BigDecimal(value);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid numeric value for filter '{}': {}", key, value);
+            return null;
+        }
+    }
+
+    /**
+     * Returns true only when the filter key is present AND its value is exactly "true".
+     * Returns false only when the value is exactly "false".
+     * Returns null when the key is absent — meaning "do not apply this filter".
+     */
+    private Boolean parseBooleanFilter(Map<String, String> filters, String key) {
+        if (!filters.containsKey(key)) return null;
+        String value = filters.get(key);
+        if ("true".equalsIgnoreCase(value)) return Boolean.TRUE;
+        if ("false".equalsIgnoreCase(value)) return Boolean.FALSE;
+        return null;
+    }
+
     private Specification<Stock> buildSpecificationFromFilters(Map<String, String> filters) {
         Specification<Stock> spec = StockSpecification.empty();
 
@@ -191,106 +210,216 @@ public class StockServiceImpl implements StockService {
             return spec;
         }
 
-        // Symbol filter
-        if (filters.containsKey("symbol")) {
-            String symbol = filters.get("symbol");
-            if (StringUtils.hasLength(symbol)) {
-                spec = spec.and(StockSpecification.symbolContains(symbol));
+        // ── BASIC ──────────────────────────────────────────────────────────────
+
+        if (StringUtils.hasLength(filters.get("symbol"))) {
+            spec = spec.and(StockSpecification.symbolContains(filters.get("symbol")));
+        }
+
+        if (StringUtils.hasLength(filters.get("name"))) {
+            spec = spec.and(StockSpecification.nameContains(filters.get("name")));
+        }
+
+        if (StringUtils.hasLength(filters.get("exchange"))) {
+            spec = spec.and(StockSpecification.exchangeEquals(filters.get("exchange")));
+        }
+
+        if (StringUtils.hasLength(filters.get("sector"))) {
+            try {
+                SectorType sector = SectorType.valueOf(filters.get("sector").toUpperCase());
+                spec = spec.and(StockSpecification.sectorEquals(sector));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid sector value: {}", filters.get("sector"));
             }
         }
 
-        // Name filter
-        if (filters.containsKey("name")) {
-            String name = filters.get("name");
-            if (StringUtils.hasLength(name)) {
-                spec = spec.and(StockSpecification.nameContains(name));
+        if (StringUtils.hasLength(filters.get("ownershipType"))) {
+            try {
+                OwnershipType ownershipType = OwnershipType.valueOf(filters.get("ownershipType").toUpperCase());
+                spec = spec.and(StockSpecification.ownershipTypeEquals(ownershipType));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid ownership type value: {}", filters.get("ownershipType"));
             }
         }
 
-        // Exchange filter
-        if (filters.containsKey("exchange")) {
-            String exchange = filters.get("exchange");
-            if (StringUtils.hasLength(exchange)) {
-                spec = spec.and(StockSpecification.exchangeEquals(exchange));
-            }
-        }
+        // ── PRICE ──────────────────────────────────────────────────────────────
 
-        // Sector filter
-        if (filters.containsKey("sector")) {
-            String sectorStr = filters.get("sector");
-            if (StringUtils.hasLength(sectorStr)) {
-                try {
-                    SectorType sector = SectorType.valueOf(sectorStr.toUpperCase());
-                    spec = spec.and(StockSpecification.sectorEquals(sector));
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid sector value: {}", sectorStr);
-                }
-            }
-        }
-
-        // Ownership type filter
-        if (filters.containsKey("ownershipType")) {
-            String ownershipStr = filters.get("ownershipType");
-            if (StringUtils.hasLength(ownershipStr)) {
-                try {
-                    OwnershipType ownershipType = OwnershipType.valueOf(ownershipStr.toUpperCase());
-                    spec = spec.and(StockSpecification.ownershipTypeEquals(ownershipType));
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid ownership type value: {}", ownershipStr);
-                }
-            }
-        }
-
-        // Price range filters
         if (filters.containsKey("minPrice") || filters.containsKey("maxPrice")) {
-            BigDecimal minPrice = filters.containsKey("minPrice") ? new BigDecimal(filters.get("minPrice")) : null;
-            BigDecimal maxPrice = filters.containsKey("maxPrice") ? new BigDecimal(filters.get("maxPrice")) : null;
-            spec = spec.and(StockSpecification.priceBetween(minPrice, maxPrice));
+            spec = spec.and(StockSpecification.priceBetween(
+                    parseBigDecimal(filters, "minPrice"),
+                    parseBigDecimal(filters, "maxPrice")
+            ));
         }
 
-        // Profit margin range filters
-        if (filters.containsKey("minProfitMargin") || filters.containsKey("maxProfitMargin")) {
-            BigDecimal minMargin = filters.containsKey("minProfitMargin") ? new BigDecimal(filters.get("minProfitMargin")) : null;
-            BigDecimal maxMargin = filters.containsKey("maxProfitMargin") ? new BigDecimal(filters.get("maxProfitMargin")) : null;
-            spec = spec.and(StockSpecification.profitMarginBetween(minMargin, maxMargin));
-        }
+        // ── 52-WEEK ────────────────────────────────────────────────────────────
 
-        // Margin of safety range filters
-        if (filters.containsKey("minMarginOfSafety") || filters.containsKey("maxMarginOfSafety")) {
-            BigDecimal minMos = filters.containsKey("minMarginOfSafety") ? new BigDecimal(filters.get("minMarginOfSafety")) : null;
-            BigDecimal maxMos = filters.containsKey("maxMarginOfSafety") ? new BigDecimal(filters.get("maxMarginOfSafety")) : null;
-            spec = spec.and(StockSpecification.marginOfSafetyBetween(minMos, maxMos));
-        }
-
-        // Debt/Equity range filters
-        if (filters.containsKey("minDebtToEquity") || filters.containsKey("maxDebtToEquity")) {
-            BigDecimal minDebt = filters.containsKey("minDebtToEquity") ? new BigDecimal(filters.get("minDebtToEquity")) : null;
-            BigDecimal maxDebt = filters.containsKey("maxDebtToEquity") ? new BigDecimal(filters.get("maxDebtToEquity")) : null;
-            spec = spec.and(StockSpecification.debtToEquityBetween(minDebt, maxDebt));
-        }
-
-        // 52-week low percentage range filters
         if (filters.containsKey("minCloseTo52WeekLow") || filters.containsKey("maxCloseTo52WeekLow")) {
-            BigDecimal minPct = filters.containsKey("minCloseTo52WeekLow") ? new BigDecimal(filters.get("minCloseTo52WeekLow")) : null;
-            BigDecimal maxPct = filters.containsKey("maxCloseTo52WeekLow") ? new BigDecimal(filters.get("maxCloseTo52WeekLow")) : null;
-            spec = spec.and(StockSpecification.closeTo52WeekLowPercentageBetween(minPct, maxPct));
+            spec = spec.and(StockSpecification.closeTo52WeekLowPercentageBetween(
+                    parseBigDecimal(filters, "minCloseTo52WeekLow"),
+                    parseBigDecimal(filters, "maxCloseTo52WeekLow")
+            ));
         }
 
-        // PE ratio range filters
+        if (filters.containsKey("near52WeekLow")) {
+            spec = spec.and(StockSpecification.near52WeekLow(parseBigDecimal(filters, "near52WeekLow")));
+        }
+
+        if (filters.containsKey("near52WeekHigh")) {
+            spec = spec.and(StockSpecification.near52WeekHigh(parseBigDecimal(filters, "near52WeekHigh")));
+        }
+
+        // ── PROFIT MARGIN ──────────────────────────────────────────────────────
+
+        if (filters.containsKey("minProfitMargin") || filters.containsKey("maxProfitMargin")) {
+            spec = spec.and(StockSpecification.profitMarginBetween(
+                    parseBigDecimal(filters, "minProfitMargin"),
+                    parseBigDecimal(filters, "maxProfitMargin")
+            ));
+        }
+
+        // ── MARGIN OF SAFETY ───────────────────────────────────────────────────
+
+        if (filters.containsKey("minMarginOfSafety") || filters.containsKey("maxMarginOfSafety")) {
+            spec = spec.and(StockSpecification.marginOfSafetyBetween(
+                    parseBigDecimal(filters, "minMarginOfSafety"),
+                    parseBigDecimal(filters, "maxMarginOfSafety")
+            ));
+        }
+
+        // ── GRAHAM FAIR VALUE ──────────────────────────────────────────────────
+
+        if (filters.containsKey("minGrahamFairValue") || filters.containsKey("maxGrahamFairValue")) {
+            spec = spec.and(StockSpecification.grahamFairValueBetween(
+                    parseBigDecimal(filters, "minGrahamFairValue"),
+                    parseBigDecimal(filters, "maxGrahamFairValue")
+            ));
+        }
+
+        // ── DEBT / EQUITY ──────────────────────────────────────────────────────
+
+        if (filters.containsKey("minDebtToEquity") || filters.containsKey("maxDebtToEquity")) {
+            spec = spec.and(StockSpecification.debtToEquityBetween(
+                    parseBigDecimal(filters, "minDebtToEquity"),
+                    parseBigDecimal(filters, "maxDebtToEquity")
+            ));
+        }
+
+        // ── EPS ────────────────────────────────────────────────────────────────
+
+        if (filters.containsKey("minEps") || filters.containsKey("maxEps")) {
+            spec = spec.and(StockSpecification.epsBetween(
+                    parseBigDecimal(filters, "minEps"),
+                    parseBigDecimal(filters, "maxEps")
+            ));
+        }
+
+        // ── BVPS ───────────────────────────────────────────────────────────────
+
+        if (filters.containsKey("minBvps") || filters.containsKey("maxBvps")) {
+            spec = spec.and(StockSpecification.bvpsBetween(
+                    parseBigDecimal(filters, "minBvps"),
+                    parseBigDecimal(filters, "maxBvps")
+            ));
+        }
+
+        // ── PE RATIO ───────────────────────────────────────────────────────────
+
         if (filters.containsKey("minPeRatio") || filters.containsKey("maxPeRatio")) {
-            BigDecimal minPe = filters.containsKey("minPeRatio") ? new BigDecimal(filters.get("minPeRatio")) : null;
-            BigDecimal maxPe = filters.containsKey("maxPeRatio") ? new BigDecimal(filters.get("maxPeRatio")) : null;
-            spec = spec.and(StockSpecification.peRatioBetween(minPe, maxPe));
+            spec = spec.and(StockSpecification.peRatioBetween(
+                    parseBigDecimal(filters, "minPeRatio"),
+                    parseBigDecimal(filters, "maxPeRatio")
+            ));
         }
 
-        // Dividend yield range filters
+        // ── DIVIDEND YIELD ─────────────────────────────────────────────────────
+
         if (filters.containsKey("minDividendYield") || filters.containsKey("maxDividendYield")) {
-            BigDecimal minYield = filters.containsKey("minDividendYield") ? new BigDecimal(filters.get("minDividendYield")) : null;
-            BigDecimal maxYield = filters.containsKey("maxDividendYield") ? new BigDecimal(filters.get("maxDividendYield")) : null;
-            spec = spec.and(StockSpecification.dividendYieldBetween(minYield, maxYield));
+            spec = spec.and(StockSpecification.dividendYieldBetween(
+                    parseBigDecimal(filters, "minDividendYield"),
+                    parseBigDecimal(filters, "maxDividendYield")
+            ));
+        }
+
+        // ── BOOLEAN FLAGS ──────────────────────────────────────────────────────
+        // Each flag is only applied when the key is present AND value is "true" or "false".
+        // A missing key means "no filter". A value of "false" is intentionally ignored
+        // because there is no negated spec (e.g. "not profitable") — extend StockSpecification
+        // with notProfitable() etc. if you need those.
+
+        Boolean profitable = parseBooleanFilter(filters, "profitable");
+        if (Boolean.TRUE.equals(profitable)) {
+            spec = spec.and(StockSpecification.profitable());
+        }
+
+        Boolean undervalued = parseBooleanFilter(filters, "undervalued");
+        if (Boolean.TRUE.equals(undervalued)) {
+            spec = spec.and(StockSpecification.undervalued());
+        }
+
+        Boolean overvalued = parseBooleanFilter(filters, "overvalued");
+        if (Boolean.TRUE.equals(overvalued)) {
+            spec = spec.and(StockSpecification.overvalued());
+        }
+
+        Boolean priceBelowGraham = parseBooleanFilter(filters, "priceBelowGrahamValue");
+        if (Boolean.TRUE.equals(priceBelowGraham)) {
+            spec = spec.and(StockSpecification.priceBelowGrahamValue());
+        }
+
+        Boolean priceAboveGraham = parseBooleanFilter(filters, "priceAboveGrahamValue");
+        if (Boolean.TRUE.equals(priceAboveGraham)) {
+            spec = spec.and(StockSpecification.priceAboveGrahamValue());
+        }
+
+        Boolean lowDebt = parseBooleanFilter(filters, "lowDebt");
+        if (Boolean.TRUE.equals(lowDebt)) {
+            spec = spec.and(StockSpecification.lowDebt());
+        }
+
+        Boolean highDebt = parseBooleanFilter(filters, "highDebt");
+        if (Boolean.TRUE.equals(highDebt)) {
+            spec = spec.and(StockSpecification.highDebt());
+        }
+
+        Boolean lowPeRatio = parseBooleanFilter(filters, "lowPeRatio");
+        if (Boolean.TRUE.equals(lowPeRatio)) {
+            spec = spec.and(StockSpecification.lowPeRatio());
+        }
+
+        Boolean highDividend = parseBooleanFilter(filters, "highDividend");
+        if (Boolean.TRUE.equals(highDividend)) {
+            spec = spec.and(StockSpecification.highDividend());
+        }
+
+        // ── INVESTOR PRESETS ───────────────────────────────────────────────────
+        // Presets are only applied when explicitly set to "true".
+        // "false" means "do not apply this preset filter" — not "exclude those stocks".
+
+        Boolean valueInvestor = parseBooleanFilter(filters, "valueInvestorFavorites");
+        if (Boolean.TRUE.equals(valueInvestor)) {
+            spec = spec.and(StockSpecification.valueInvestorFavorites());
+        }
+
+        Boolean growthInvestor = parseBooleanFilter(filters, "growthInvestorFavorites");
+        if (Boolean.TRUE.equals(growthInvestor)) {
+            spec = spec.and(StockSpecification.growthInvestorFavorites());
+        }
+
+        Boolean incomeInvestor = parseBooleanFilter(filters, "incomeInvestorFavorites");
+        if (Boolean.TRUE.equals(incomeInvestor)) {
+            spec = spec.and(StockSpecification.incomeInvestorFavorites());
+        }
+
+        Boolean contrarian = parseBooleanFilter(filters, "contrarianFavorites");
+        if (Boolean.TRUE.equals(contrarian)) {
+            spec = spec.and(StockSpecification.contrarianFavorites());
+        }
+
+        Boolean graham = parseBooleanFilter(filters, "grahamCriteria");
+        if (Boolean.TRUE.equals(graham)) {
+            spec = spec.and(StockSpecification.grahamCriteria());
         }
 
         return spec;
     }
-
 }

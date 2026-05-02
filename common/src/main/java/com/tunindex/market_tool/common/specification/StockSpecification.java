@@ -112,23 +112,27 @@ public class StockSpecification {
     }
 
     public static Specification<Stock> near52WeekLow(BigDecimal thresholdPercent) {
-        return (root, query, cb) -> {
-            BigDecimal threshold = thresholdPercent != null ? thresholdPercent : new BigDecimal("10");
-            return cb.and(
-                    cb.isNotNull(root.get("priceData")),
-                    cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")),
-                    cb.lessThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold)
-            );
-        };
-    }
-
-    public static Specification<Stock> near52WeekHigh(BigDecimal thresholdPercent) {
+        // closeTo52weekslowPct = 100% means AT the low, 0% means AT the high.
+        // "Near the low" means closeTo52weekslowPct >= threshold (default 90%).
         return (root, query, cb) -> {
             BigDecimal threshold = thresholdPercent != null ? thresholdPercent : new BigDecimal("90");
             return cb.and(
                     cb.isNotNull(root.get("priceData")),
                     cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")),
                     cb.greaterThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold)
+            );
+        };
+    }
+
+    public static Specification<Stock> near52WeekHigh(BigDecimal thresholdPercent) {
+        // closeTo52weekslowPct = 0% means AT the high, 100% means AT the low.
+        // "Near the high" means closeTo52weekslowPct <= threshold (default 10%).
+        return (root, query, cb) -> {
+            BigDecimal threshold = thresholdPercent != null ? thresholdPercent : new BigDecimal("10");
+            return cb.and(
+                    cb.isNotNull(root.get("priceData")),
+                    cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")),
+                    cb.lessThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), threshold)
             );
         };
     }
@@ -490,10 +494,11 @@ public class StockSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // near 52-week low (within 10%)
+            // near 52-week low: closeTo52weekslowPct >= 90 means price is within 10% of the low
+            // (100% = AT the low, 0% = AT the high — so high values = close to low)
             predicates.add(cb.isNotNull(root.get("priceData")));
             predicates.add(cb.isNotNull(root.get("priceData").get("closeTo52weekslowPct")));
-            predicates.add(cb.lessThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), new BigDecimal("10")));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("priceData").get("closeTo52weekslowPct"), new BigDecimal("90")));
 
             // profitable (EPS > 0)
             predicates.add(cb.isNotNull(root.get("fundamentalData")));

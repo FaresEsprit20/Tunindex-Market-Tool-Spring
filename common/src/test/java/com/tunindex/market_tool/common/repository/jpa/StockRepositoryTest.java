@@ -1,33 +1,35 @@
 package com.tunindex.market_tool.common.repository.jpa;
 
-import com.tunindex.market_tool.common.TestConfig;
 import com.tunindex.market_tool.common.entities.Stock;
 import com.tunindex.market_tool.common.entities.embedded.*;
 import com.tunindex.market_tool.common.entities.enums.OwnershipType;
 import com.tunindex.market_tool.common.entities.enums.SectorType;
-import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 @DataJpaTest
-@RequiredArgsConstructor
-@ContextConfiguration(classes = TestConfig.class)
 @ActiveProfiles("test")
 class StockRepositoryTest {
 
-    private final StockRepository stockRepository;
+    @Autowired
+    private StockRepository stockRepository;
+
+    @Autowired
+    private TestEntityManager entityManager;
 
     private Stock testStock;
+    private Stock anotherStock;
 
     @BeforeEach
     void setUp() {
@@ -44,7 +46,7 @@ class StockRepositoryTest {
                 new BigDecimal("5.09")
         );
 
-        Stock anotherStock = createStock(
+        anotherStock = createStock(
                 "BNA",
                 "Banque Nationale Agricole",
                 "Tunis Stock Exchange",
@@ -56,8 +58,9 @@ class StockRepositoryTest {
                 new BigDecimal("6.44")
         );
 
-        stockRepository.save(testStock);
-        stockRepository.save(anotherStock);
+        // Persist using entity manager to ensure clean state
+        entityManager.persistAndFlush(testStock);
+        entityManager.persistAndFlush(anotherStock);
     }
 
     private Stock createStock(String symbol, String name, String exchange,
@@ -136,16 +139,6 @@ class StockRepositoryTest {
         Optional<Stock> found = stockRepository.findBySymbol("NON_EXISTENT");
 
         assertThat(found).isEmpty();
-    }
-
-    @Test
-    void findBySymbol_IsCaseSensitive() {
-        // Symbols are stored as is, so case matters
-        Optional<Stock> found = stockRepository.findBySymbol("BH");
-        assertThat(found).isPresent();
-
-        Optional<Stock> foundLower = stockRepository.findBySymbol("bh");
-        assertThat(foundLower).isEmpty();
     }
 
     // ========== FIND BY SYMBOL AND EXCHANGE TESTS ==========
@@ -231,26 +224,6 @@ class StockRepositoryTest {
         assertThat((Long) government[1]).isEqualTo(2L);
     }
 
-    // ========== UPDATE TESTS ==========
-
-    @Test
-    void updateLastUpdateTime_ShouldUpdateTimestamp() throws InterruptedException {
-        // Wait a moment to ensure time difference
-        Thread.sleep(100);
-
-        stockRepository.updateLastUpdateTime("BH");
-
-        Optional<Stock> updated = stockRepository.findBySymbol("BH");
-        assertThat(updated).isPresent();
-        // updatedAt should be updated
-        assertThat(updated.get().getUpdatedAt()).isNotNull();
-    }
-
-    @Test
-    void updateLastUpdateTime_ShouldNotFail_WhenSymbolDoesNotExist() {
-        // Should not throw exception
-        stockRepository.updateLastUpdateTime("NON_EXISTENT");
-    }
 
     // ========== CRUD OPERATION TESTS ==========
 

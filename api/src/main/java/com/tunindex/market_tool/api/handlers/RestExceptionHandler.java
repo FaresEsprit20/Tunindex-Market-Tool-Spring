@@ -1,7 +1,7 @@
 package com.tunindex.market_tool.api.handlers;
 
-import com.tunindex.market_tool.common.exception.CustomErrorMsg;
-import com.tunindex.market_tool.common.exception.*;
+import com.tunindex.market_tool.api.exception.CustomErrorMsg;
+import com.tunindex.market_tool.api.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;

@@ -1,8 +1,8 @@
 package com.tunindex.market_tool.api.services.stock;
 
-import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
-import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
-import com.tunindex.market_tool.common.dto.providers.investingcom.StockDto;
+import com.tunindex.market_tool.api.utils.pagination.PaginationAndFilteringDto;
+import com.tunindex.market_tool.api.utils.pagination.response.PagedResponse;
+import com.tunindex.market_tool.api.dto.providers.investingcom.StockDto;
 
 import java.util.List;
 

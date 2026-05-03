@@ -1,8 +1,8 @@
 package com.tunindex.market_tool.api.controllers.stock;
 
-import com.tunindex.market_tool.common.dto.providers.investingcom.StockDto;
-import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
-import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
+import com.tunindex.market_tool.api.dto.providers.investingcom.StockDto;
+import com.tunindex.market_tool.api.utils.pagination.PaginationAndFilteringDto;
+import com.tunindex.market_tool.api.utils.pagination.response.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.tunindex.market_tool.common.utils.constants.Constants.APP_ROOT;
+import static com.tunindex.market_tool.api.utils.constants.Constants.APP_ROOT;
 
 
 @Tag(name = "Stocks", description = "API for stock market operations")

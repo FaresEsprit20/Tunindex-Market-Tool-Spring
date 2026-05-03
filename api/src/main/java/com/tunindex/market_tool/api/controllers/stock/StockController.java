@@ -2,9 +2,9 @@ package com.tunindex.market_tool.api.controllers.stock;
 
 
 import com.tunindex.market_tool.api.services.stock.StockService;
-import com.tunindex.market_tool.common.dto.providers.investingcom.StockDto;
-import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
-import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
+import com.tunindex.market_tool.api.dto.providers.investingcom.StockDto;
+import com.tunindex.market_tool.api.utils.pagination.PaginationAndFilteringDto;
+import com.tunindex.market_tool.api.utils.pagination.response.PagedResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.RequestBody;

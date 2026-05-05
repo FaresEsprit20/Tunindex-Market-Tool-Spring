@@ -25,6 +25,11 @@ public enum ErrorCodes {
     PAGE_NOT_VALID(18000),
     SIZE_NOT_VALID(18001),
 
+    // Add these new error codes for empty/invalid parameters
+    EMPTY_SYMBOL(18002),
+    EMPTY_EXCHANGE(18003),
+    INVALID_PARAMETER(18004),
+
     // Market Data Provider Errors (20000-20999)
     PROVIDER_NOT_FOUND(20000),
     PROVIDER_CONFIGURATION_ERROR(20001),

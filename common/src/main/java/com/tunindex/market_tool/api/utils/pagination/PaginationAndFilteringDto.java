@@ -18,7 +18,7 @@ public class PaginationAndFilteringDto {
     @NotNull(message = "Page size is required")
     @Min(value = 1, message = "Page size must be at least 1")
     @Max(value = 100, message = "Page size cannot exceed 100")
-    private Integer size = 5;
+    private Integer size = 10;
 
     private String sortField = "id";
 

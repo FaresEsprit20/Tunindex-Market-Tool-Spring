@@ -95,6 +95,10 @@ public class StockServiceImpl implements StockService {
 
         validatePaginationDto(paginationDto);
 
+        // Map the sort field to handle nested properties
+        String mappedSortField = mapSortField(paginationDto.getSortField());
+        paginationDto.setSortField(mappedSortField);
+
         Specification<Stock> specification = buildSpecificationFromFilters(paginationDto.getFilters());
         Pageable pageable = PaginationUtil.createPageRequest(paginationDto);
         Page<Stock> stockPage = stockRepository.findAll(specification, pageable);
@@ -421,5 +425,72 @@ public class StockServiceImpl implements StockService {
         }
 
         return spec;
+    }
+
+    private String mapSortField(String sortField) {
+        if (sortField == null || sortField.isEmpty()) {
+            return "id";
+        }
+
+        // Map frontend field names to actual entity field paths
+        switch (sortField) {
+            // Price data fields
+            case "lastPrice":
+                return "priceData.lastPrice";
+            case "prevClose":
+                return "priceData.prevClose";
+            case "dayHigh":
+                return "priceData.dayHigh";
+            case "dayLow":
+                return "priceData.dayLow";
+            case "week52High":
+                return "priceData.week52High";
+            case "week52Low":
+                return "priceData.week52Low";
+            case "closeTo52weekslowPct":
+                return "priceData.closeTo52weekslowPct";
+
+            // Volume data fields
+            case "volume":
+                return "volumeData.volume";
+            case "avgVolume3m":
+                return "volumeData.avgVolume3m";
+
+            // Fundamental data fields
+            case "eps":
+                return "fundamentalData.eps";
+            case "peRatio":
+                return "fundamentalData.peRatio";
+            case "dividendYield":
+                return "fundamentalData.dividendYield";
+            case "marketCap":
+                return "fundamentalData.marketCap";
+            case "sharesOutstanding":
+                return "fundamentalData.sharesOutstanding";
+            case "revenue":
+                return "fundamentalData.revenue";
+            case "oneYearReturn":
+                return "fundamentalData.oneYearReturn";
+
+            // Ratios data fields
+            case "priceToBook":
+                return "ratiosData.priceToBook";
+            case "debtToEquity":
+                return "ratiosData.debtToEquity";
+            case "profitMargin":
+                return "ratiosData.profitMargin";
+
+            // Calculated values fields
+            case "grahamFairValue":
+                return "calculatedValues.grahamFairValue";
+            case "marginOfSafety":
+                return "calculatedValues.marginOfSafety";
+            case "bookValuePerShare":
+                return "calculatedValues.bookValuePerShare";
+
+            // Direct entity fields
+            default:
+                return sortField;
+        }
     }
 }

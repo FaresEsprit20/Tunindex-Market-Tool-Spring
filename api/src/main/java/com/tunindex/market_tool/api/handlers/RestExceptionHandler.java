@@ -2,6 +2,8 @@ package com.tunindex.market_tool.api.handlers;
 
 import com.tunindex.market_tool.api.exception.CustomErrorMsg;
 import com.tunindex.market_tool.api.exception.*;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,9 +13,30 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class RestExceptionHandler extends ResponseEntityExceptionHandler {
+
+    // Add this new handler for validation exceptions
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<CustomErrorMsg> handleConstraintViolationException(ConstraintViolationException exception, WebRequest webRequest) {
+        final HttpStatus badRequest = HttpStatus.BAD_REQUEST;
+
+        // Extract validation error messages
+        List<String> errors = exception.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.toList());
+
+        final CustomErrorMsg errorDto = new CustomErrorMsg();
+        errorDto.setCode(ErrorCodes.INVALID_PARAMETER);
+        errorDto.setHttpCode(badRequest.value());
+        errorDto.setMessage("Validation failed: " + (errors.isEmpty() ? "Invalid parameter(s)" : errors.get(0)));
+        errorDto.setErrors(errors);
+
+        return new ResponseEntity<>(errorDto, badRequest);
+    }
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<CustomErrorMsg> handleException(EntityNotFoundException exception, WebRequest webRequest) {

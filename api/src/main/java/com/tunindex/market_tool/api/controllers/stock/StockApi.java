@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
@@ -50,7 +51,7 @@ public interface StockApi {
             @ApiResponse(responseCode = "200", description = "Filtered stocks retrieved successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid filter parameters")
     })
-    PagedResponse<StockDto> filterStocks(@RequestBody PaginationAndFilteringDto paginationDto);
+    PagedResponse<StockDto> filterStocks(@RequestBody @Valid PaginationAndFilteringDto paginationDto);
 
     @GetMapping(value = APP_ROOT + "/stocks/statistics/by-sector",
             produces = MediaType.APPLICATION_JSON_VALUE)

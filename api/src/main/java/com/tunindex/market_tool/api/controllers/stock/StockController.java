@@ -8,25 +8,29 @@ import com.tunindex.market_tool.api.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.api.utils.pagination.response.PagedResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.Collections;
 import java.util.List;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@Validated
 public class StockController implements StockApi {
 
     private final StockService stockService;
 
     @Override
-    public StockDto findBySymbol(String symbol) {
+    public StockDto findBySymbol(@NotBlank(message = "Symbol cannot be empty") String symbol) {
         log.info("=== StockController.findBySymbol() called ===");
         log.info("Searching for stock with symbol: {}", symbol);
 
-        // Add validation
+        // Additional validation (though @NotBlank already handles it)
         if (symbol == null || symbol.trim().isEmpty()) {
             throw new InvalidEntityException(
                     "Symbol cannot be empty",
@@ -42,11 +46,12 @@ public class StockController implements StockApi {
     }
 
     @Override
-    public StockDto findBySymbolAndExchange(String symbol, String exchange) {
+    public StockDto findBySymbolAndExchange(
+            @NotBlank(message = "Symbol cannot be empty") String symbol,
+            @NotBlank(message = "Exchange cannot be empty") String exchange) {
         log.info("=== StockController.findBySymbolAndExchange() called ===");
         log.info("Searching for stock with symbol: {} and exchange: {}", symbol, exchange);
 
-        // Add validation
         if (symbol == null || symbol.trim().isEmpty()) {
             throw new InvalidEntityException(
                     "Symbol cannot be empty",
@@ -69,23 +74,8 @@ public class StockController implements StockApi {
     }
 
     @Override
-    public PagedResponse<StockDto> filterStocks(@RequestBody PaginationAndFilteringDto paginationDto) {
+    public PagedResponse<StockDto> filterStocks(@RequestBody @Valid PaginationAndFilteringDto paginationDto) {
         log.info("=== StockController.filterStocks() called ===");
-        // Validate pagination parameters
-        if (paginationDto.getPage() < 1) {
-            throw new InvalidEntityException(
-                    "Invalid page number",
-                    ErrorCodes.PAGE_NOT_VALID,
-                    Collections.singletonList("Page number must be greater than 0")
-            );
-        }
-        if (paginationDto.getSize() > 100) {
-            throw new InvalidEntityException(
-                    "Invalid page size",
-                    ErrorCodes.SIZE_NOT_VALID,
-                    Collections.singletonList("Page size cannot exceed 100")
-            );
-        }
         log.info("Filter parameters - page: {}, size: {}, filters: {}",
                 paginationDto.getPage(), paginationDto.getSize(), paginationDto.getFilters());
 
@@ -114,11 +104,10 @@ public class StockController implements StockApi {
     }
 
     @Override
-    public void refreshStockData(String symbol) {
+    public void refreshStockData(@NotBlank(message = "Symbol cannot be empty") String symbol) {
         log.info("=== StockController.refreshStockData() called ===");
         log.info("Refreshing stock data for symbol: {}", symbol);
 
-        // Add validation
         if (symbol == null || symbol.trim().isEmpty()) {
             throw new InvalidEntityException(
                     "Symbol cannot be empty",

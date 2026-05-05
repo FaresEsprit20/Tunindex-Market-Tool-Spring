@@ -39,19 +39,25 @@ class StockControllerIntegrationTest extends BaseIntegrationTestConfig {
 
     @BeforeEach
     void setUp() {
-        // Clean database
         stockRepository.deleteAll();
 
-        // Create test data
-        Stock testStock = createStockEntity("BH", "Banque de l'Habitat", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
-        Stock anotherStock = createStockEntity("BNA", "Banque Nationale Agricole", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
-        Stock privateStock = createStockEntity("BIAT", "Banque Internationale Arabe de Tunisie", SectorType.FINANCIALS, OwnershipType.PRIVATE);
-        Stock industrialStock = createStockEntity("PGH", "Société de fabrication des boissons de Tunisie", SectorType.INDUSTRIALS, OwnershipType.PRIVATE);
+        // Create stocks with different prices
+        Stock bhStock = createStockEntity("BH", "Banque de l'Habitat", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
+        bhStock.getPriceData().setLastPrice(new BigDecimal("10.37"));
 
-        stockRepository.save(testStock);
-        stockRepository.save(anotherStock);
-        stockRepository.save(privateStock);
-        stockRepository.save(industrialStock);
+        Stock bnaStock = createStockEntity("BNA", "Banque Nationale Agricole", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
+        bnaStock.getPriceData().setLastPrice(new BigDecimal("15.50"));
+
+        Stock biatStock = createStockEntity("BIAT", "Banque Internationale Arabe de Tunisie", SectorType.FINANCIALS, OwnershipType.PRIVATE);
+        biatStock.getPriceData().setLastPrice(new BigDecimal("8.25"));
+
+        Stock pghStock = createStockEntity("PGH", "Société de fabrication des boissons de Tunisie", SectorType.INDUSTRIALS, OwnershipType.PRIVATE);
+        pghStock.getPriceData().setLastPrice(new BigDecimal("10.37"));
+
+        stockRepository.save(bhStock);
+        stockRepository.save(bnaStock);
+        stockRepository.save(biatStock);
+        stockRepository.save(pghStock);
     }
 
 
@@ -295,9 +301,9 @@ class StockControllerIntegrationTest extends BaseIntegrationTestConfig {
                         .content(objectMapper.writeValueAsString(paginationDto)))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[*].marginOfSafety").value(everyItem(greaterThan(0))));
+                // Use a more flexible matcher that works with both Integer and Double
+                .andExpect(jsonPath("$.content[*].marginOfSafety").value(everyItem(greaterThan(BigDecimal.ZERO.doubleValue()))));
     }
-
     @Test
     @DisplayName("POST /stocks/filter - Should filter by graham criteria preset")
     void filterStocks_ShouldFilterByGrahamCriteria() throws Exception {

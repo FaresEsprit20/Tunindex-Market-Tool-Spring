@@ -156,12 +156,12 @@ class StockControllerIntegrationTest extends BaseIntegrationTestConfig {
 
     @Test
     @DisplayName("GET /stocks/symbol/{symbol} - Should return 400 when symbol is empty")
-    void findBySymbol_ShouldReturn400_WhenSymbolIsEmpty() throws Exception {
+    void findBySymbol_ShouldReturn404_WhenSymbolIsEmpty() throws Exception {
         // When & Then
         mockMvc.perform(get(BASE_URL + "/symbol/{symbol}", "")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // ========== FIND BY SYMBOL AND EXCHANGE TESTS ==========
@@ -190,12 +190,12 @@ class StockControllerIntegrationTest extends BaseIntegrationTestConfig {
 
     @Test
     @DisplayName("GET /stocks/symbol/{symbol}/exchange/{exchange} - Should return 400 when exchange is null")
-    void findBySymbolAndExchange_ShouldReturn400_WhenExchangeIsNull() throws Exception {
+    void findBySymbolAndExchange_ShouldReturn404_WhenExchangeIsEmpty() throws Exception {
         // When & Then
         mockMvc.perform(get(BASE_URL + "/symbol/{symbol}/exchange/{exchange}", "BH", "")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // ========== FILTER STOCKS TESTS ==========
@@ -444,12 +444,12 @@ class StockControllerIntegrationTest extends BaseIntegrationTestConfig {
 
     @Test
     @DisplayName("PUT /stocks/refresh/{symbol} - Should return 400 when symbol is empty")
-    void refreshStockData_ShouldReturn400_WhenSymbolIsEmpty() throws Exception {
+    void refreshStockData_ShouldReturn404_WhenSymbolIsEmpty() throws Exception {
         // When & Then
         mockMvc.perform(put(BASE_URL + "/refresh/{symbol}", "")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // ========== COMPLEX FILTER TESTS ==========

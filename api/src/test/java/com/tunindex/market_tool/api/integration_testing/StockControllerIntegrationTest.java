@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.api.integration_testing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tunindex.market_tool.api.BaseIntegrationTestConfig;
 import com.tunindex.market_tool.api.entities.Stock;
 import com.tunindex.market_tool.api.entities.embedded.*;
 import com.tunindex.market_tool.api.entities.enums.OwnershipType;
@@ -19,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.tunindex.market_tool.api.utils.constants.Constants.APP_ROOT;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -27,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("Stock Controller Integration Tests")
 class StockControllerIntegrationTest extends BaseIntegrationTestConfig {
 
-    private static final String BASE_URL = "/api/v1/stocks";
+    private static final String BASE_URL = "/" + APP_ROOT + "/stocks";
 
     @Autowired
     private StockRepository stockRepository;
@@ -35,27 +37,23 @@ class StockControllerIntegrationTest extends BaseIntegrationTestConfig {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private Stock testStock;
-    private Stock anotherStock;
-    private Stock privateStock;
-    private Stock industrialStock;
-
     @BeforeEach
     void setUp() {
         // Clean database
         stockRepository.deleteAll();
 
         // Create test data
-        testStock = createStockEntity("BH", "Banque de l'Habitat", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
-        anotherStock = createStockEntity("BNA", "Banque Nationale Agricole", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
-        privateStock = createStockEntity("BIAT", "Banque Internationale Arabe de Tunisie", SectorType.FINANCIALS, OwnershipType.PRIVATE);
-        industrialStock = createStockEntity("PGH", "Société de fabrication des boissons de Tunisie", SectorType.INDUSTRIALS, OwnershipType.PRIVATE);
+        Stock testStock = createStockEntity("BH", "Banque de l'Habitat", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
+        Stock anotherStock = createStockEntity("BNA", "Banque Nationale Agricole", SectorType.FINANCIALS, OwnershipType.GOVERNMENT);
+        Stock privateStock = createStockEntity("BIAT", "Banque Internationale Arabe de Tunisie", SectorType.FINANCIALS, OwnershipType.PRIVATE);
+        Stock industrialStock = createStockEntity("PGH", "Société de fabrication des boissons de Tunisie", SectorType.INDUSTRIALS, OwnershipType.PRIVATE);
 
         stockRepository.save(testStock);
         stockRepository.save(anotherStock);
         stockRepository.save(privateStock);
         stockRepository.save(industrialStock);
     }
+
 
     private Stock createStockEntity(String symbol, String name, SectorType sector, OwnershipType ownershipType) {
         Stock stock = new Stock();

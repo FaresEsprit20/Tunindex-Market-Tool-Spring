@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.api.unit_testing;
 
+import com.tunindex.market_tool.api.BaseIntegrationTestConfig;
 import com.tunindex.market_tool.api.dto.providers.investingcom.StockDto;
 import com.tunindex.market_tool.api.entities.Stock;
 import com.tunindex.market_tool.api.entities.embedded.*;
@@ -38,8 +39,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("Stock Service Tests")
-class StockServiceImplTest {
+@DisplayName("Stock Service Unit Tests")
+class StockServiceImplTest  {
 
     @Mock
     private StockRepository stockRepository;

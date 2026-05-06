@@ -62,9 +62,7 @@ public class UserServiceImpl implements UserService {
         }
 
         boolean userEmailExistsUsers = userRepository.existsByEmail(dto.getEmail());
-        boolean userEmailExistsCustomers = userRepository.existsCustomerByEmail(dto.getEmail());
-        boolean userEmailExistsSuppliers = userRepository.existsSupplierByEmail(dto.getEmail());
-        if (userEmailExistsUsers || userEmailExistsCustomers || userEmailExistsSuppliers) {
+        if (userEmailExistsUsers) {
             throw new InvalidEntityException("Another user with the same email already exists", ErrorCodes.USER_ALREADY_EXISTS,
                     Collections.singletonList("Another user with the same email already exists in the DB"));
         }
@@ -199,10 +197,10 @@ public class UserServiceImpl implements UserService {
     public UserExtendedDto findByEmail(String email) {
         List<String>errors = EmailValidator.validate(email);
         if(!errors.isEmpty()) {
-            log.error(" Customer Email is Not Valid");
-            errors.add("Customer Email is Not Valid");
-            throw new InvalidEntityException(" Customer Email is Not Valid",
-                    ErrorCodes.CLIENT_NOT_VALID, errors);
+            log.error(" User Email is Not Valid");
+            errors.add("User Email is Not Valid");
+            throw new InvalidEntityException(" User Email is Not Valid",
+                    ErrorCodes.USER_NOT_VALID, errors);
         }
         errors.add("No user with the email = " + email + " has been found in the DB");
         return userRepository.findUserByEmail(email)

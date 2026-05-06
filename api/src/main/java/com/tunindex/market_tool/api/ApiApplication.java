@@ -24,8 +24,8 @@ public class ApiApplication {
 
         log.info("=".repeat(60));
         log.info("🚀 API SERVICE STARTED");
-        log.info("📡 Web server running on http://localhost:8080");
-        log.info("📖 Swagger UI: http://localhost:8080/swagger-ui.html");
+        log.info("📡 Web server running on http://localhost:8082");
+        log.info("📖 Swagger UI: http://localhost:8082/swagger-ui.html");
         log.info("=".repeat(60));
     }
 }

@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
  * - fullSanitize() - Uses ALL patterns
  */
 @Slf4j
-@Component
+
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class InputSanitizerFilter extends OncePerRequestFilter {
 

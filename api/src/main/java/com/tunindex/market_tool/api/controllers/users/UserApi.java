@@ -19,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 
+import static com.tunindex.market_tool.api.utils.constants.Constants.USER_ENDPOINT;
 
 
 @Tag(name = "Users", description = "API for user management")

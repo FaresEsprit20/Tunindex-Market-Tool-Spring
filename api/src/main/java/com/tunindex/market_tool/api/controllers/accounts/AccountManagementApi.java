@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
+import static com.tunindex.market_tool.api.utils.constants.Constants.ACCOUNTS_ENDPOINT;
+import static com.tunindex.market_tool.api.utils.constants.Constants.USER_ENDPOINT;
+
 
 @Tag(name = "Account Management", description = "API for account management")
 public interface AccountManagementApi {

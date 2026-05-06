@@ -12,8 +12,13 @@ import com.tunindex.market_tool.api.exception.EntityNotFoundException;
 import com.tunindex.market_tool.api.exception.ErrorCodes;
 import com.tunindex.market_tool.api.exception.InvalidEntityException;
 import com.tunindex.market_tool.api.exception.InvalidOperationException;
+import com.tunindex.market_tool.api.repository.RolesRepository;
 import com.tunindex.market_tool.api.repository.UnifiedTokenRepository;
 import com.tunindex.market_tool.api.repository.UserRepository;
+import com.tunindex.market_tool.api.validators.email.EmailValidator;
+import com.tunindex.market_tool.api.validators.password.PasswordValidator;
+import com.tunindex.market_tool.api.validators.users.UserUpdateValidator;
+import com.tunindex.market_tool.api.validators.users.UserValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -29,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
 
 @Slf4j
 @Service

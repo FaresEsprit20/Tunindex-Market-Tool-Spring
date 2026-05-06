@@ -7,6 +7,7 @@ import com.tunindex.market_tool.api.dto.user.UserDto;
 import com.tunindex.market_tool.api.entities.enums.UserRole;
 import com.tunindex.market_tool.api.exception.ErrorCodes;
 import com.tunindex.market_tool.api.exception.InvalidEntityException;
+import com.tunindex.market_tool.api.services.users.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayList;

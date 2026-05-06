@@ -8,6 +8,9 @@ import java.util.Map;
 public interface Constants {
 
     String APP_ROOT = "tunindex/market/tool/v1";
+    String USER_ENDPOINT = APP_ROOT + "/users";
+    String AUTHENTICATION_ENDPOINT = APP_ROOT + "/auth";
+    String ACCOUNTS_ENDPOINT = APP_ROOT + "/accounts/management";
     String ALLOWED_ORIGINS = "http://localhost:4200";
     Boolean PRODUCTION_ENVIRONMENT = false;
 

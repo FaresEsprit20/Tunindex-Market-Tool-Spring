@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.api.controllers.auth;
 
+import com.tunindex.market_tool.api.dto.auth.ChangePasswordUserRequestDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

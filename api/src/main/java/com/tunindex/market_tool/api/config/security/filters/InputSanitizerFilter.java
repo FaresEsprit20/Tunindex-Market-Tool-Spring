@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -39,7 +40,7 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Component
-@Order(0)
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class InputSanitizerFilter extends OncePerRequestFilter {
 
     @Override

@@ -56,7 +56,7 @@ public class SecurityConfiguration {
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .authenticationProvider(authProvider)
-                .addFilterBefore(inputSanitizerFilter, InputSanitizerFilter.class)
+                .addFilterBefore(inputSanitizerFilter, RateLimitingFilter.class)
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

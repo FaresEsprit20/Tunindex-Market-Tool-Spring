@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @SpringBootApplication(scanBasePackages = {
         "com.tunindex.market_tool.api",
-        "com.tunindex.market_tool.api"
+        "com.tunindex.market_tool.common"
 })
 @Slf4j
 @EnableScheduling

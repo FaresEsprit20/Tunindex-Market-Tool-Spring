@@ -27,7 +27,7 @@ public class User extends BaseUser implements UserDetails {
     )
     private List<Roles> roles;
 
-    @OneToMany(mappedBy = "userId", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private List<UnifiedToken> tokens;
 
     @Override

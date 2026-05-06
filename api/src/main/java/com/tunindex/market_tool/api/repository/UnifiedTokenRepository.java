@@ -87,6 +87,10 @@ public interface UnifiedTokenRepository extends JpaRepository<UnifiedToken, Long
     @Query("DELETE FROM UnifiedToken t WHERE t.verificationToken = :verificationToken AND t.tokenType = 'TWO_FACTOR'")
     void deleteByVerificationToken(String verificationToken);
 
+    Long countByUserEmailAndTokenTypeAndExpiredFalseAndRevokedFalse(
+            String email, TokenType tokenType);
+
+    Optional<UnifiedToken>findByTokenAndIpHashAndTokenType(String token, String ipHash, TokenType tokenType);
     // ===== GENERIC METHODS FOR ALL TOKEN TYPES =====
     
     @Query("SELECT t FROM UnifiedToken t WHERE t.token = :token AND t.tokenType = :tokenType")

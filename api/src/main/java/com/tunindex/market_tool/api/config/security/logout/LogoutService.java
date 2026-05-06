@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.api.config.security.logout;
 
-import com.tunindex.market_tool.api.repository.jpa.JwtTokenRepository;
+import com.tunindex.market_tool.api.repository.JwtTokenRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

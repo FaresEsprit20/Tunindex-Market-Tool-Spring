@@ -5,16 +5,18 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication(scanBasePackages = {
         "com.tunindex.market_tool.api",
-        "com.tunindex.market_tool.api"
+        "com.tunindex.market_tool.common"
 })
 @Slf4j
+@EnableJpaAuditing
 @EnableDiscoveryClient
 @EntityScan("com.tunindex.market_tool.api.entities")
-@EnableJpaRepositories("com.tunindex.market_tool.api.repository")
+@EnableJpaRepositories(basePackages = {"com.tunindex.market_tool.api.repository","com.tunindex.market_tool.common.repository"})
 public class ApiApplication {
 
     public static void main(String[] args) {

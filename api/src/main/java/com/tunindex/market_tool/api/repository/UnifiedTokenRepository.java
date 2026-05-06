@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.api.repository.jpa;
+package com.tunindex.market_tool.api.repository;
 
 import com.tunindex.market_tool.api.entities.UnifiedToken;
 import com.tunindex.market_tool.api.entities.enums.TokenType;

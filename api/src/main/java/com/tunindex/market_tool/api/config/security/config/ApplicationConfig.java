@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.api.config.security.config;
 
-import com.tunindex.market_tool.api.repository.jpa.UserRepository;
+import com.tunindex.market_tool.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -10,7 +10,6 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import java.time.LocalDateTime;
 
-import static org.springframework.security.config.Elements.JWT;
 
 @Data
 @Builder

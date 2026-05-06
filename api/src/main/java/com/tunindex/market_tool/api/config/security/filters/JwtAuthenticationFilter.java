@@ -1,7 +1,7 @@
 package com.tunindex.market_tool.api.config.security.filters;
 
 import com.tunindex.market_tool.api.config.security.jwt.JwtService;
-import com.tunindex.market_tool.api.repository.jpa.JwtTokenRepository;
+import com.tunindex.market_tool.api.repository.JwtTokenRepository;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

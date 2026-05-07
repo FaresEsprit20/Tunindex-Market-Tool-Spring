@@ -5,9 +5,11 @@ import com.tunindex.market_tool.api.dto.user.ChangePasswordUserDto;
 import com.tunindex.market_tool.api.dto.user.UserDto;
 import com.tunindex.market_tool.api.dto.user.UserExtendedDto;
 import com.tunindex.market_tool.api.dto.user.UserUpdateDto;
+import com.tunindex.market_tool.api.entities.Roles;
 import com.tunindex.market_tool.api.entities.User;
 import com.tunindex.market_tool.api.entities.embedded.Address;
 import com.tunindex.market_tool.api.entities.enums.TokenType;
+import com.tunindex.market_tool.api.entities.enums.UserRole;
 import com.tunindex.market_tool.api.exception.EntityNotFoundException;
 import com.tunindex.market_tool.api.exception.ErrorCodes;
 import com.tunindex.market_tool.api.exception.InvalidEntityException;
@@ -54,71 +56,60 @@ public class UserServiceImpl implements UserService {
         this.unifiedTokenRepository = unifiedTokenRepository;
     }
 
-
     @Override
     @Transactional
     public UserDto save(UserDto dto) {
         List<String> errors = UserValidator.validate(dto);
         if (!errors.isEmpty()) {
-            log.error(" User is not valid {}", dto);
-            log.warn(" Errors : {}", errors);
+            log.error("User is not valid {}", dto);
+            log.warn("Errors : {}", errors);
             throw new InvalidEntityException("The user is not valid", ErrorCodes.USER_NOT_VALID, errors);
         }
 
+        // Check if email already exists
         boolean userEmailExistsUsers = userRepository.existsByEmail(dto.getEmail());
         if (userEmailExistsUsers) {
             throw new InvalidEntityException("Another user with the same email already exists", ErrorCodes.USER_ALREADY_EXISTS,
                     Collections.singletonList("Another user with the same email already exists in the DB"));
         }
 
-
-        if(userAlreadyExists(dto.getEmail())) {
+        if (userAlreadyExists(dto.getEmail())) {
             throw new InvalidEntityException("Another user with the same email already exists", ErrorCodes.USER_ALREADY_EXISTS,
                     Collections.singletonList("Another user with the same email already exists in the DB"));
         }
 
+        // Validate and check phone number uniqueness
+        validateAndCheckPhoneNumber(dto.getNumTel(), null);
+
         dto.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         User userEntity = UserDto.toEntity(dto);
+
+        // Handle roles - fetch existing roles from database
+        if (userEntity.getRoles() != null && !userEntity.getRoles().isEmpty()) {
+            List<Roles> managedRoles = new ArrayList<>();
+            for (Roles role : userEntity.getRoles()) {
+                // Try to find existing role in database
+                Optional<Roles> existingRole = rolesRepository.findByRoleName(role.getRoleName());
+                if (existingRole.isPresent()) {
+                    managedRoles.add(existingRole.get());
+                } else {
+                    // This should not happen if roles are seeded properly, but just in case
+                    log.warn("Role {} not found in database, creating new one", role.getRoleName());
+                    Roles newRole = new Roles();
+                    newRole.setRoleName(role.getRoleName());
+                    managedRoles.add(rolesRepository.save(newRole));
+                }
+            }
+            userEntity.setRoles(managedRoles);
+        }
+
         User savedUser = userRepository.save(userEntity);
-        // Also create a Customer entity if not present
-//        if (!customerRepository.existsByEmail(savedUser.getEmail())) {
-//            com.fares.stock.management.domain.entities.Customer customer = new com.fares.stock.management.domain.entities.Customer();
-//            customer.setFirstName(savedUser.getFirstName());
-//            customer.setLastName(savedUser.getLastName());
-//            customer.setEmail(savedUser.getEmail());
-//            customer.setNumTel(savedUser.getNumTel());
-//            customer.setBirthDate(savedUser.getBirthDate());
-//            customer.setPassword(savedUser.getPassword());
-//            customer.setAddress(savedUser.getAddress());
-//            customer.setPhoto(savedUser.getPhoto());
-//            customer.setEnterprise(savedUser.getEnterprise());
-//            customer.setRoles(savedUser.getRoles() != null ? new ArrayList<>(savedUser.getRoles()) : null);
-//            customer.setTokens(savedUser.getTokens());
-//            customer.setLocked(savedUser.getLocked());
-//            customer.setIdEnterprise(savedUser.getIdEnterprise());
-//            customerRepository.save(customer);
-//            log.info("Created Customer for User: {} (service)", savedUser.getEmail());
-//        }
-//        // Also create a Supplier entity if not present
-//        if (!supplierRepository.existsByEmail(savedUser.getEmail())) {
-//            com.fares.stock.management.domain.entities.Supplier supplier = new com.fares.stock.management.domain.entities.Supplier();
-//            supplier.setFirstName(savedUser.getFirstName());
-//            supplier.setLastName(savedUser.getLastName());
-//            supplier.setEmail(savedUser.getEmail());
-//            supplier.setNumTel(savedUser.getNumTel());
-//            supplier.setBirthDate(savedUser.getBirthDate());
-//            supplier.setPassword(savedUser.getPassword());
-//            supplier.setAddress(savedUser.getAddress());
-//            supplier.setPhoto(savedUser.getPhoto());
-//            supplier.setEnterprise(savedUser.getEnterprise());
-//            supplier.setRoles(savedUser.getRoles() != null ? new ArrayList<>(savedUser.getRoles()) : null);
-//            supplier.setTokens(savedUser.getTokens());
-//            supplier.setLocked(savedUser.getLocked());
-//            supplier.setIdEnterprise(savedUser.getIdEnterprise());
-//            supplierRepository.save(supplier);
-//            log.info("Created Supplier for User: {} (service)", savedUser.getEmail());
-//        }
+        log.info("User saved successfully with ID: {} and roles: {}, phone number: {}",
+                savedUser.getId(),
+                savedUser.getRoles().stream().map(r -> r.getRoleName().name()).toList(),
+                savedUser.getNumTel());
+
         return UserDto.fromEntity(savedUser);
     }
 
@@ -132,16 +123,15 @@ public class UserServiceImpl implements UserService {
     public UserDto update(UserUpdateDto userDto, Authentication authentication) {
         List<String> errors = UserUpdateValidator.validate(userDto);
         if (!errors.isEmpty()) {
-            log.error(" User is not valid {}", userDto);
-            log.warn(" Errors : {}", errors);
+            log.error("User is not valid {}", userDto);
+            log.warn("Errors : {}", errors);
             throw new InvalidEntityException("The user is not valid", ErrorCodes.USER_NOT_VALID, errors);
         }
 
-
         Optional<User> userEntity = userRepository.findUserByEmail(authentication.getName());
-        if(userEntity.isEmpty()) {
-            errors.add("User with Email = "+authentication.getName()+" is not found");
-            throw new EntityNotFoundException("User with Email = "+authentication.getName()+" is not found",
+        if (userEntity.isEmpty()) {
+            errors.add("User with Email = " + authentication.getName() + " is not found");
+            throw new EntityNotFoundException("User with Email = " + authentication.getName() + " is not found",
                     ErrorCodes.USER_NOT_FOUND, errors);
         }
         if (!userDto.getEmail().equals(userEntity.get().getEmail())) {
@@ -149,6 +139,12 @@ public class UserServiceImpl implements UserService {
             errors.add("Authenticated user does not match the email in request body");
             throw new InvalidOperationException("Impossible to proceed with update",
                     ErrorCodes.USER_NOT_VALID, errors);
+        }
+
+        // Validate phone number uniqueness if it's being changed
+        if (userDto.getNumTel() != null && !userDto.getNumTel().equals(userEntity.get().getNumTel())) {
+            validateAndCheckPhoneNumber(userDto.getNumTel(), userEntity.get().getId());
+            userEntity.get().setNumTel(userDto.getNumTel());
         }
 
         Address address = userEntity.get().getAddress();
@@ -160,9 +156,7 @@ public class UserServiceImpl implements UserService {
         userEntity.get().setAddress(address);
         userEntity.get().setPhoto(userDto.getPhoto());
 
-        return UserDto.fromEntity(
-                userRepository.save(userEntity.get())
-        );
+        return UserDto.fromEntity(userRepository.save(userEntity.get()));
     }
 
     @Transactional
@@ -171,14 +165,49 @@ public class UserServiceImpl implements UserService {
         return user.isPresent();
     }
 
+    /**
+     * Validates phone number format (exactly 8 digits) and checks uniqueness in database
+     * @param phoneNumber The phone number to validate
+     * @param excludeUserId User ID to exclude from uniqueness check (for updates)
+     */
+    private void validateAndCheckPhoneNumber(String phoneNumber, Integer excludeUserId) {
+        List<String> errors = new ArrayList<>();
+
+        // Check if phone number is provided
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
+            errors.add("Phone number is required");
+            throw new InvalidEntityException("Phone number validation failed",
+                    ErrorCodes.USER_NOT_VALID, errors);
+        }
+
+        String trimmedPhone = phoneNumber.trim();
+
+        // Validate exactly 8 digits
+        if (!trimmedPhone.matches("^\\d{8}$")) {
+            errors.add("Phone number must be exactly 8 digits (0-9). No prefix like +216 allowed");
+            throw new InvalidEntityException("Phone number validation failed",
+                    ErrorCodes.USER_NOT_VALID, errors);
+        }
+
+        // Check uniqueness in database
+        Optional<User> existingUser = userRepository.findUserByNumTel(trimmedPhone);
+        if (existingUser.isPresent() && (excludeUserId == null || !existingUser.get().getId().equals(excludeUserId))) {
+            errors.add("Phone number " + trimmedPhone + " is already registered to another user");
+            throw new InvalidEntityException("Duplicate phone number",
+                    ErrorCodes.USER_ALREADY_EXISTS, errors);
+        }
+
+        log.debug("Phone number validation passed: {}", trimmedPhone);
+    }
+
     @Override
     @Transactional
     public UserExtendedDto findById(Integer userId) {
-         List<String> errors = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
         if (userId == null) {
             log.error("User ID is null");
             errors.add("User ID is null");
-            throw new InvalidEntityException("The user ID is not valid", ErrorCodes.USER_NOT_VALID,errors);
+            throw new InvalidEntityException("The user ID is not valid", ErrorCodes.USER_NOT_VALID, errors);
         }
         errors.add("No user with the ID = " + userId + " has been found in the DB");
         return userRepository.findById(userId)
@@ -199,11 +228,11 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserExtendedDto findByEmail(String email) {
-        List<String>errors = EmailValidator.validate(email);
-        if(!errors.isEmpty()) {
-            log.error(" User Email is Not Valid");
+        List<String> errors = EmailValidator.validate(email);
+        if (!errors.isEmpty()) {
+            log.error("User Email is Not Valid");
             errors.add("User Email is Not Valid");
-            throw new InvalidEntityException(" User Email is Not Valid",
+            throw new InvalidEntityException("User Email is Not Valid",
                     ErrorCodes.USER_NOT_VALID, errors);
         }
         errors.add("No user with the email = " + email + " has been found in the DB");
@@ -231,9 +260,7 @@ public class UserServiceImpl implements UserService {
         User user = utilisateurOptional.get();
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
-        return UserExtendedDto.fromEntity(
-                userRepository.save(user)
-        );
+        return UserExtendedDto.fromEntity(userRepository.save(user));
     }
 
     @Override
@@ -251,9 +278,7 @@ public class UserServiceImpl implements UserService {
         User user = utilisateurOptional.get();
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
-        return UserExtendedDto.fromEntity(
-                userRepository.save(user)
-        );
+        return UserExtendedDto.fromEntity(userRepository.save(user));
     }
 
     @Override
@@ -266,10 +291,10 @@ public class UserServiceImpl implements UserService {
             throw new InvalidEntityException("The user ID is not valid", ErrorCodes.USER_NOT_VALID, errors);
         }
 
-        User user=  userRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "No user with the ID = " + userId + " has been found in the DB",
-                        ErrorCodes.USER_NOT_FOUND, List.of(" \"No user with the ID = \" + userId + \" has been found in the DB\""))
+                        ErrorCodes.USER_NOT_FOUND, List.of("No user with the ID = " + userId + " has been found in the DB"))
                 );
 
         boolean isAdmin = user.getRoles().stream()
@@ -281,8 +306,8 @@ public class UserServiceImpl implements UserService {
             throw new InvalidOperationException(
                     "Impossible to lock/unlock user with ID " + userId +
                             " who has role ADMIN — INVALID OPERATION",
-                    ErrorCodes.USER_ACCOUNT_LOCK_NOT_VALID,errors
-            );}
+                    ErrorCodes.USER_ACCOUNT_LOCK_NOT_VALID, errors);
+        }
 
         user.setLocked(!user.getLocked());
         return UserDto.fromEntity(userRepository.save(user));
@@ -307,35 +332,33 @@ public class UserServiceImpl implements UserService {
             log.warn("Impossible to modify the password with a null object");
             errors.add("Impossible to modify the password with a null object");
             throw new InvalidOperationException("No Information has been provided to proceed for changing the password",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
         if (dto.getId() == null) {
             log.warn("Impossible to modify the password with a NULL ID");
             errors.add("Impossible to modify the password with a NULL ID");
-            throw new InvalidOperationException("ID user is  null:: Impossible to modify the password ",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+            throw new InvalidOperationException("ID user is null:: Impossible to modify the password ",
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
         if (!StringUtils.hasLength(dto.getPassword()) || !StringUtils.hasLength(dto.getConfirmPassword())) {
             log.warn("Impossible to modify the password with a NULL password");
             errors.add("Impossible to modify the password with a NULL password");
             throw new InvalidOperationException("Null Password:: Impossible to modify the password",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
         if (!dto.getPassword().equals(dto.getConfirmPassword())) {
-
             log.warn("Impossible to modify the password when your password and confirm password are not the same ");
             errors.add("Impossible to modify the password: Passwords do not match");
             throw new InvalidOperationException("User Passwords mismatch:: Impossible to modify the password when your password and confirm password are not the same",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
 
-        List<String> passwordErrors =  PasswordValidator.validate(dto.getPassword());
+        List<String> passwordErrors = PasswordValidator.validate(dto.getPassword());
         if (!passwordErrors.isEmpty()) {
             errors.addAll(passwordErrors);
             throw new InvalidOperationException("Password Validation Error: ",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
-
     }
 
     @Transactional
@@ -345,36 +368,33 @@ public class UserServiceImpl implements UserService {
             log.warn("Impossible to modify the password with a null object");
             errors.add("Impossible to modify the password with a null object");
             throw new InvalidOperationException("No Information has been provided to proceed for changing the password",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
         if (dto.getId() == null) {
             log.warn("Impossible to modify the password with a NULL ID");
             errors.add("Impossible to modify the password with a NULL ID");
-            throw new InvalidOperationException("ID user is  null:: Impossible to modify the password ",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+            throw new InvalidOperationException("ID user is null:: Impossible to modify the password ",
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
         if (!StringUtils.hasLength(dto.getPassword()) || !StringUtils.hasLength(dto.getConfirmPassword())) {
             log.warn("Impossible to modify the password with a NULL password");
             errors.add("Impossible to modify the password with a NULL password");
             throw new InvalidOperationException("Null Password:: Impossible to modify the password",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
         if (!dto.getPassword().equals(dto.getConfirmPassword())) {
-
             log.warn("Impossible to modify the password when your password and confirm password are not the same ");
             errors.add("Impossible to modify the password: Passwords do not match");
             throw new InvalidOperationException("User Passwords mismatch:: Impossible to modify the password when your password and confirm password are not the same",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
 
-        List<String> passwordErrors =  PasswordValidator.validate(dto.getPassword());
+        List<String> passwordErrors = PasswordValidator.validate(dto.getPassword());
         if (!passwordErrors.isEmpty()) {
             errors.addAll(passwordErrors);
             throw new InvalidOperationException("Password Validation Error: ",
-                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID,errors);
+                    ErrorCodes.USER_CHANGE_PASSWORD_OBJECT_NOT_VALID, errors);
         }
-
-
     }
 
     @Override
@@ -420,6 +440,4 @@ public class UserServiceImpl implements UserService {
         rolesRepository.deleteAllRolesForUser(userId);
         userRepository.deleteByIdCustom(userId);
     }
-
-
 }

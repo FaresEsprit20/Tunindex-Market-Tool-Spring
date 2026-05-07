@@ -36,12 +36,14 @@ public class SecurityConfiguration {
 
 
     private static final String[] WHITE_LIST = {
-            "/stock/management/v1/auth/**",
+            "/tunindex/market/tool/v1/auth/**",
+            "/tunindex/market/tool/v1/stocks/auth/**",  // Added for auth endpoints
+            "/tunindex/market/tool/v1/stocks/accounts/management/**",  // Added stocks prefix
+            "/tunindex/market/tool/v1/accounts/management/**",  // Keep for backward compatibility
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
     };
-
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

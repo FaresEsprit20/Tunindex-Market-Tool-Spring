@@ -26,7 +26,7 @@ public interface AccountManagementApi {
         })
         UserDto saveAdmin(@RequestBody RegisterRequest dto);
 
-        @PostMapping(ACCOUNTS_ENDPOINT + "/manager/create")
+        @PostMapping(ACCOUNTS_ENDPOINT + "/user/create")
         @Operation(summary = "Create or update a user",
                 description = "Creates a new a user or updates an existing one")
         @ApiResponses(value = {

@@ -40,27 +40,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         log.debug("🔍 JwtFilter processing: {}", path);
 
-        // Skip filter ONLY for public auth endpoints (login, register, password reset)
-        // BUT NOT for /check-auth - that needs authentication!
-        if (path.contains("/stock/management/v1/auth") && !path.contains("/check-auth")) {
-            log.debug("⏭️ Skipping JWT filter for public auth endpoint");
-            filterChain.doFilter(request, response);
-            return;
-        }
-        
-        if (path.contains("/check-auth")) {
-            log.debug("🔐 /check-auth endpoint - JWT validation REQUIRED");
-        }
-
         // Log cookies received
         if (request.getCookies() != null) {
             log.debug("🍪 Received {} cookies", request.getCookies().length);
             for (Cookie cookie : request.getCookies()) {
-                log.debug("🍪 Cookie: {} = {}...", cookie.getName(), 
-                    cookie.getValue().substring(0, Math.min(20, cookie.getValue().length())));
+                log.debug("🍪 Cookie: {} = {}...", cookie.getName(),
+                        cookie.getValue().substring(0, Math.min(20, cookie.getValue().length())));
             }
         } else {
-            log.warn("❌ NO COOKIES in request to: {}", path);
+            log.debug("❌ NO COOKIES in request to: {}", path);
         }
 
         // Reject any Authorization header immediately
@@ -76,7 +64,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        
+
         log.debug("✅ JWT cookie found, validating...");
 
         String userEmail;
@@ -91,7 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         } catch (Exception e) {
             log.error("❌ Error parsing JWT: {}", e.getMessage());
-            // Handle other token parsing issues silently
+            // Handle other token parsing issues - continue without authentication
             filterChain.doFilter(request, response);
             return;
         }
@@ -99,18 +87,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             log.debug("🔐 Loading user details for: {}", userEmail);
             UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
-            
+
             boolean isTokenValid = tokenRepository.findByToken(jwt)
                     .map(token -> {
                         boolean valid = !token.isExpired() && !token.isRevoked();
-                        log.debug("🎫 Token in DB: expired={}, revoked={}, valid={}", 
-                            token.isExpired(), token.isRevoked(), valid);
+                        log.debug("🎫 Token in DB: expired={}, revoked={}, valid={}",
+                                token.isExpired(), token.isRevoked(), valid);
                         return valid;
                     })
                     .orElse(false);
 
             log.debug("🔍 Token validation: isTokenValid={}", isTokenValid);
-            
+
             if (jwtService.isTokenValid(jwt, userDetails, request) && isTokenValid) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
@@ -162,5 +150,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             response.addCookie(clearedCookie);
         }
     }
-
 }

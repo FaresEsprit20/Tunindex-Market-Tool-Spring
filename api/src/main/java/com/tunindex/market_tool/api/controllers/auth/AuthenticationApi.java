@@ -19,7 +19,7 @@ import static com.tunindex.market_tool.api.utils.constants.Constants.APP_ROOT;
 @Tag(name = "Authentication", description = "API for user authentication")
 public interface AuthenticationApi {
 
-    String AUTHENTICATION_ENDPOINT = APP_ROOT + "/auth";
+    String AUTHENTICATION_ENDPOINT = APP_ROOT + "stocks/auth";
 
     @Operation(summary = "Authenticate user",
             description = "Authenticates user credentials and returns JWT tokens")

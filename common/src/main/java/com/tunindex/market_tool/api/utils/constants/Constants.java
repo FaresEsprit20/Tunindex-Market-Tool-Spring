@@ -14,12 +14,6 @@ public interface Constants {
     String ALLOWED_ORIGINS = "http://localhost:4200";
     Boolean PRODUCTION_ENVIRONMENT = false;
 
-    // ========================
-    // FLARESOLVERR CONFIGURATION
-    // ========================
-    String FLARESOLVERR_URL = "http://localhost:8191";
-    int FLARESOLVERR_TIMEOUT = 1200000;
-    int FLARESOLVERR_MAX_RETRIES = 2;
 
     // ========================
     // WEB CLIENT CONSTANTS

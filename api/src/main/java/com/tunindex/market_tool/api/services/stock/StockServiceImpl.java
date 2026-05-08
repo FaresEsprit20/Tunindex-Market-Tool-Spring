@@ -1,6 +1,5 @@
-package com.tunindex.market_tool.api.services;
+package com.tunindex.market_tool.api.services.stock;
 
-import com.tunindex.market_tool.api.services.stock.StockService;
 import com.tunindex.market_tool.api.dto.providers.investingcom.StockDto;
 import com.tunindex.market_tool.api.entities.Stock;
 import com.tunindex.market_tool.api.entities.enums.OwnershipType;

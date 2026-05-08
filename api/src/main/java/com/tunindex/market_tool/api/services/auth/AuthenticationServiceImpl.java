@@ -16,6 +16,7 @@ import com.tunindex.market_tool.api.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -37,6 +38,7 @@ import static com.tunindex.market_tool.api.utils.constants.Constants.PRODUCTION_
 
 @Slf4j
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
@@ -134,7 +136,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         unifiedTokenRepository.save(token);
     }
 
-    private void revokeAllUserTokens(User user) {
+    @Transactional
+    public void revokeAllUserTokens(User user) {
         unifiedTokenRepository.deleteByUserEmailAndType(user.getEmail(), TokenType.JWT);
     }
 

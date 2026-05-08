@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.collector.jpa;
 
 import com.tunindex.market_tool.collector.entities.Stock;
+import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
 import com.tunindex.market_tool.common.entities.embedded.*;
 import com.tunindex.market_tool.common.entities.enums.OwnershipType;
 import com.tunindex.market_tool.common.entities.enums.SectorType;
@@ -29,7 +30,6 @@ class StockRepositoryTest {
     private TestEntityManager entityManager;
 
     private Stock testStock;
-    private Stock anotherStock;
 
     @BeforeEach
     void setUp() {
@@ -46,7 +46,7 @@ class StockRepositoryTest {
                 new BigDecimal("5.09")
         );
 
-        anotherStock = createStock(
+        Stock anotherStock = createStock(
                 "BNA",
                 "Banque Nationale Agricole",
                 "Tunis Stock Exchange",

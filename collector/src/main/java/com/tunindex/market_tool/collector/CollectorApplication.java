@@ -21,15 +21,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SpringBootApplication(scanBasePackages = {
-        "com.tunindex.market_tool.common",
+        "com.tunindex.market_tool.collector",
         "com.tunindex.market_tool.common"
 })
 @Slf4j
 @EnableScheduling
 @RequiredArgsConstructor
 @EnableDiscoveryClient
-@EntityScan("com.tunindex.market_tool.common.entities")
-@EnableJpaRepositories("com.tunindex.market_tool.common.repository")
+@EntityScan("com.tunindex.market_tool.collector.entities")
+@EnableJpaRepositories("com.tunindex.market_tool.collector.repository")
 public class CollectorApplication {
 
     private final DataOrchestrator dataOrchestrator;

@@ -4,7 +4,7 @@ import com.tunindex.market_tool.collector.providers.stockanalysis.StockAnalysisP
 import com.tunindex.market_tool.common.utils.constants.Constants;
 import com.tunindex.market_tool.collector.dto.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.collector.entities.Stock;
-import com.tunindex.market_tool.collector.jpa.StockRepository;
+import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

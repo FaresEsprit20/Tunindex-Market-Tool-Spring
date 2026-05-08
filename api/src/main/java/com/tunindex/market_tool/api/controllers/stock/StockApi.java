@@ -21,7 +21,7 @@ import static com.tunindex.market_tool.api.utils.constants.Constants.APP_ROOT;
 @Validated
 public interface StockApi {
 
-    @GetMapping(value = APP_ROOT + "/stocks/symbol/{symbol}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = APP_ROOT + "/symbol/{symbol}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Find stock by symbol", description = "Search for a stock by its trading symbol")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Stock found"),
@@ -30,7 +30,7 @@ public interface StockApi {
     })
     StockDto findBySymbol(@PathVariable("symbol") @NotBlank(message = "Symbol cannot be empty") String symbol);
 
-    @GetMapping(value = APP_ROOT + "/stocks/symbol/{symbol}/exchange/{exchange}",
+    @GetMapping(value = APP_ROOT + "/symbol/{symbol}/exchange/{exchange}",
             produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Find stock by symbol and exchange",
             description = "Search for a stock by its trading symbol and exchange")
@@ -43,7 +43,7 @@ public interface StockApi {
             @PathVariable("symbol") @NotBlank(message = "Symbol cannot be empty") String symbol,
             @PathVariable("exchange") @NotBlank(message = "Exchange cannot be empty") String exchange);
 
-    @PostMapping(value = APP_ROOT + "/stocks/filter",
+    @PostMapping(value = APP_ROOT + "/filter",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Filter stocks with advanced criteria")
@@ -53,17 +53,17 @@ public interface StockApi {
     })
     PagedResponse<StockDto> filterStocks(@RequestBody @Valid PaginationAndFilteringDto paginationDto);
 
-    @GetMapping(value = APP_ROOT + "/stocks/statistics/by-sector",
+    @GetMapping(value = APP_ROOT + "/statistics/by-sector",
             produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Count stocks by sector")
     List<Object[]> countStocksBySector();
 
-    @GetMapping(value = APP_ROOT + "/stocks/statistics/by-ownership",
+    @GetMapping(value = APP_ROOT + "/statistics/by-ownership",
             produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Count stocks by ownership type")
     List<Object[]> countStocksByOwnership();
 
-    @PutMapping(value = APP_ROOT + "/stocks/refresh/{symbol}")
+    @PutMapping(value = APP_ROOT + "/refresh/{symbol}")
     @Operation(summary = "Refresh stock data")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Stock refresh initiated"),

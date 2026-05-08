@@ -2,7 +2,7 @@ package com.tunindex.market_tool.api.services.impl;
 
 import com.tunindex.market_tool.api.exception.EnrichmentException;
 import com.tunindex.market_tool.api.exception.ErrorCodes;
-import com.tunindex.market_tool.api.dto.providers.investingcom.EnrichedStockData;
+import com.tunindex.market_tool.api.dto.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.api.entities.Stock;
 import com.tunindex.market_tool.api.entities.embedded.CalculatedValues;
 import com.tunindex.market_tool.api.entities.embedded.PriceData;

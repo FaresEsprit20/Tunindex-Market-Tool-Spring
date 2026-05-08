@@ -2,9 +2,9 @@ package com.tunindex.market_tool.api.services.impl;
 
 import com.tunindex.market_tool.api.providers.stockanalysis.StockAnalysisProvider;
 import com.tunindex.market_tool.api.utils.constants.Constants;
-import com.tunindex.market_tool.api.dto.providers.investingcom.EnrichedStockData;
+import com.tunindex.market_tool.api.dto.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.api.entities.Stock;
-import com.tunindex.market_tool.api.repository.jpa.StockRepository;
+import com.tunindex.market_tool.api.jpa.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

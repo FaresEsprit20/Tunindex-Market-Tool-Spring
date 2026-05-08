@@ -1,7 +1,7 @@
 package com.tunindex.market_tool.api.services.impl;
 
 import com.tunindex.market_tool.api.utils.constants.Constants;
-import com.tunindex.market_tool.api.dto.providers.investingcom.RawStockData;
+import com.tunindex.market_tool.api.dto.investingcom.RawStockData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

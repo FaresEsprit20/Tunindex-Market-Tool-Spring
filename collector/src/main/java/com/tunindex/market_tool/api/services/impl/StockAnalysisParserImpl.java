@@ -1,8 +1,8 @@
 package com.tunindex.market_tool.api.services.impl;
 
 import com.tunindex.market_tool.api.utils.constants.Constants;
-import com.tunindex.market_tool.api.dto.providers.investingcom.NormalizedStockData;
-import com.tunindex.market_tool.api.dto.providers.investingcom.RawStockData;
+import com.tunindex.market_tool.api.dto.investingcom.NormalizedStockData;
+import com.tunindex.market_tool.api.dto.investingcom.RawStockData;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;

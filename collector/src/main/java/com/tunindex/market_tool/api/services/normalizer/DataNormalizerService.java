@@ -1,7 +1,7 @@
 package com.tunindex.market_tool.api.services.normalizer;
 
 
-import com.tunindex.market_tool.api.dto.providers.investingcom.NormalizedStockData;
+import com.tunindex.market_tool.api.dto.investingcom.NormalizedStockData;
 import com.tunindex.market_tool.api.entities.Stock;
 
 import java.math.BigDecimal;

@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.api.services.orchestrator;
 
-import com.tunindex.market_tool.api.dto.providers.investingcom.EnrichedStockData;
+import com.tunindex.market_tool.api.dto.investingcom.EnrichedStockData;
 import reactor.core.publisher.Mono;
 
 public interface DataOrchestrator {

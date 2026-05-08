@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.api.dto.providers.investingcom;
+package com.tunindex.market_tool.api.dto.investingcom;
 
 import com.tunindex.market_tool.api.utils.constants.Constants;
 import lombok.Data;

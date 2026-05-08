@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.api.services.impl;
 
-import com.tunindex.market_tool.api.dto.providers.investingcom.NormalizedStockData;
+import com.tunindex.market_tool.api.dto.investingcom.NormalizedStockData;
 import com.tunindex.market_tool.api.entities.Stock;
 import com.tunindex.market_tool.api.entities.embedded.*;
 import com.tunindex.market_tool.api.entities.enums.SectorType;

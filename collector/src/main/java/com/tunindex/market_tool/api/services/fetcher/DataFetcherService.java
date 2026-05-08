@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.api.services.fetcher;
 
-import com.tunindex.market_tool.api.dto.providers.investingcom.RawStockData;
+import com.tunindex.market_tool.api.dto.investingcom.RawStockData;
 import reactor.core.publisher.Mono;
 
 public interface DataFetcherService {

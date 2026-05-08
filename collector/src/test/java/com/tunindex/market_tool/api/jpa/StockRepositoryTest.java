@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.api.repository.jpa;
+package com.tunindex.market_tool.api.jpa;
 
 import com.tunindex.market_tool.api.entities.Stock;
 import com.tunindex.market_tool.api.entities.embedded.*;

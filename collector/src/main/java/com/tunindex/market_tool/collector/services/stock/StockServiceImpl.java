@@ -1,5 +1,11 @@
-package com.tunindex.market_tool.api.services.stock;
+package com.tunindex.market_tool.collector.services.stock;
 
+import com.tunindex.market_tool.collector.dto.investingcom.StockDto;
+import com.tunindex.market_tool.collector.entities.Stock;
+import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
+import com.tunindex.market_tool.collector.specification.StockSpecification;
+import com.tunindex.market_tool.common.entities.enums.OwnershipType;
+import com.tunindex.market_tool.common.entities.enums.SectorType;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;

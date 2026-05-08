@@ -15,8 +15,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @Slf4j
 @EnableJpaAuditing
 @EnableDiscoveryClient
-@EntityScan("com.tunindex.market_tool.api.entities")
-@EnableJpaRepositories(basePackages = {"com.tunindex.market_tool.api.repository","com.tunindex.market_tool.common.repository"})
+@EntityScan("com.tunindex.market_tool.api.entities")  // ← Only API entities
+@EnableJpaRepositories("com.tunindex.market_tool.api.repository")  // ← Only API repositories
 public class ApiApplication {
 
     public static void main(String[] args) {

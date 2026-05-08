@@ -23,7 +23,6 @@ import com.tunindex.market_tool.api.validators.users.UserUpdateValidator;
 import com.tunindex.market_tool.api.validators.users.UserValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -73,30 +72,16 @@ public class UserServiceImpl implements UserService {
                     Collections.singletonList("Another user with the same email already exists in the DB"));
         }
 
-        // Validate phone number
-        if (dto.getNumTel() == null || dto.getNumTel().trim().isEmpty()) {
-            errors.add("Phone number is required");
-            throw new InvalidEntityException("Phone number validation failed",
-                    ErrorCodes.USER_NOT_VALID, errors);
-        }
-
-        String trimmedPhone = dto.getNumTel().trim();
-
-        // Validate exactly 8 digits
-        if (!trimmedPhone.matches("^\\d{8}$")) {
-            errors.add("Phone number must be exactly 8 digits (0-9). No prefix like +216 allowed");
-            throw new InvalidEntityException("Phone number validation failed",
-                    ErrorCodes.USER_NOT_VALID, errors);
-        }
-
-        // Check if phone number already exists - THROW INVALID OPERATION EXCEPTION
-        Optional<User> existingUserByPhone = userRepository.findUserByNumTel(trimmedPhone);
-        if (existingUserByPhone.isPresent()) {
-            throw new InvalidOperationException(
-                    "Phone number " + trimmedPhone + " is already registered to another user",
-                    ErrorCodes.USER_ALREADY_EXISTS,
-                    Collections.singletonList("Phone number already exists")
-            );
+        // Check if phone number already exists - JUST LIKE EMAIL CHECK
+        if (dto.getNumTel() != null && !dto.getNumTel().trim().isEmpty()) {
+            Optional<User> existingUserByPhone = userRepository.findUserByNumTel(dto.getNumTel().trim());
+            if (existingUserByPhone.isPresent()) {
+                throw new InvalidOperationException(
+                        "Phone number " + dto.getNumTel() + " is already registered to another user",
+                        ErrorCodes.USER_ALREADY_EXISTS,
+                        Collections.singletonList("Phone number already exists")
+                );
+            }
         }
 
         dto.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -157,28 +142,17 @@ public class UserServiceImpl implements UserService {
                     ErrorCodes.USER_NOT_VALID, errors);
         }
 
-        // Validate phone number if it's being changed
+        // Check if phone number is being changed and validate uniqueness
         if (userDto.getNumTel() != null && !userDto.getNumTel().equals(userEntity.get().getNumTel())) {
-            String trimmedPhone = userDto.getNumTel().trim();
-
-            // Validate exactly 8 digits
-            if (!trimmedPhone.matches("^\\d{8}$")) {
-                errors.add("Phone number must be exactly 8 digits (0-9). No prefix like +216 allowed");
-                throw new InvalidEntityException("Phone number validation failed",
-                        ErrorCodes.USER_NOT_VALID, errors);
-            }
-
-            // Check if phone number already exists for another user
-            Optional<User> existingUserByPhone = userRepository.findUserByNumTel(trimmedPhone);
+            Optional<User> existingUserByPhone = userRepository.findUserByNumTel(userDto.getNumTel().trim());
             if (existingUserByPhone.isPresent() && !existingUserByPhone.get().getId().equals(userEntity.get().getId())) {
                 throw new InvalidOperationException(
-                        "Phone number " + trimmedPhone + " is already registered to another user",
+                        "Phone number " + userDto.getNumTel() + " is already registered to another user",
                         ErrorCodes.USER_ALREADY_EXISTS,
                         Collections.singletonList("Phone number already exists")
                 );
             }
-
-            userEntity.get().setNumTel(trimmedPhone);
+            userEntity.get().setNumTel(userDto.getNumTel());
         }
 
         Address address = userEntity.get().getAddress();

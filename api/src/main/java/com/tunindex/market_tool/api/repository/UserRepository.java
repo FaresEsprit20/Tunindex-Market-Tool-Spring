@@ -28,6 +28,7 @@ public interface UserRepository extends JpaRepository<User, Integer>, JpaSpecifi
     Optional<Integer> findUserIdByEmail(@Param("email") String email);
 
     @Modifying
+
     @Query("DELETE FROM User u WHERE u.id = :id")
     void deleteByIdCustom(@Param("id") Integer id);
 

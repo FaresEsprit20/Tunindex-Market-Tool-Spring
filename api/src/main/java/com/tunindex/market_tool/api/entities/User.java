@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.api.entities;
 
+import com.tunindex.market_tool.common.entities.BaseUser;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

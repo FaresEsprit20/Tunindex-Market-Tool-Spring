@@ -7,6 +7,7 @@ import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDt
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -20,7 +21,10 @@ import java.util.List;
 public class StockController implements StockApi {
 
     private final WebClient.Builder webClientBuilder;
-    private static final String COLLECTOR_URL = "http://COLLECTOR-SERVICE/internal/stock-data";
+    private static final String COLLECTOR_URL = "http://collector-service/internal/stock-data";
+
+    @Value("${internal.api.key:market-tool-internal-secret-key-2024}")
+    private String internalApiKey;
 
     @Override
     public StockResponseDto findBySymbol(String symbol) {
@@ -37,6 +41,7 @@ public class StockController implements StockApi {
         return webClientBuilder.build()
                 .get()
                 .uri(COLLECTOR_URL + "/symbol/{symbol}", symbol)
+                .header("X-API-Key", internalApiKey)
                 .retrieve()
                 .bodyToMono(StockResponseDto.class)
                 .block();
@@ -49,6 +54,7 @@ public class StockController implements StockApi {
         return webClientBuilder.build()
                 .get()
                 .uri(COLLECTOR_URL + "/symbol/{symbol}/exchange/{exchange}", symbol, exchange)
+                .header("X-API-Key", internalApiKey)
                 .retrieve()
                 .bodyToMono(StockResponseDto.class)
                 .block();
@@ -61,6 +67,7 @@ public class StockController implements StockApi {
         return webClientBuilder.build()
                 .post()
                 .uri(COLLECTOR_URL + "/filter")
+                .header("X-API-Key", internalApiKey)
                 .bodyValue(paginationDto)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<PagedResponse<StockResponseDto>>() {})
@@ -74,6 +81,7 @@ public class StockController implements StockApi {
         return webClientBuilder.build()
                 .get()
                 .uri(COLLECTOR_URL + "/statistics/by-sector")
+                .header("X-API-Key", internalApiKey)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<Object[]>>() {})
                 .block();
@@ -86,6 +94,7 @@ public class StockController implements StockApi {
         return webClientBuilder.build()
                 .get()
                 .uri(COLLECTOR_URL + "/statistics/by-ownership")
+                .header("X-API-Key", internalApiKey)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<Object[]>>() {})
                 .block();
@@ -98,6 +107,7 @@ public class StockController implements StockApi {
         webClientBuilder.build()
                 .put()
                 .uri(COLLECTOR_URL + "/refresh/{symbol}", symbol)
+                .header("X-API-Key", internalApiKey)
                 .retrieve()
                 .toBodilessEntity()
                 .block();

@@ -37,12 +37,17 @@ public class SecurityConfiguration {
 
     private static final String[] WHITE_LIST = {
             "/tunindex/market/tool/v1/auth/**",
-            "/tunindex/market/tool/v1/stocks/auth/**",  // Added for auth endpoints
-            "/tunindex/market/tool/v1/stocks/accounts/management/**",  // Added stocks prefix
-            "/tunindex/market/tool/v1/accounts/management/**",  // Keep for backward compatibility
+            "/tunindex/market/tool/v1/stocks/auth/**",
+            "/tunindex/market/tool/v1/stocks/accounts/management/**",
+            "/tunindex/market/tool/v1/accounts/management/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
+    };
+
+    // Add internal endpoints that don't need authentication
+    private static final String[] INTERNAL_WHITE_LIST = {
+            "/internal/**"  // Allow all internal calls without JWT
     };
 
     @Bean
@@ -54,13 +59,15 @@ public class SecurityConfiguration {
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Allow internal endpoints without authentication
+                        .requestMatchers(INTERNAL_WHITE_LIST).permitAll()
+                        // Allow public endpoints
                         .requestMatchers(WHITE_LIST).permitAll()
+                        // Everything else needs authentication
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .authenticationProvider(authProvider)
-//                .addFilterBefore(inputSanitizerFilter, RateLimitingFilter.class)
-//                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

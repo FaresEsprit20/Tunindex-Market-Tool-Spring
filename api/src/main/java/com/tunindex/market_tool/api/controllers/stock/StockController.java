@@ -1,15 +1,15 @@
 package com.tunindex.market_tool.api.controllers.stock;
 
-import com.tunindex.market_tool.api.services.stock.StockService;
-import com.tunindex.market_tool.common.dto.providers.investingcom.StockDto;
+import com.tunindex.market_tool.api.dto.stock.StockResponseDto;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Collections;
 import java.util.List;
@@ -19,100 +19,87 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StockController implements StockApi {
 
-    private final StockService stockService;
+    private final WebClient.Builder webClientBuilder;
+    private static final String COLLECTOR_URL = "http://COLLECTOR-SERVICE/internal/stock-data";
 
     @Override
-    public StockDto findBySymbol(String symbol) {
-        log.info("=== StockController.findBySymbol() called ===");
-        log.info("Searching for stock with symbol: {}", symbol);
+    public StockResponseDto findBySymbol(String symbol) {
+        log.info("API calling Collector for symbol: {}", symbol);
 
-        // Add manual validation for empty symbol
         if (symbol == null || symbol.trim().isEmpty()) {
             throw new InvalidEntityException(
                     "Symbol cannot be empty",
                     ErrorCodes.EMPTY_SYMBOL,
-                    Collections.singletonList("Symbol parameter is required and cannot be empty")
+                    Collections.singletonList("Symbol parameter is required")
             );
         }
 
-        StockDto result = stockService.findBySymbol(symbol);
-        log.info("Stock found - Symbol: {}, Name: {}, Exchange: {}",
-                result.getSymbol(), result.getName(), result.getExchange());
-        return result;
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/symbol/{symbol}", symbol)
+                .retrieve()
+                .bodyToMono(StockResponseDto.class)
+                .block();
     }
 
     @Override
-    public StockDto findBySymbolAndExchange(String symbol, String exchange) {
-        log.info("=== StockController.findBySymbolAndExchange() called ===");
-        log.info("Searching for stock with symbol: {} and exchange: {}", symbol, exchange);
+    public StockResponseDto findBySymbolAndExchange(String symbol, String exchange) {
+        log.info("API calling Collector for symbol: {} exchange: {}", symbol, exchange);
 
-        // Add manual validation for empty parameters
-        if (symbol == null || symbol.trim().isEmpty()) {
-            throw new InvalidEntityException(
-                    "Symbol cannot be empty",
-                    ErrorCodes.EMPTY_SYMBOL,
-                    Collections.singletonList("Symbol parameter is required and cannot be empty")
-            );
-        }
-        if (exchange == null || exchange.trim().isEmpty()) {
-            throw new InvalidEntityException(
-                    "Exchange cannot be empty",
-                    ErrorCodes.EMPTY_EXCHANGE,
-                    Collections.singletonList("Exchange parameter is required and cannot be empty")
-            );
-        }
-
-        StockDto result = stockService.findBySymbolAndExchange(symbol, exchange);
-        log.info("Stock found - Symbol: {}, Name: {}, Exchange: {}",
-                result.getSymbol(), result.getName(), result.getExchange());
-        return result;
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/symbol/{symbol}/exchange/{exchange}", symbol, exchange)
+                .retrieve()
+                .bodyToMono(StockResponseDto.class)
+                .block();
     }
 
     @Override
-    public PagedResponse<StockDto> filterStocks(@RequestBody PaginationAndFilteringDto paginationDto) {
-        log.info("=== StockController.filterStocks() called ===");
-        log.info("Filter parameters - page: {}, size: {}, filters: {}",
-                paginationDto.getPage(), paginationDto.getSize(), paginationDto.getFilters());
+    public PagedResponse<StockResponseDto> filterStocks(PaginationAndFilteringDto paginationDto) {
+        log.info("API calling Collector to filter stocks");
 
-        PagedResponse<StockDto> result = stockService.filterStocks(paginationDto);
-        log.info("Found {} stocks matching filters out of {} total",
-                result.getContent().size(), result.getTotalElements());
-        return result;
+        return webClientBuilder.build()
+                .post()
+                .uri(COLLECTOR_URL + "/filter")
+                .bodyValue(paginationDto)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<PagedResponse<StockResponseDto>>() {})
+                .block();
     }
 
     @Override
     public List<Object[]> countStocksBySector() {
-        log.info("=== StockController.countStocksBySector() called ===");
+        log.info("API calling Collector to count by sector");
 
-        List<Object[]> result = stockService.countStocksBySector();
-        log.info("Found statistics for {} sectors", result.size());
-        return result;
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/statistics/by-sector")
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<Object[]>>() {})
+                .block();
     }
 
     @Override
     public List<Object[]> countStocksByOwnership() {
-        log.info("=== StockController.countStocksByOwnership() called ===");
+        log.info("API calling Collector to count by ownership");
 
-        List<Object[]> result = stockService.countStocksByOwnership();
-        log.info("Found statistics for {} ownership types", result.size());
-        return result;
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/statistics/by-ownership")
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<Object[]>>() {})
+                .block();
     }
 
     @Override
     public void refreshStockData(String symbol) {
-        log.info("=== StockController.refreshStockData() called ===");
-        log.info("Refreshing stock data for symbol: {}", symbol);
+        log.info("API calling Collector to refresh: {}", symbol);
 
-        // Add manual validation for empty symbol
-        if (symbol == null || symbol.trim().isEmpty()) {
-            throw new InvalidEntityException(
-                    "Symbol cannot be empty",
-                    ErrorCodes.EMPTY_SYMBOL,
-                    Collections.singletonList("Symbol parameter is required and cannot be empty")
-            );
-        }
-
-        stockService.refreshStockData(symbol);
-        log.info("Stock data refresh initiated successfully for symbol: {}", symbol);
+        webClientBuilder.build()
+                .put()
+                .uri(COLLECTOR_URL + "/refresh/{symbol}", symbol)
+                .retrieve()
+                .toBodilessEntity()
+                .block();
     }
 }

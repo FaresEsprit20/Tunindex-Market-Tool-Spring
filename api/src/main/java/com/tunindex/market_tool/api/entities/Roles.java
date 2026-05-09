@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.api.entities;
 
 import com.tunindex.market_tool.api.entities.enums.UserRole;
+import com.tunindex.market_tool.common.entities.AbstractEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

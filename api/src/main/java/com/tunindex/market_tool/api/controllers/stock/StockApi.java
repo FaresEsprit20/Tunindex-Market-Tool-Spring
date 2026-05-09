@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.api.controllers.stock;
 
-import com.tunindex.market_tool.common.dto.providers.investingcom.StockDto;
+import com.tunindex.market_tool.api.dto.stock.StockResponseDto;
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,7 +28,7 @@ public interface StockApi {
             @ApiResponse(responseCode = "404", description = "Stock not found with given symbol"),
             @ApiResponse(responseCode = "400", description = "Invalid symbol")
     })
-    StockDto findBySymbol(@PathVariable("symbol") @NotBlank(message = "Symbol cannot be empty") String symbol);
+    StockResponseDto findBySymbol(@PathVariable("symbol") @NotBlank(message = "Symbol cannot be empty") String symbol);
 
     @GetMapping(value = APP_ROOT + "/symbol/{symbol}/exchange/{exchange}",
             produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,7 +39,7 @@ public interface StockApi {
             @ApiResponse(responseCode = "404", description = "Stock not found"),
             @ApiResponse(responseCode = "400", description = "Invalid parameters")
     })
-    StockDto findBySymbolAndExchange(
+    StockResponseDto findBySymbolAndExchange(
             @PathVariable("symbol") @NotBlank(message = "Symbol cannot be empty") String symbol,
             @PathVariable("exchange") @NotBlank(message = "Exchange cannot be empty") String exchange);
 
@@ -51,7 +51,7 @@ public interface StockApi {
             @ApiResponse(responseCode = "200", description = "Filtered stocks retrieved successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid filter parameters")
     })
-    PagedResponse<StockDto> filterStocks(@RequestBody @Valid PaginationAndFilteringDto paginationDto);
+    PagedResponse<StockResponseDto> filterStocks(@RequestBody @Valid PaginationAndFilteringDto paginationDto);
 
     @GetMapping(value = APP_ROOT + "/statistics/by-sector",
             produces = MediaType.APPLICATION_JSON_VALUE)

@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.collector.jpa;
+package com.tunindex.market_tool.collector.jpa.repository;
 
 import com.tunindex.market_tool.collector.entities.Stock;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;

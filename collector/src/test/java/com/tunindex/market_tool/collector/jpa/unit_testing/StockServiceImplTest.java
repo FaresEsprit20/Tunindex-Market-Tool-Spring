@@ -1,6 +1,14 @@
-package com.tunindex.market_tool.api.unit_testing;
+package com.tunindex.market_tool.collector.jpa.unit_testing;
 
-import com.tunindex.market_tool.api.services.stock.StockServiceImpl;
+import com.tunindex.market_tool.collector.dto.investingcom.StockDto;
+import com.tunindex.market_tool.collector.entities.Stock;
+import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
+import com.tunindex.market_tool.collector.services.stock.StockServiceImpl;
+import com.tunindex.market_tool.common.entities.embedded.*;
+import com.tunindex.market_tool.common.entities.enums.OwnershipType;
+import com.tunindex.market_tool.common.entities.enums.SectorType;
+import com.tunindex.market_tool.common.exception.EntityNotFoundException;
+import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.enums.SortingDirection;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;

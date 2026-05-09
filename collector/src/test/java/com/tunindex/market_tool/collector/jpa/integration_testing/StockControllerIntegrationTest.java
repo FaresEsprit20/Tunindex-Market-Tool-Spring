@@ -1,12 +1,12 @@
-package com.tunindex.market_tool.api.integration_testing;
+package com.tunindex.market_tool.collector.jpa.integration_testing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tunindex.market_tool.api.BaseIntegrationTestConfig;
-import com.tunindex.market_tool.common.entities.Stock;
+import com.tunindex.market_tool.collector.BaseIntegrationTestConfig;
+import com.tunindex.market_tool.collector.entities.Stock;
+import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
 import com.tunindex.market_tool.common.entities.embedded.*;
 import com.tunindex.market_tool.common.entities.enums.OwnershipType;
 import com.tunindex.market_tool.common.entities.enums.SectorType;
-import com.tunindex.market_tool.common.repository.jpa.StockRepository;
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.enums.SortingDirection;
 import org.junit.jupiter.api.BeforeEach;

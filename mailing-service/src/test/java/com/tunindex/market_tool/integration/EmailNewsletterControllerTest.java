@@ -154,5 +154,5 @@ class EmailNewsletterControllerTest {
         verify(newsletterService, never()).sendNewsletterToUser(anyString(), anyString(), anyString(), anyString());
     }
 
-    
+
 }

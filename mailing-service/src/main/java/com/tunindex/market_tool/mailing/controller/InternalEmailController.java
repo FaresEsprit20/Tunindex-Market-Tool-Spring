@@ -84,5 +84,5 @@ public class InternalEmailController {
         newsletterService.sendNewsletterToUser(dto.getEmail(), dto.getSubject(), dto.getContent(), dto.getLabel());
         return ResponseEntity.ok().body(Map.of("success", true));
     }
-    
+
 }

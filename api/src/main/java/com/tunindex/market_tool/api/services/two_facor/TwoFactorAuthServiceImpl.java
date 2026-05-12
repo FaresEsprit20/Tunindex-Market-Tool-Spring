@@ -11,11 +11,14 @@ import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.mail.MessagingException;
-import java.io.UnsupportedEncodingException;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -27,8 +30,14 @@ public class TwoFactorAuthServiceImpl implements TwoFactorAuthService {
 
     private final TwoFactorAuthRepository twoFactorAuthRepository;
     private final UserRepository userRepository;
-    private final EmailService emailService;
     private final UnifiedTokenRepository unifiedTokenRepository;
+    private final WebClient.Builder webClientBuilder;
+
+    @Value("${mailing.service.url:http://mailing-service}")
+    private String mailingServiceUrl;
+
+    @Value("${internal.api.key}")
+    private String internalApiKey;
 
     private static final int MAX_ATTEMPTS = 3;
     private static final int OTP_VALIDITY_MINUTES = 3;
@@ -51,8 +60,8 @@ public class TwoFactorAuthServiceImpl implements TwoFactorAuthService {
 
         // Create two-factor token using UnifiedToken
         UnifiedToken token = UnifiedToken.builder()
-                .token(otpCode)                            // OTP saved here!
-                .verificationToken(verificationToken)     // UUID saved here!
+                .token(otpCode)
+                .verificationToken(verificationToken)
                 .userEmail(userEmail)
                 .tokenType(TokenType.TWO_FACTOR)
                 .expirationDate(LocalDateTime.now().plusMinutes(OTP_VALIDITY_MINUTES))
@@ -62,13 +71,14 @@ public class TwoFactorAuthServiceImpl implements TwoFactorAuthService {
                 .isBlocked(false)
                 .build();
 
-        // Save token before sending the email!
+        // Save token before sending the email
         unifiedTokenRepository.save(token);
 
-        try {
-            emailService.sendTwoFactorAuthEmail(userEmail, otpCode);
-        } catch (MessagingException | UnsupportedEncodingException e) {
-            log.error("Failed to send OTP email to {}: {}", userEmail, e.getMessage());
+        // Call mailing service to send 2FA email via HTTP
+        boolean emailSent = sendOtpViaMailingService(userEmail, otpCode);
+
+        if (!emailSent) {
+            log.error("Failed to send OTP email to {} via mailing service", userEmail);
             throw new InvalidOperationException(
                     "Failed to send verification code",
                     ErrorCodes.EMAIL_SERVICE_ERROR,
@@ -76,6 +86,33 @@ public class TwoFactorAuthServiceImpl implements TwoFactorAuthService {
         }
 
         return verificationToken;
+    }
+
+    private boolean sendOtpViaMailingService(String userEmail, String otpCode) {
+        try {
+            Map<String, String> request = Map.of(
+                    "email", userEmail,
+                    "otp", otpCode
+            );
+
+            Map<String, Object> response = webClientBuilder.build()
+                    .post()
+                    .uri(mailingServiceUrl + "/internal/email/send-2fa")
+                    .header("X-API-Key", internalApiKey)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            return response != null && Boolean.TRUE.equals(response.get("success"));
+
+        } catch (WebClientResponseException e) {
+            log.error("HTTP error calling mailing service: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return false;
+        } catch (Exception e) {
+            log.error("Failed to call mailing service: {}", e.getMessage());
+            return false;
+        }
     }
 
     @Override
@@ -104,7 +141,7 @@ public class TwoFactorAuthServiceImpl implements TwoFactorAuthService {
 
         token.setVerified(true);
 
-        // Save updated token status after verification!
+        // Save updated token status after verification
         Optional<UnifiedToken> tokenToUpdate = unifiedTokenRepository.findByTokenAndType(token.getToken(), TokenType.TWO_FACTOR);
         if (tokenToUpdate.isPresent()) {
             UnifiedToken unifiedToken = tokenToUpdate.get();
@@ -130,13 +167,13 @@ public class TwoFactorAuthServiceImpl implements TwoFactorAuthService {
         if (tokenToUpdate.isPresent()) {
             UnifiedToken unifiedToken = tokenToUpdate.get();
             unifiedToken.setAttempts(unifiedToken.getAttempts() + 1);
-            
+
             if (unifiedToken.getAttempts() >= MAX_ATTEMPTS) {
                 unifiedToken.setBlocked(true);
                 unifiedToken.setBlockUntil(LocalDateTime.now().plusMinutes(BLOCK_DURATION_MINUTES));
                 log.warn("Account blocked for user {} due to too many failed attempts", unifiedToken.getUserEmail());
             }
-            
+
             unifiedTokenRepository.save(unifiedToken);
         }
     }

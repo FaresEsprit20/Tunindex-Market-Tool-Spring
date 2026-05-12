@@ -37,6 +37,7 @@
         <module>collector</module>
         <module>api</module>
         <module>mailing-service</module>
+        <module>sms-service</module>
         <module>discovery-server</module>
     </modules>
 

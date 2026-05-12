@@ -13,4 +13,7 @@ public interface SmsNewsletterService {
 
     void sendSmsToUser(String phoneNumber, String message) throws SmsServiceException, InvalidPhoneNumberException;
 
+    void sendSmsToUserByEmail(String email, String message) throws SmsServiceException, InvalidPhoneNumberException;
+
+    void sendSmsToUserById(Long userId, String message) throws SmsServiceException, InvalidPhoneNumberException;
 }

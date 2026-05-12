@@ -1,4 +1,4 @@
-﻿package com.tunindex.market_tool.mailing;
+package com.tunindex.market_tool.mailing;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;

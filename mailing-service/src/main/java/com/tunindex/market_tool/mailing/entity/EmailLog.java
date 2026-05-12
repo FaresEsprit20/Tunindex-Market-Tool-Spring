@@ -1,4 +1,4 @@
-﻿package com.tunindex.market_tool.mailing.entity;
+package com.tunindex.market_tool.mailing.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

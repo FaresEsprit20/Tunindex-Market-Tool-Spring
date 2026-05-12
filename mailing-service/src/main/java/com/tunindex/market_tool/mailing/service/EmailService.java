@@ -1,4 +1,4 @@
-﻿package com.tunindex.market_tool.mailing.service;
+package com.tunindex.market_tool.mailing.service;
 
 import jakarta.mail.MessagingException;
 import java.io.UnsupportedEncodingException;

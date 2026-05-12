@@ -1,4 +1,4 @@
-﻿package com.tunindex.market_tool.mailing.config;
+package com.tunindex.market_tool.mailing.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

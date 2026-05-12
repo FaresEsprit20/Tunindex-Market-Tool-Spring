@@ -1,4 +1,4 @@
-﻿package com.tunindex.market_tool.mailing.service;
+package com.tunindex.market_tool.mailing.service;
 
 import com.tunindex.market_tool.mailing.entity.EmailLog;
 import com.tunindex.market_tool.mailing.repository.EmailLogRepository;

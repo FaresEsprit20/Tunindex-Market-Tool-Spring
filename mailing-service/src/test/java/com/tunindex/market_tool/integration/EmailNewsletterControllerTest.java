@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.integration;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tunindex.market_tool.mailing.controller.EmailNewsletterController;
 import com.tunindex.market_tool.mailing.dto.SendToAllNewsletterDto;

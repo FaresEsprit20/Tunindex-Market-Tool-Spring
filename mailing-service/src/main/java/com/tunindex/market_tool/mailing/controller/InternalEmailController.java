@@ -1,4 +1,4 @@
-﻿package com.tunindex.market_tool.mailing.controller;
+package com.tunindex.market_tool.mailing.controller;
 
 import com.tunindex.market_tool.mailing.dto.SendToAllNewsletterDto;
 import com.tunindex.market_tool.mailing.dto.SendToRoleNewsletterDto;

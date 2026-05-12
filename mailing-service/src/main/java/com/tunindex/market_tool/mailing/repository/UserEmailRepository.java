@@ -15,17 +15,17 @@ public interface UserEmailRepository extends JpaRepository<BaseUser, Long> {
 
     // Fetch all user emails using projection
     @Query("SELECT u.email as email FROM BaseUser u")
-    List<UserEmailProjection> findAllUserEmails();
+    List<String> findAllUserEmails();
 
     // Fetch emails of users with a specific role
     @Query("SELECT u.email as email FROM BaseUser u JOIN u.roles r WHERE r.roleName = :role")
-    List<UserEmailProjection> findEmailsByRole(@Param("role") UserRole role);
+    List<String> findEmailsByRole(@Param("role") UserRole role);
 
     // Fetch all phone numbers
     @Query("SELECT u.numTel as phoneNumber FROM BaseUser u WHERE u.numTel IS NOT NULL")
-    List<UserPhoneProjection> findAllPhoneNumbers();
+    List<String> findAllPhoneNumbers();
 
     // Fetch phone numbers by role
     @Query("SELECT u.numTel as phoneNumber FROM BaseUser u JOIN u.roles r WHERE r.roleName = :role AND u.numTel IS NOT NULL")
-    List<UserPhoneProjection> findPhoneNumbersByRole(@Param("role") UserRole role);
+    List<String> findPhoneNumbersByRole(@Param("role") UserRole role);
 }

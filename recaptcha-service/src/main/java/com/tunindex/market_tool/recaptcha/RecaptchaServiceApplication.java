@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.sms;
+package com.tunindex.market_tool.recaptcha;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
@@ -10,10 +10,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableDiscoveryClient
 @EnableAsync
 @Slf4j
-public class SmsServiceApplication {
+public class RecaptchaServiceApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(SmsServiceApplication.class, args);
+        SpringApplication.run(RecaptchaServiceApplication.class, args);
         log.info("📧 Recaptcha SERVICE STARTED on port 8087");
     }
 }

@@ -1,8 +1,5 @@
-package com.tunindex.market_tool.sms.controller;
+package com.tunindex.market_tool.recaptcha.controller;
 
-import com.tunindex.market_tool.sms.dto.SendToAllSmsDto;
-import com.tunindex.market_tool.sms.dto.SendToRoleSmsDto;
-import com.tunindex.market_tool.sms.dto.SendToUserSmsDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

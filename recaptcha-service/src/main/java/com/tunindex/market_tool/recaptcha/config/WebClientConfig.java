@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.sms.config;
+package com.tunindex.market_tool.recaptcha.config;
 
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;

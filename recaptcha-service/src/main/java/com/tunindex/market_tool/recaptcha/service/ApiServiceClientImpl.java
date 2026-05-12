@@ -1,7 +1,6 @@
-package com.tunindex.market_tool.sms.service;
+package com.tunindex.market_tool.recaptcha.service;
 
-import com.tunindex.market_tool.sms.dto.UserPhoneDto;
-import com.tunindex.market_tool.sms.dto.UserRole;
+import com.tunindex.market_tool.recaptcha.dto.UserRole;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

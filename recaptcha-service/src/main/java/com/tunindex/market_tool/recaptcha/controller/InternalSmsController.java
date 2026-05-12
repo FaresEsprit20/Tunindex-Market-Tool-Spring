@@ -1,12 +1,8 @@
-package com.tunindex.market_tool.sms.controller;
+package com.tunindex.market_tool.recaptcha.controller;
 
 import com.tunindex.market_tool.common.exception.InvalidPhoneNumberException;
 import com.tunindex.market_tool.common.exception.SmsServiceException;
-import com.tunindex.market_tool.sms.dto.SendToAllSmsDto;
-import com.tunindex.market_tool.sms.dto.SendToRoleSmsDto;
-import com.tunindex.market_tool.sms.dto.SendToUserSmsDto;
-import com.tunindex.market_tool.sms.service.SmsNewsletterService;
-import com.tunindex.market_tool.sms.service.SmsService;
+import com.tunindex.market_tool.recaptcha.service.SmsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

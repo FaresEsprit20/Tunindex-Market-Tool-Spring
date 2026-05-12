@@ -1,9 +1,5 @@
-package com.tunindex.market_tool.sms.controller;
+package com.tunindex.market_tool.recaptcha.controller;
 
-import com.tunindex.market_tool.sms.dto.SendToAllSmsDto;
-import com.tunindex.market_tool.sms.dto.SendToRoleSmsDto;
-import com.tunindex.market_tool.sms.dto.SendToUserSmsDto;
-import com.tunindex.market_tool.sms.service.SmsNewsletterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
 

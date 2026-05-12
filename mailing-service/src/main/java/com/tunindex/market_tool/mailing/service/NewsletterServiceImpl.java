@@ -2,8 +2,8 @@ package com.tunindex.market_tool.mailing.service;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
+import com.tunindex.market_tool.mailing.dto.UserEmailDto;
 import com.tunindex.market_tool.mailing.dto.UserRole;
-import com.tunindex.market_tool.mailing.repository.UserEmailRepository;
 import jakarta.mail.MessagingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,29 +17,38 @@ import java.util.List;
 @Service
 public class NewsletterServiceImpl implements NewsletterService {
 
-    private final UserEmailRepository userJdbcRepository;
+    private final ApiServiceClient apiServiceClient;
     private final EmailService emailService;
 
     @Autowired
-    public NewsletterServiceImpl(UserEmailRepository userJdbcRepository, EmailService emailService) {
-        this.userJdbcRepository = userJdbcRepository;
+    public NewsletterServiceImpl(ApiServiceClient apiServiceClient, EmailService emailService) {
+        this.apiServiceClient = apiServiceClient;
         this.emailService = emailService;
     }
 
     @Override
     public void sendNewsletterToAll(String subject, String htmlContent, String label) {
-        List<String> emails = userJdbcRepository.findAllUserEmails();
-        emails.forEach(email -> sendEmail(email, subject, htmlContent, label));
+        log.info("Sending newsletter to ALL users");
+        List<UserEmailDto> users = apiServiceClient.getAllUserEmails();
+
+        for (UserEmailDto user : users) {
+            sendEmail(user.getEmail(), subject, htmlContent, label);
+        }
     }
 
     @Override
     public void sendNewsletterToRole(UserRole role, String subject, String htmlContent, String label) {
-        List<String> emails = userJdbcRepository.findEmailsByRole(role);
-        emails.forEach(email -> sendEmail(email, subject, htmlContent, label));
+        log.info("Sending newsletter to users with role: {}", role);
+        List<UserEmailDto> users = apiServiceClient.getUserEmailsByRole(role);
+
+        for (UserEmailDto user : users) {
+            sendEmail(user.getEmail(), subject, htmlContent, label);
+        }
     }
 
     @Override
     public void sendNewsletterToUser(String email, String subject, String htmlContent, String label) {
+        log.info("Sending newsletter to single user: {}", email);
         sendEmail(email, subject, htmlContent, label);
     }
 
@@ -48,13 +57,13 @@ public class NewsletterServiceImpl implements NewsletterService {
         List<String> errors = new ArrayList<>();
         try {
             emailService.sendHtmlMessage(email, subject, htmlContent, label);
+            log.debug("Email sent successfully to: {}", email);
         } catch (MessagingException | UnsupportedEncodingException e) {
-            log.warn(e.getMessage());
+            log.error("Error sending email to {}: {}", email, e.getMessage());
             errors.add("Error sending email to " + email);
             throw new InvalidOperationException("Error sending email to " + email,
-                    ErrorCodes.EMAIL_SERVICE_ERROR,errors);
+                    ErrorCodes.EMAIL_SERVICE_ERROR, errors);
         }
     }
-
 
 }

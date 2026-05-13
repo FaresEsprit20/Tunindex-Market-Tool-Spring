@@ -148,4 +148,5 @@ public class InvoiceController implements InvoiceApi {
         BigDecimal totalAmount = invoiceService.getTotalInvoicedAmountByUser(userId, status);
         return ResponseEntity.ok(totalAmount);
     }
+
 }

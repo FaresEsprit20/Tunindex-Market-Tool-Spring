@@ -39,6 +39,7 @@
         <module>mailing-service</module>
         <module>sms-service</module>
         <module>recaptcha-service</module>
+        <module>payment-service</module>
         <module>discovery-server</module>
     </modules>
 

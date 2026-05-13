@@ -2,7 +2,11 @@ package com.tunindex.market_tool.payment.repository;
 
 import com.tunindex.market_tool.payment.entities.Refund;
 import com.tunindex.market_tool.payment.entities.enums.RefundStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,20 +14,19 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RefundRepository extends JpaRepository<Refund, Long> {
+public interface RefundRepository extends JpaRepository<Refund, Long>, JpaSpecificationExecutor<Refund> {
 
-    List<Refund> findAllByTransactionId(Long transactionId);
+    Page<Refund> findAllByTransactionId(Long transactionId, Pageable pageable);
 
     Optional<Refund> findByProviderRefundId(String providerRefundId);
 
-    List<Refund> findAllByStatus(RefundStatus status);
+    Page<Refund> findAllByStatus(RefundStatus status, Pageable pageable);
 
     @Query("SELECT r FROM Refund r WHERE r.transactionId = :transactionId ORDER BY r.createdAt DESC")
-    List<Refund> findByTransactionIdOrderByCreatedAtDesc(@Param("transactionId") Long transactionId);
+    Page<Refund> findByTransactionIdOrderByCreatedAtDesc(@Param("transactionId") Long transactionId, Pageable pageable);
 
     @Modifying
     @Transactional
@@ -39,4 +42,6 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     BigDecimal getTotalRefundedAmountForTransaction(@Param("transactionId") Long transactionId, @Param("status") RefundStatus status);
 
     boolean existsByTransactionIdAndStatus(Long transactionId, RefundStatus status);
+
+    long count(Specification<Refund> spec);
 }

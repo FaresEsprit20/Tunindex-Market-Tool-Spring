@@ -2,7 +2,11 @@ package com.tunindex.market_tool.payment.repository;
 
 import com.tunindex.market_tool.payment.entities.UserSubscription;
 import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,17 +14,14 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface UserSubscriptionRepository extends JpaRepository<UserSubscription, Long> {
+public interface UserSubscriptionRepository extends JpaRepository<UserSubscription, Long>, JpaSpecificationExecutor<UserSubscription> {
 
     Optional<UserSubscription> findByUserIdAndStatus(Long userId, SubscriptionStatus status);
 
-    List<UserSubscription> findAllByUserId(Long userId);
-
-    List<UserSubscription> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+    Page<UserSubscription> findAllByUserId(Long userId, Pageable pageable);
 
     Optional<UserSubscription> findTopByUserIdOrderByCreatedAtDesc(Long userId);
 
@@ -28,10 +29,10 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     Optional<UserSubscription> findActiveSubscriptionByUserId(@Param("userId") Long userId, @Param("status") SubscriptionStatus status, @Param("now") LocalDateTime now);
 
     @Query("SELECT us FROM UserSubscription us WHERE us.endDate < :now AND us.status = :status")
-    List<UserSubscription> findExpiredSubscriptions(@Param("now") LocalDateTime now, @Param("status") SubscriptionStatus status);
+    Page<UserSubscription> findExpiredSubscriptions(@Param("now") LocalDateTime now, @Param("status") SubscriptionStatus status, Pageable pageable);
 
     @Query("SELECT us FROM UserSubscription us WHERE us.endDate BETWEEN :start AND :end AND us.status = :status")
-    List<UserSubscription> findSubscriptionsExpiringBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, @Param("status") SubscriptionStatus status);
+    Page<UserSubscription> findSubscriptionsExpiringBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, @Param("status") SubscriptionStatus status, Pageable pageable);
 
     @Modifying
     @Transactional
@@ -44,4 +45,6 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     int cancelSubscription(@Param("id") Long id, @Param("status") SubscriptionStatus status, @Param("cancelledAt") LocalDateTime cancelledAt, @Param("reason") String reason);
 
     long countByUserIdAndStatus(Long userId, SubscriptionStatus status);
+
+    long count(Specification<UserSubscription> spec);
 }

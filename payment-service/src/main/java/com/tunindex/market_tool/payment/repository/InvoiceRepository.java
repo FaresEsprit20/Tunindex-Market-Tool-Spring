@@ -4,7 +4,9 @@ import com.tunindex.market_tool.payment.entities.Invoice;
 import com.tunindex.market_tool.payment.entities.enums.InvoiceStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,29 +15,24 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
+public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpecificationExecutor<Invoice> {
 
     Optional<Invoice> findByInvoiceNumber(String invoiceNumber);
 
     Optional<Invoice> findByTransactionId(Long transactionId);
 
-    List<Invoice> findAllByUserId(Long userId);
-
     Page<Invoice> findAllByUserId(Long userId, Pageable pageable);
 
-    List<Invoice> findAllByUserIdOrderByCreatedAtDesc(Long userId);
-
-    List<Invoice> findAllByStatus(InvoiceStatus status);
+    Page<Invoice> findAllByStatus(InvoiceStatus status, Pageable pageable);
 
     @Query("SELECT i FROM Invoice i WHERE i.userId = :userId AND i.status = :status")
-    List<Invoice> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") InvoiceStatus status);
+    Page<Invoice> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") InvoiceStatus status, Pageable pageable);
 
     @Query("SELECT i FROM Invoice i WHERE i.dueDate < :now AND i.status = :status")
-    List<Invoice> findOverdueInvoices(@Param("now") LocalDateTime now, @Param("status") InvoiceStatus status);
+    Page<Invoice> findOverdueInvoices(@Param("now") LocalDateTime now, @Param("status") InvoiceStatus status, Pageable pageable);
 
     @Modifying
     @Transactional
@@ -49,4 +46,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoice i WHERE i.userId = :userId AND i.status = :status")
     BigDecimal getTotalInvoicedAmountByUser(@Param("userId") Long userId, @Param("status") InvoiceStatus status);
+
+
+    long count(Specification<Invoice> spec);
 }

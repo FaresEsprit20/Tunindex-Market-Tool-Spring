@@ -1,5 +1,7 @@
 package com.tunindex.market_tool.payment.entities;
 
+import com.tunindex.market_tool.payment.entities.enums.PaymentMethod;
+import com.tunindex.market_tool.payment.entities.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,11 +33,13 @@ public class PaymentTransaction {
     @Column(nullable = false)
     private String currency;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String paymentMethod;
+    private PaymentMethod paymentMethod;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private PaymentStatus status;
 
     private String providerPaymentId;
 
@@ -59,6 +63,7 @@ public class PaymentTransaction {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         paymentDate = LocalDateTime.now();
+        if (status == null) status = PaymentStatus.PENDING;
     }
 
     @PreUpdate

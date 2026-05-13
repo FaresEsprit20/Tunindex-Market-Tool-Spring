@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.payment.entities;
 
+import com.tunindex.market_tool.payment.entities.enums.RefundStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,8 +28,9 @@ public class Refund {
 
     private String reason;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private RefundStatus status;
 
     private String providerRefundId;
 
@@ -42,6 +44,6 @@ public class Refund {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         refundDate = LocalDateTime.now();
+        if (status == null) status = RefundStatus.PENDING;
     }
-
 }

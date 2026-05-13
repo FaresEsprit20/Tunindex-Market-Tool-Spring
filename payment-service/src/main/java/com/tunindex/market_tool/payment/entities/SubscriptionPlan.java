@@ -33,11 +33,14 @@ public class SubscriptionPlan {
 
     private Integer durationDays;
 
+    @Column(columnDefinition = "TEXT")
     private String features;
 
     private Integer apiCallsLimit;
 
     private Boolean isActive;
+
+    private Integer displayOrder;
 
     private LocalDateTime createdAt;
 
@@ -53,6 +56,4 @@ public class SubscriptionPlan {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-
-
 }

@@ -1,5 +1,7 @@
 package com.tunindex.market_tool.payment.entities;
 
+import com.tunindex.market_tool.payment.entities.enums.BillingPeriod;
+import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,16 +27,22 @@ public class UserSubscription {
     @JoinColumn(name = "plan_id")
     private SubscriptionPlan plan;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private SubscriptionStatus status;
 
     private LocalDateTime startDate;
 
     private LocalDateTime endDate;
 
-    private String billingPeriod;
+    @Enumerated(EnumType.STRING)
+    private BillingPeriod billingPeriod;
 
     private Boolean autoRenew;
+
+    private String cancellationReason;
+
+    private LocalDateTime cancelledAt;
 
     private LocalDateTime createdAt;
 
@@ -45,6 +53,7 @@ public class UserSubscription {
         createdAt = LocalDateTime.now();
         startDate = LocalDateTime.now();
         autoRenew = true;
+        if (status == null) status = SubscriptionStatus.PENDING;
     }
 
     @PreUpdate

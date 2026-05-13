@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.payment.entities;
 
+import com.tunindex.market_tool.payment.entities.enums.InvoiceStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,7 +39,8 @@ public class Invoice {
 
     private BigDecimal totalAmount;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private InvoiceStatus status;
 
     private String pdfUrl;
 
@@ -56,7 +58,6 @@ public class Invoice {
         issueDate = LocalDateTime.now();
         dueDate = LocalDateTime.now().plusDays(30);
         if (totalAmount == null) totalAmount = amount;
+        if (status == null) status = InvoiceStatus.DRAFT;
     }
-
-
 }

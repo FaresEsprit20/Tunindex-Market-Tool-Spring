@@ -172,7 +172,6 @@ public enum ErrorCodes {
     RECAPTCHA_HOSTNAME_INVALID(22815155),
     RECAPTCHA_VERIFICATION_FAILED(15151551),
     RECAPTCHA_INTERNAL_ERROR(1551851),
-    // Payment related error codes (add to existing ErrorCodes class)
 
     // Payment Service Errors (800-899)
     PAYMENT_SERVICE_ERROR(800),

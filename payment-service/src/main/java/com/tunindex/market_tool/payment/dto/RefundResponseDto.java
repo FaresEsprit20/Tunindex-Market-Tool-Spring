@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.payment.dto;
 
-import com.tunindex.market_tool.payment.entities.enums.PaymentStatus;
+import com.tunindex.market_tool.payment.entities.enums.RefundStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,12 +12,14 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PaymentResponseDto {
+public class RefundResponseDto {
+    private Long id;
     private Long transactionId;
-    private String transactionReference;
     private BigDecimal amount;
-    private String currency;
-    private PaymentStatus status;
-    private String paymentUrl;
+    private String reason;
+    private RefundStatus status;
+    private String providerRefundId;
+    private String failureReason;
+    private LocalDateTime refundDate;
     private LocalDateTime createdAt;
 }

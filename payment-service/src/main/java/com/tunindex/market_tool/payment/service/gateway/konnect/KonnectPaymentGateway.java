@@ -2,8 +2,11 @@ package com.tunindex.market_tool.payment.service.gateway.konnect;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
+import com.tunindex.market_tool.payment.client.ApiServiceClient;
+import com.tunindex.market_tool.payment.client.EmailServiceClient;
 import com.tunindex.market_tool.payment.config.KonnectConfig;
 import com.tunindex.market_tool.payment.dto.PaymentMethodType;
+import com.tunindex.market_tool.payment.dto.UserPaymentInfoDto;
 import com.tunindex.market_tool.payment.dto.gateway.*;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,8 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
 
     private final WebClient.Builder webClientBuilder;
     private final KonnectConfig konnectConfig;
+    private final EmailServiceClient emailServiceClient;
+    private final ApiServiceClient apiServiceClient;
 
     @Override
     public String getProviderName() {
@@ -108,7 +114,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
                     .amount(amount)
                     .currency((String) paymentData.get("currency"))
                     .paymentMethod((String) paymentData.get("payment_method"))
-                    .paymentDate(java.time.LocalDateTime.now())
+                    .paymentDate(LocalDateTime.now())
                     .build();
 
         } catch (Exception e) {
@@ -123,7 +129,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
 
     @Override
     public PaymentGatewayStatusResponse processWebhook(PaymentGatewayWebhookPayload payload, String signature) {
-        log.info("📨 Processing Konnect webhook for: {}", payload.getTransactionId());
+        log.info("📨 Processing Konnect webhook for transaction: {}", payload.getTransactionId());
 
         if (!verifySignature(payload, signature)) {
             throw new InvalidOperationException(
@@ -133,14 +139,29 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             );
         }
 
+        String status = payload.getStatus();
+        boolean isSuccessful = "completed".equalsIgnoreCase(status) || "success".equalsIgnoreCase(status) || "paid".equalsIgnoreCase(status);
+
+        // Send email notification on successful payment
+        if (isSuccessful) {
+            try {
+                // Fetch user info using transaction ID from metadata or API
+                // For now, we'll try to get it from the payload or a separate call
+                sendPaymentSuccessEmail(payload);
+            } catch (Exception e) {
+                log.error("Failed to send payment confirmation email: {}", e.getMessage());
+                // Don't throw - email failure shouldn't break payment processing
+            }
+        }
+
         return PaymentGatewayStatusResponse.builder()
                 .providerPaymentId(payload.getProviderPaymentId())
                 .transactionId(payload.getTransactionId())
-                .status(mapKonnectStatus(payload.getStatus()))
+                .status(mapKonnectStatus(status))
                 .amount(payload.getAmount())
                 .currency(payload.getCurrency())
-                .paymentDate(java.time.LocalDateTime.now())
-                .failureReason("FAILED".equals(payload.getStatus()) ? "Payment failed" : null)
+                .paymentDate(LocalDateTime.now())
+                .failureReason("FAILED".equals(status) ? "Payment failed" : null)
                 .build();
     }
 
@@ -172,6 +193,13 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             }
 
             Map<String, Object> refundData = (Map<String, Object>) response.get("data");
+
+            // Send refund confirmation email
+            try {
+                sendRefundConfirmationEmail(providerPaymentId, amount);
+            } catch (Exception e) {
+                log.error("Failed to send refund confirmation email: {}", e.getMessage());
+            }
 
             return PaymentGatewayResponse.builder()
                     .providerPaymentId(providerPaymentId)
@@ -223,6 +251,32 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         return konnectRequest;
     }
 
+    private void sendPaymentSuccessEmail(PaymentGatewayWebhookPayload payload) {
+        String email = null;
+        String name = "Customer";
+        Long userId = null;
+
+        // Try to get user info from metadata or API
+        // This is a placeholder - you would need to implement user lookup
+        // based on your transaction ID mapping
+
+        if (email != null) {
+            emailServiceClient.sendPaymentConfirmationEmail(
+                    email,
+                    name,
+                    payload.getAmount().toString(),
+                    payload.getCurrency(),
+                    payload.getTransactionId()
+            );
+            log.info("Payment confirmation email sent to: {}", email);
+        }
+    }
+
+    private void sendRefundConfirmationEmail(String providerPaymentId, BigDecimal amount) {
+        // Implement refund email logic
+        log.info("Refund processed for payment: {}, amount: {}", providerPaymentId, amount);
+    }
+
     private String mapKonnectStatus(String konnectStatus) {
         if (konnectStatus == null) return "PENDING";
 
@@ -246,4 +300,5 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         // TODO: Implement actual signature verification using konnectConfig.getWebhookSecret()
         return signature != null && !signature.isEmpty();
     }
+
 }

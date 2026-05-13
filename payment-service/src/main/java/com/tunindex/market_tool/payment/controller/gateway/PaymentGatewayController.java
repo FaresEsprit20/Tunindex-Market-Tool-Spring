@@ -3,6 +3,9 @@ package com.tunindex.market_tool.payment.controller.gateway;
 import com.tunindex.market_tool.payment.controller.user_subscription.PaymentStatusResponseDto;
 import com.tunindex.market_tool.payment.dto.*;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
+import com.tunindex.market_tool.payment.validators.RefundPaymentRequestValidator;
+import com.tunindex.market_tool.payment.validators.gateway.CreatePaymentRequestValidator;
+import com.tunindex.market_tool.payment.validators.gateway.PaymentStatusRequestValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +38,9 @@ public class PaymentGatewayController implements PaymentGatewayApi {
     @Override
     public ResponseEntity<CreatePaymentResponseDto> createPayment(CreatePaymentRequestDto request) {
         log.info("POST /api/payments/create - User: {}, Amount: {}", request.getUserId(), request.getAmount());
+
+        // Validate request
+        CreatePaymentRequestValidator.validate(request);
 
         com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayRequest gatewayRequest =
                 com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayRequest.builder()
@@ -74,6 +80,9 @@ public class PaymentGatewayController implements PaymentGatewayApi {
     public ResponseEntity<PaymentStatusResponseDto> getPaymentStatus(PaymentStatusRequestDto request) {
         log.info("POST /api/payments/status - Transaction: {}", request.getTransactionId());
 
+        // Validate request
+        PaymentStatusRequestValidator.validate(request);
+
         com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayStatusRequest gatewayRequest =
                 com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayStatusRequest.builder()
                         .providerPaymentId(request.getProviderPaymentId())
@@ -110,6 +119,9 @@ public class PaymentGatewayController implements PaymentGatewayApi {
     @Override
     public ResponseEntity<RefundPaymentResponseDto> refundPayment(RefundPaymentRequestDto request) {
         log.info("POST /api/payments/refund - Transaction: {}, Amount: {}", request.getTransactionId(), request.getAmount());
+
+        // Validate request
+        RefundPaymentRequestValidator.validate(request);
 
         com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayResponse gatewayResponse =
                 paymentGatewayService.refundPayment(request.getProviderPaymentId(), request.getAmount(), request.getReason());

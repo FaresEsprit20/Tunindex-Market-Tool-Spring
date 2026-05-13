@@ -1,9 +1,8 @@
 package com.tunindex.market_tool.payment.service.gateway;
 
-
 import com.tunindex.market_tool.payment.dto.gateway.*;
 
-public interface PaymentGateway {
+public interface PaymentGatewayService {
 
     String getProviderName();
 

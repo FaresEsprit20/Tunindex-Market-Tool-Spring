@@ -4,20 +4,21 @@ import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import com.tunindex.market_tool.payment.config.KonnectConfig;
 import com.tunindex.market_tool.payment.dto.gateway.*;
-import com.tunindex.market_tool.payment.service.gateway.PaymentGateway;
+import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class KonnectPaymentGateway implements PaymentGateway {
+public class KonnectPaymentGateway implements PaymentGatewayService {
 
     private final WebClient.Builder webClientBuilder;
     private final KonnectConfig konnectConfig;
@@ -95,11 +96,13 @@ public class KonnectPaymentGateway implements PaymentGateway {
             Map<String, Object> paymentData = (Map<String, Object>) response.get("data");
             String status = (String) paymentData.get("status");
 
+            BigDecimal amount = BigDecimal.valueOf(((Number) paymentData.get("amount")).doubleValue());
+
             return PaymentGatewayStatusResponse.builder()
                     .providerPaymentId(request.getProviderPaymentId())
                     .transactionId(request.getTransactionId())
                     .status(mapKonnectStatus(status))
-                    .amount(request.getAmount() != null ? request.getAmount() : java.math.BigDecimal.valueOf((Double) paymentData.get("amount")))
+                    .amount(amount)
                     .currency((String) paymentData.get("currency"))
                     .paymentMethod((String) paymentData.get("payment_method"))
                     .paymentDate(java.time.LocalDateTime.now())
@@ -139,7 +142,7 @@ public class KonnectPaymentGateway implements PaymentGateway {
     }
 
     @Override
-    public PaymentGatewayResponse refundPayment(String providerPaymentId, java.math.BigDecimal amount, String reason) {
+    public PaymentGatewayResponse refundPayment(String providerPaymentId, BigDecimal amount, String reason) {
         log.info("🔄 Processing Konnect refund for payment: {}", providerPaymentId);
 
         try {
@@ -165,9 +168,12 @@ public class KonnectPaymentGateway implements PaymentGateway {
                 );
             }
 
+            Map<String, Object> refundData = (Map<String, Object>) response.get("data");
+
             return PaymentGatewayResponse.builder()
                     .providerPaymentId(providerPaymentId)
                     .status("REFUNDED")
+                    .transactionId((String) refundData.get("order_id"))
                     .build();
 
         } catch (Exception e) {
@@ -197,7 +203,10 @@ public class KonnectPaymentGateway implements PaymentGateway {
         konnectRequest.put("success_url", request.getSuccessUrl());
         konnectRequest.put("cancel_url", request.getCancelUrl());
         konnectRequest.put("webhook_url", request.getWebhookUrl());
-        konnectRequest.put("metadata", request.getMetadata());
+
+        if (request.getMetadata() != null) {
+            konnectRequest.put("metadata", request.getMetadata());
+        }
 
         return konnectRequest;
     }
@@ -222,6 +231,7 @@ public class KonnectPaymentGateway implements PaymentGateway {
     }
 
     private boolean verifySignature(PaymentGatewayWebhookPayload payload, String signature) {
-        // TODO: Implement actual signature verification
+        // TODO: Implement actual signature verification using konnectConfig.getWebhookSecret()
         return signature != null && !signature.isEmpty();
     }
+}

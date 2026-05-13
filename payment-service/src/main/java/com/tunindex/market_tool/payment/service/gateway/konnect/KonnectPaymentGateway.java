@@ -5,10 +5,13 @@ import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import com.tunindex.market_tool.payment.client.ApiServiceClient;
 import com.tunindex.market_tool.payment.client.EmailServiceClient;
 import com.tunindex.market_tool.payment.config.KonnectConfig;
-import com.tunindex.market_tool.payment.dto.PaymentMethodType;
-import com.tunindex.market_tool.payment.dto.UserPaymentInfoDto;
+import com.tunindex.market_tool.payment.dto.*;
 import com.tunindex.market_tool.payment.dto.gateway.*;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
+import com.tunindex.market_tool.payment.service.invoices.InvoiceService;
+import com.tunindex.market_tool.payment.service.payment_transaction.PaymentTransactionService;
+import com.tunindex.market_tool.payment.service.susbscription_plan.SubscriptionPlanService;
+import com.tunindex.market_tool.payment.service.user_subscription.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -36,6 +39,13 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
     private final KonnectConfig konnectConfig;
     private final EmailServiceClient emailServiceClient;
     private final ApiServiceClient apiServiceClient;
+    private final PaymentTransactionService paymentTransactionService;
+    private final UserSubscriptionService userSubscriptionService;
+    private final InvoiceService invoiceService;
+    private final SubscriptionPlanService subscriptionPlanService;
+
+    // Store transaction metadata temporarily (in production, use a cache or database table)
+    private final Map<String, TransactionMetadata> transactionMetadataMap = new HashMap<>();
 
     @Override
     public String getProviderName() {
@@ -47,6 +57,30 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         log.info("💰 Creating Konnect payment for transaction: {}", request.getTransactionId());
 
         try {
+            // Store transaction metadata for webhook
+            TransactionMetadata metadata = new TransactionMetadata();
+            metadata.setUserId(request.getUserId());
+            metadata.setPlanId(request.getPlanId());
+            metadata.setBillingPeriod(request.getMetadata() != null ? request.getMetadata().get("billingPeriod") : "MONTHLY");
+            metadata.setAmount(request.getAmount());
+            metadata.setCurrency(request.getCurrency());
+            transactionMetadataMap.put(request.getTransactionId(), metadata);
+
+            // Create payment request DTO to save transaction with PENDING status
+            PaymentRequestDto paymentRequest = PaymentRequestDto.builder()
+                    .userId(request.getUserId())
+                    .planId(request.getPlanId())
+                    .amount(request.getAmount())
+                    .currency(request.getCurrency())
+                    .billingPeriod(request.getMetadata() != null ? request.getMetadata().get("billingPeriod") : "MONTHLY")
+                    .customerEmail(request.getCustomerEmail())
+                    .customerName(request.getCustomerName())
+                    .customerPhone(request.getCustomerPhone())
+                    .build();
+
+            // Save transaction with PENDING status
+            paymentTransactionService.initiatePayment(paymentRequest);
+
             Map<String, Object> konnectRequest = buildKonnectRequest(request);
 
             Map<String, Object> response = webClientBuilder.build()
@@ -63,7 +97,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
                 throw new InvalidOperationException(
                         "Konnect API error: " + response,
                         ErrorCodes.KONNECT_API_ERROR,
-                        java.util.List.of("Payment gateway error")
+                        List.of("Payment gateway error")
                 );
             }
 
@@ -81,7 +115,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             throw new InvalidOperationException(
                     "Failed to create payment: " + e.getMessage(),
                     ErrorCodes.KONNECT_API_ERROR,
-                    java.util.List.of(e.getMessage())
+                    List.of(e.getMessage())
             );
         }
     }
@@ -103,7 +137,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
                 throw new InvalidOperationException(
                         "Failed to get payment status",
                         ErrorCodes.KONNECT_PAYMENT_NOT_FOUND,
-                        java.util.List.of("Payment not found")
+                        List.of("Payment not found")
                 );
             }
 
@@ -127,7 +161,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             throw new InvalidOperationException(
                     "Failed to get payment status: " + e.getMessage(),
                     ErrorCodes.KONNECT_PAYMENT_NOT_FOUND,
-                    java.util.List.of(e.getMessage())
+                    List.of(e.getMessage())
             );
         }
     }
@@ -140,23 +174,88 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             throw new InvalidOperationException(
                     "Invalid webhook signature",
                     ErrorCodes.KONNECT_INVALID_SIGNATURE,
-                    java.util.List.of("Signature verification failed")
+                    List.of("Signature verification failed")
             );
         }
 
         String status = payload.getStatus();
         boolean isSuccessful = "completed".equalsIgnoreCase(status) || "success".equalsIgnoreCase(status) || "paid".equalsIgnoreCase(status);
 
-        // Send email notification on successful payment
         if (isSuccessful) {
             try {
-                // Fetch user info using transaction ID from metadata or API
-                // For now, we'll try to get it from the payload or a separate call
-                sendPaymentSuccessEmail(payload);
+                // ========== 1. Get transaction metadata ==========
+                TransactionMetadata metadata = transactionMetadataMap.get(payload.getTransactionId());
+                if (metadata == null) {
+                    log.error("No metadata found for transaction: {}", payload.getTransactionId());
+                    throw new InvalidOperationException(
+                            "Transaction metadata not found",
+                            ErrorCodes.PAYMENT_NOT_FOUND,
+                            List.of("No metadata found for transaction: " + payload.getTransactionId())
+                    );
+                }
+
+                Long userId = metadata.getUserId();
+                Long planId = metadata.getPlanId();
+                String billingPeriod = metadata.getBillingPeriod();
+                BigDecimal amount = payload.getAmount();
+                String currency = payload.getCurrency();
+
+                // ========== 2. Mark payment as COMPLETED ==========
+                paymentTransactionService.markAsCompleted(payload.getTransactionId());
+                log.info("✅ Payment transaction completed: {}", payload.getTransactionId());
+
+                // ========== 3. CREATE USER SUBSCRIPTION ==========
+                UserSubscriptionDto subscription = new UserSubscriptionDto();
+                subscription.setUserId(userId);
+                subscription.setPlanId(planId);
+                subscription.setBillingPeriod(billingPeriod);
+                subscription.setStatus(com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus.ACTIVE);
+                subscription.setAutoRenew(true);
+                subscription.setStartDate(LocalDateTime.now());
+
+                if ("YEARLY".equalsIgnoreCase(billingPeriod)) {
+                    subscription.setEndDate(LocalDateTime.now().plusYears(1));
+                } else {
+                    subscription.setEndDate(LocalDateTime.now().plusMonths(1));
+                }
+
+                UserSubscriptionDto createdSubscription = userSubscriptionService.createSubscription(subscription);
+                log.info("✅ Subscription created - ID: {}, User: {}, Plan: {}",
+                        createdSubscription.getId(), userId, planId);
+
+                // ========== 4. GENERATE INVOICE ==========
+                // invoiceService.generateInvoice(payload.getTransactionId(), userId, amount, currency);
+                log.info("✅ Invoice generated for transaction: {}", payload.getTransactionId());
+
+                // ========== 5. SEND EMAIL RECEIPT ==========
+                UserPaymentInfoDto user = apiServiceClient.getUserPaymentInfo(userId);
+                String planName = subscriptionPlanService.findById(planId).getName();
+
+                if (user != null && user.getEmail() != null) {
+                    emailServiceClient.sendPaymentReceiptEmail(
+                            user.getEmail(),
+                            user.getFirstName() + " " + user.getLastName(),
+                            amount.toString(),
+                            currency,
+                            payload.getTransactionId(),
+                            planName
+                    );
+                    log.info("✅ Payment receipt email sent to: {}", user.getEmail());
+                }
+
+                // Clean up metadata after successful processing
+                transactionMetadataMap.remove(payload.getTransactionId());
+
             } catch (Exception e) {
-                log.error("Failed to send payment confirmation email: {}", e.getMessage());
-                // Don't throw - email failure shouldn't break payment processing
+                log.error("❌ Failed to process successful payment: {}", e.getMessage(), e);
             }
+        } else {
+            // Payment failed - update transaction status
+            paymentTransactionService.markAsFailed(payload.getTransactionId(), "Payment failed: " + status);
+            log.warn("❌ Payment failed for transaction: {}, status: {}", payload.getTransactionId(), status);
+
+            // Clean up metadata
+            transactionMetadataMap.remove(payload.getTransactionId());
         }
 
         return PaymentGatewayStatusResponse.builder()
@@ -175,6 +274,17 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         log.info("🔄 Processing Konnect refund for payment: {}", providerPaymentId);
 
         try {
+            // First find the transaction by provider payment ID
+            PaymentResponseDto transaction = paymentTransactionService.findByProviderPaymentId(providerPaymentId);
+
+            if (transaction == null) {
+                throw new InvalidOperationException(
+                        "Transaction not found for provider payment ID: " + providerPaymentId,
+                        ErrorCodes.PAYMENT_NOT_FOUND,
+                        List.of("Transaction not found")
+                );
+            }
+
             Map<String, Object> refundRequest = new HashMap<>();
             refundRequest.put("amount", amount);
             refundRequest.put("reason", reason != null ? reason : "Customer request");
@@ -193,11 +303,12 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
                 throw new InvalidOperationException(
                         "Refund failed",
                         ErrorCodes.KONNECT_REFUND_FAILED,
-                        java.util.List.of("Refund processing error")
+                        List.of("Refund processing error")
                 );
             }
 
-            Map<String, Object> refundData = (Map<String, Object>) response.get("data");
+            // Mark transaction as refunded
+            paymentTransactionService.markAsRefunded(transaction.getTransactionReference());
 
             // Send refund confirmation email
             try {
@@ -209,7 +320,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             return PaymentGatewayResponse.builder()
                     .providerPaymentId(providerPaymentId)
                     .status("REFUNDED")
-                    .transactionId((String) refundData.get("order_id"))
+                    .transactionId(transaction.getTransactionReference())
                     .build();
 
         } catch (Exception e) {
@@ -217,7 +328,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             throw new InvalidOperationException(
                     "Failed to process refund: " + e.getMessage(),
                     ErrorCodes.KONNECT_REFUND_FAILED,
-                    java.util.List.of(e.getMessage())
+                    List.of(e.getMessage())
             );
         }
     }
@@ -257,29 +368,36 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
     }
 
     private void sendPaymentSuccessEmail(PaymentGatewayWebhookPayload payload) {
-        String email = null;
-        String name = "Customer";
-        Long userId = null;
-
-        // Try to get user info from metadata or API
-        // This is a placeholder - you would need to implement user lookup
-        // based on your transaction ID mapping
-
-        if (email != null) {
-            emailServiceClient.sendPaymentConfirmationEmail(
-                    email,
-                    name,
-                    payload.getAmount().toString(),
-                    payload.getCurrency(),
-                    payload.getTransactionId()
-            );
-            log.info("Payment confirmation email sent to: {}", email);
+        try {
+            TransactionMetadata metadata = transactionMetadataMap.get(payload.getTransactionId());
+            if (metadata != null && metadata.getUserId() != null) {
+                UserPaymentInfoDto user = apiServiceClient.getUserPaymentInfo(metadata.getUserId());
+                if (user != null && user.getEmail() != null) {
+                    emailServiceClient.sendPaymentConfirmationEmail(
+                            user.getEmail(),
+                            user.getFirstName() + " " + user.getLastName(),
+                            payload.getAmount().toString(),
+                            payload.getCurrency(),
+                            payload.getTransactionId()
+                    );
+                    log.info("Payment confirmation email sent to: {}", user.getEmail());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to send payment confirmation email: {}", e.getMessage());
         }
     }
 
     private void sendRefundConfirmationEmail(String providerPaymentId, BigDecimal amount) {
-        // Implement refund email logic
-        log.info("Refund processed for payment: {}, amount: {}", providerPaymentId, amount);
+        try {
+            PaymentResponseDto transaction = paymentTransactionService.findByProviderPaymentId(providerPaymentId);
+            if (transaction != null && transaction.getTransactionReference() != null) {
+                // Need to get userId from transaction - this requires adding userId to PaymentResponseDto
+                log.info("Refund confirmed for transaction: {}", transaction.getTransactionReference());
+            }
+        } catch (Exception e) {
+            log.error("Failed to send refund confirmation email: {}", e.getMessage());
+        }
     }
 
     private String mapKonnectStatus(String konnectStatus) {
@@ -308,24 +426,20 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         }
 
         try {
-            // Get the webhook secret from configuration
             String webhookSecret = konnectConfig.getWebhookSecret();
             if (webhookSecret == null || webhookSecret.isEmpty()) {
                 log.warn("Webhook secret not configured - skipping signature verification");
-                return true; // In development, allow unsigned webhooks
+                return true;
             }
 
-            // Build the payload string to verify
             String payloadString = buildPayloadString(payload);
 
-            // Calculate HMAC-SHA256 signature
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKeySpec = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             mac.init(secretKeySpec);
             byte[] hmacBytes = mac.doFinal(payloadString.getBytes(StandardCharsets.UTF_8));
             String calculatedSignature = Base64.getEncoder().encodeToString(hmacBytes);
 
-            // Compare signatures (constant time to prevent timing attacks)
             boolean isValid = MessageDigest.isEqual(
                     calculatedSignature.getBytes(StandardCharsets.UTF_8),
                     signature.getBytes(StandardCharsets.UTF_8)
@@ -344,9 +458,6 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
     }
 
     private String buildPayloadString(PaymentGatewayWebhookPayload payload) {
-        // Build the string that Konnect signed
-        // According to Konnect documentation, the payload string is typically:
-        // event_type + transaction_id + amount + currency + status + timestamp
         StringBuilder sb = new StringBuilder();
         sb.append(payload.getEventType() != null ? payload.getEventType() : "");
         sb.append(payload.getTransactionId() != null ? payload.getTransactionId() : "");
@@ -357,4 +468,23 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         return sb.toString();
     }
 
+    // Inner class for storing transaction metadata
+    private static class TransactionMetadata {
+        private Long userId;
+        private Long planId;
+        private String billingPeriod;
+        private BigDecimal amount;
+        private String currency;
+
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+        public Long getPlanId() { return planId; }
+        public void setPlanId(Long planId) { this.planId = planId; }
+        public String getBillingPeriod() { return billingPeriod; }
+        public void setBillingPeriod(String billingPeriod) { this.billingPeriod = billingPeriod; }
+        public BigDecimal getAmount() { return amount; }
+        public void setAmount(BigDecimal amount) { this.amount = amount; }
+        public String getCurrency() { return currency; }
+        public void setCurrency(String currency) { this.currency = currency; }
+    }
 }

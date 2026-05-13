@@ -4,6 +4,7 @@ import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayStatusResponse;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayWebhookPayload;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
+import com.tunindex.market_tool.payment.validators.WebhookValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +41,7 @@ public class InternalPaymentWebhookController {
                 payload.get("event"), payload.get("order_id"));
 
         try {
+            // Build webhook payload DTO
             PaymentGatewayWebhookPayload webhookPayload = PaymentGatewayWebhookPayload.builder()
                     .eventType((String) payload.get("event"))
                     .transactionId((String) payload.get("order_id"))
@@ -51,6 +53,10 @@ public class InternalPaymentWebhookController {
                     .timestamp(LocalDateTime.now())
                     .build();
 
+            // Validate webhook payload
+            WebhookValidator.validate(webhookPayload, signature);
+
+            // Process webhook
             PaymentGatewayStatusResponse response = paymentGatewayService.processWebhook(webhookPayload, signature);
 
             log.info("Webhook processed successfully. Transaction: {}, Status: {}",

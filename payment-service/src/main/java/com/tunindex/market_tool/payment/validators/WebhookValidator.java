@@ -3,13 +3,14 @@ package com.tunindex.market_tool.payment.validators;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import com.tunindex.market_tool.payment.dto.WebhookPayloadDto;
+import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayWebhookPayload;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class WebhookValidator {
 
-    public static void validate(WebhookPayloadDto payload, String signature) {
+    public static void validate(PaymentGatewayWebhookPayload payload, String signature) {
         List<String> errors = new ArrayList<>();
 
         if (payload == null) {

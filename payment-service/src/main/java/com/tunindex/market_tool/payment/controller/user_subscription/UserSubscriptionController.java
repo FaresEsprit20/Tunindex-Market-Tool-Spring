@@ -65,30 +65,6 @@ public class UserSubscriptionController implements UserSubscriptionApi {
         return ResponseEntity.ok(response);
     }
 
-    @Override
-    public ResponseEntity<PagedResponse<UserSubscriptionDto>> getSubscriptionsExpiringBetween(
-            LocalDateTime start, LocalDateTime end, int page, int size) {
-
-        log.info("GET /api/user-subscriptions/expiring - start: {}, end: {}, page: {}, size: {}",
-                start, end, page, size);
-
-        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
-        paginationDto.setPage(page);
-        paginationDto.setSize(size);
-        paginationDto.setSortField("endDate");
-        paginationDto.setSortDirection(SortingDirection.ASC);
-
-        PagedResponse<UserSubscriptionDto> response = userSubscriptionService.findSubscriptionsExpiringBetween(start, end, paginationDto);
-        return ResponseEntity.ok(response);
-    }
-
-    @Override
-    public ResponseEntity<UserSubscriptionDto> createSubscription(UserSubscriptionDto subscriptionDto) {
-        log.info("POST /api/user-subscriptions - Creating subscription for user: {}", subscriptionDto.getUserId());
-
-        UserSubscriptionDto createdSubscription = userSubscriptionService.createSubscription(subscriptionDto);
-        return ResponseEntity.ok(createdSubscription);
-    }
 
     @Override
     public ResponseEntity<PagedResponse<UserSubscriptionDto>> filterSubscriptions(PaginationAndFilteringDto paginationDto) {
@@ -107,36 +83,6 @@ public class UserSubscriptionController implements UserSubscriptionApi {
         return ResponseEntity.ok(cancelledSubscription);
     }
 
-    @Override
-    public ResponseEntity<UserSubscriptionDto> renewSubscription(Long id) {
-        log.info("PUT /api/user-subscriptions/{}/renew", id);
 
-        UserSubscriptionDto renewedSubscription = userSubscriptionService.renewSubscription(id);
-        return ResponseEntity.ok(renewedSubscription);
-    }
-
-    @Override
-    public ResponseEntity<UserSubscriptionDto> updateSubscriptionStatus(Long id, SubscriptionStatus status) {
-        log.info("PUT /api/user-subscriptions/{}/status - New status: {}", id, status);
-
-        UserSubscriptionDto updatedSubscription = userSubscriptionService.updateSubscriptionStatus(id, status);
-        return ResponseEntity.ok(updatedSubscription);
-    }
-
-    @Override
-    public ResponseEntity<Void> deleteSubscription(Long id) {
-        log.info("DELETE /api/user-subscriptions/{}", id);
-
-        userSubscriptionService.deleteSubscription(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Override
-    public ResponseEntity<Long> countActiveSubscriptionsByUser(Long userId) {
-        log.info("GET /api/user-subscriptions/statistics/count-active/{}", userId);
-
-        long count = userSubscriptionService.countActiveSubscriptionsByUser(userId);
-        return ResponseEntity.ok(count);
-    }
 
 }

@@ -51,29 +51,6 @@ public class SubscriptionPlanController implements SubscriptionPlanApi {
     }
 
     @Override
-    public ResponseEntity<PagedResponse<SubscriptionPlanDto>> getPlansByMaxPrice(
-            BigDecimal maxPrice, int page, int size) {
-
-        log.info("GET /api/subscription-plans/price-range - maxPrice: {}, page: {}, size: {}",
-                maxPrice, page, size);
-
-        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
-        paginationDto.setPage(page);
-        paginationDto.setSize(size);
-
-        PagedResponse<SubscriptionPlanDto> response = subscriptionPlanService.findActivePlansByMaxPrice(maxPrice, paginationDto);
-        return ResponseEntity.ok(response);
-    }
-
-    @Override
-    public ResponseEntity<SubscriptionPlanDto> createPlan(SubscriptionPlanDto planDto) {
-        log.info("POST /api/subscription-plans - Creating plan: {}", planDto.getName());
-
-        SubscriptionPlanDto createdPlan = subscriptionPlanService.createPlan(planDto);
-        return ResponseEntity.ok(createdPlan);
-    }
-
-    @Override
     public ResponseEntity<PagedResponse<SubscriptionPlanDto>> filterPlans(PaginationAndFilteringDto paginationDto) {
         log.info("POST /api/subscription-plans/filter - page: {}, size: {}, filters: {}",
                 paginationDto.getPage(), paginationDto.getSize(), paginationDto.getFilters());
@@ -83,34 +60,11 @@ public class SubscriptionPlanController implements SubscriptionPlanApi {
     }
 
     @Override
-    public ResponseEntity<SubscriptionPlanDto> updatePlan(Long id, SubscriptionPlanDto planDto) {
-        log.info("PUT /api/subscription-plans/{} - Updating plan", id);
-
-        SubscriptionPlanDto updatedPlan = subscriptionPlanService.updatePlan(id, planDto);
-        return ResponseEntity.ok(updatedPlan);
-    }
-
-    @Override
-    public ResponseEntity<SubscriptionPlanDto> togglePlanStatus(Long id) {
-        log.info("PUT /api/subscription-plans/{}/toggle-status", id);
-
-        SubscriptionPlanDto updatedPlan = subscriptionPlanService.togglePlanStatus(id);
-        return ResponseEntity.ok(updatedPlan);
-    }
-
-    @Override
-    public ResponseEntity<Void> deletePlan(Long id) {
-        log.info("DELETE /api/subscription-plans/{}", id);
-
-        subscriptionPlanService.deletePlan(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Override
     public ResponseEntity<Boolean> checkNameExists(String name) {
         log.info("GET /api/subscription-plans/check-name/{}", name);
 
         boolean exists = subscriptionPlanService.existsByName(name);
         return ResponseEntity.ok(exists);
     }
+
 }

@@ -7,13 +7,11 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class WebhookPayloadDto {
-    private String eventType;
+public class RefundPaymentResponseDto {
+    private String refundId;
     private String transactionId;
-    private String providerPaymentId;
+    private String providerRefundId;
     private BigDecimal amount;
-    private String currency;
     private String status;
-    private String signature;
-    private LocalDateTime timestamp;
+    private LocalDateTime refundDate;
 }

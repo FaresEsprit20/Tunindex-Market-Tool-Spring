@@ -3,17 +3,14 @@ package com.tunindex.market_tool.payment.dto;
 import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class WebhookPayloadDto {
-    private String eventType;
+public class CreatePaymentResponseDto {
     private String transactionId;
     private String providerPaymentId;
+    private String paymentUrl;
+    private String status;
     private BigDecimal amount;
     private String currency;
-    private String status;
-    private String signature;
-    private LocalDateTime timestamp;
 }

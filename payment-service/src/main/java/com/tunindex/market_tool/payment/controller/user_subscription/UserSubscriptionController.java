@@ -138,5 +138,5 @@ public class UserSubscriptionController implements UserSubscriptionApi {
         long count = userSubscriptionService.countActiveSubscriptionsByUser(userId);
         return ResponseEntity.ok(count);
     }
-    
+
 }

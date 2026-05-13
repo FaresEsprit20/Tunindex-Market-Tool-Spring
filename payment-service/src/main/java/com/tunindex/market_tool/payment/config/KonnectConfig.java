@@ -11,4 +11,8 @@ public class KonnectConfig {
     private String apiUrl;
     private String apiKey;
     private String webhookSecret;
+    private String walletId;
+    private String environment;
+    private Integer timeout;
+    private Integer retryAttempts;
 }

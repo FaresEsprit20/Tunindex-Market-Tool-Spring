@@ -1,17 +1,15 @@
-package com.fares.stock.management.domain.services.impl.recaptcha;
+package com.tunindex.market_tool.recaptcha.service;
 
+import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.RecaptchaException;
 import com.tunindex.market_tool.recaptcha.dto.RecaptchaV3Response;
-import com.tunindex.market_tool.recaptcha.service.RecaptchaService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +24,7 @@ public class RecaptchaServiceImpl implements RecaptchaService {
     private final float scoreThreshold;
     private final List<String> allowedHostnames;
     private final String verifyUrl;
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
     private final Environment environment;
 
     public RecaptchaServiceImpl(
@@ -35,7 +33,7 @@ public class RecaptchaServiceImpl implements RecaptchaService {
             @Value("${recaptcha.score-threshold:0.5}") float scoreThreshold,
             @Value("${recaptcha.allowed-hostnames:localhost,127.0.0.1}") String[] allowedHostnames,
             @Value("${recaptcha.verify-url:https://www.google.com/recaptcha/api/siteverify}") String verifyUrl,
-            RestTemplate restTemplate,
+            WebClient.Builder webClientBuilder,
             Environment environment
     ) {
         this.secretKey = secretKey;
@@ -43,13 +41,13 @@ public class RecaptchaServiceImpl implements RecaptchaService {
         this.scoreThreshold = scoreThreshold;
         this.allowedHostnames = List.of(allowedHostnames);
         this.verifyUrl = verifyUrl;
-        this.restTemplate = restTemplate;
+        this.webClient = webClientBuilder.build();
         this.environment = environment;
     }
 
     @Override
     public boolean validate(String recaptchaToken, String userIp, String expectedAction) {
-        // ❗ Skip validation for dev and test
+        // Skip validation for dev and test
         if (isDevOrTestProfile()) {
             log.warn("Bypassing reCAPTCHA validation for dev/test profile.");
             return true;
@@ -98,11 +96,10 @@ public class RecaptchaServiceImpl implements RecaptchaService {
 
             return true;
 
-        } catch (RestClientException e) {
-            errors.add("REST error: " + e.getMessage());
-            throw new RecaptchaException("Verification failed",
-                    ErrorCodes.RECAPTCHA_VERIFICATION_FAILED, errors);
         } catch (Exception e) {
+            if (e instanceof RecaptchaException) {
+                throw e;
+            }
             errors.add("Unexpected error: " + e.getMessage());
             throw new RecaptchaException("Internal error",
                     ErrorCodes.RECAPTCHA_INTERNAL_ERROR, errors);
@@ -110,28 +107,29 @@ public class RecaptchaServiceImpl implements RecaptchaService {
     }
 
     private RecaptchaV3Response validateTokenWithGoogle(String recaptchaToken, String userIp) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        try {
+            return webClient.post()
+                    .uri(verifyUrl)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .bodyValue(buildFormData(recaptchaToken, userIp))
+                    .retrieve()
+                    .bodyToMono(RecaptchaV3Response.class)
+                    .block();
 
-        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        formData.add("siteKey", siteKey);
-        formData.add("secret", secretKey);
-        formData.add("response", recaptchaToken);
-
-        if (userIp != null && !userIp.trim().isEmpty()) {
-            formData.add("remoteip", userIp);
+        } catch (Exception e) {
+            log.error("Error calling Google reCAPTCHA API: {}", e.getMessage());
+            throw new RuntimeException("Failed to validate reCAPTCHA token", e);
         }
+    }
 
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(formData, headers);
-
-        ResponseEntity<RecaptchaV3Response> response = restTemplate.exchange(
-                verifyUrl,
-                HttpMethod.POST,
-                entity,
-                RecaptchaV3Response.class
-        );
-
-        return response.getBody();
+    private String buildFormData(String recaptchaToken, String userIp) {
+        StringBuilder formData = new StringBuilder();
+        formData.append("secret=").append(secretKey);
+        formData.append("&response=").append(recaptchaToken);
+        if (userIp != null && !userIp.trim().isEmpty()) {
+            formData.append("&remoteip=").append(userIp);
+        }
+        return formData.toString();
     }
 
     private boolean isValidHostname(String hostname) {

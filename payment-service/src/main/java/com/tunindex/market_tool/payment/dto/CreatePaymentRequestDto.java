@@ -14,6 +14,5 @@ public class CreatePaymentRequestDto {
     private String customerEmail;
     private String customerName;
     private String customerPhone;
-    private List<PaymentMethodType> allowedPaymentMethods;
     private String couponCode;
 }

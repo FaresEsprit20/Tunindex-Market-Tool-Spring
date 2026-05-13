@@ -3,6 +3,7 @@ package com.tunindex.market_tool.payment.service.gateway.konnect;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import com.tunindex.market_tool.payment.config.KonnectConfig;
+import com.tunindex.market_tool.payment.dto.PaymentMethodType;
 import com.tunindex.market_tool.payment.dto.gateway.*;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -203,6 +206,15 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         konnectRequest.put("success_url", request.getSuccessUrl());
         konnectRequest.put("cancel_url", request.getCancelUrl());
         konnectRequest.put("webhook_url", request.getWebhookUrl());
+
+        // Add allowed payment methods from configuration
+        if (konnectConfig.getAllowedPaymentMethods() != null && !konnectConfig.getAllowedPaymentMethods().isEmpty()) {
+            List<String> allowedMethods = konnectConfig.getAllowedPaymentMethods().stream()
+                    .map(PaymentMethodType::getKonnectValue)
+                    .collect(Collectors.toList());
+            konnectRequest.put("accepted_payment_methods", allowedMethods);
+            log.info("Using configured payment methods: {}", allowedMethods);
+        }
 
         if (request.getMetadata() != null) {
             konnectRequest.put("metadata", request.getMetadata());

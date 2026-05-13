@@ -2,6 +2,7 @@ package com.tunindex.market_tool.payment.service.refund;
 
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
+import com.tunindex.market_tool.payment.dto.RefundPaymentRequestDto;
 import com.tunindex.market_tool.payment.dto.RefundRequestDto;
 import com.tunindex.market_tool.payment.dto.RefundResponseDto;
 import com.tunindex.market_tool.payment.entities.enums.RefundStatus;
@@ -20,7 +21,7 @@ public interface RefundService {
 
     PagedResponse<RefundResponseDto> filterRefunds(PaginationAndFilteringDto paginationDto);
 
-    RefundResponseDto requestRefund(RefundRequestDto refundRequest);
+    RefundResponseDto requestRefund(RefundPaymentRequestDto refundRequest);
 
     RefundResponseDto updateRefundStatus(Long refundId, RefundStatus newStatus);
 

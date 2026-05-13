@@ -6,7 +6,7 @@ import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.PaginationUtil;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
-import com.tunindex.market_tool.payment.dto.RefundRequestDto;
+import com.tunindex.market_tool.payment.dto.RefundPaymentRequestDto;
 import com.tunindex.market_tool.payment.dto.RefundResponseDto;
 import com.tunindex.market_tool.payment.entities.PaymentTransaction;
 import com.tunindex.market_tool.payment.entities.Refund;
@@ -15,7 +15,7 @@ import com.tunindex.market_tool.payment.entities.enums.RefundStatus;
 import com.tunindex.market_tool.payment.repository.PaymentTransactionRepository;
 import com.tunindex.market_tool.payment.repository.RefundRepository;
 import com.tunindex.market_tool.payment.specifications.RefundSpecification;
-import com.tunindex.market_tool.payment.validators.RefundValidator;
+import com.tunindex.market_tool.payment.validators.gateway.RefundPaymentRequestValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -129,14 +129,25 @@ public class RefundServiceImpl implements RefundService {
 
     @Override
     @Transactional
-    public RefundResponseDto requestRefund(RefundRequestDto refundRequest) {
+    public RefundResponseDto requestRefund(RefundPaymentRequestDto refundRequest) {
         log.info("💰 Requesting refund for transaction: {}", refundRequest.getTransactionId());
 
-        // Validate the refund request
-        RefundValidator.validate(refundRequest);
+        // Validate the refund request using RefundPaymentRequestValidator
+        RefundPaymentRequestValidator.validate(refundRequest);
 
-        // Get the original transaction
-        PaymentTransaction transaction = paymentTransactionRepository.findById(refundRequest.getTransactionId())
+        // Get the original transaction (convert transactionId String to Long)
+        Long transactionIdLong;
+        try {
+            transactionIdLong = Long.valueOf(refundRequest.getTransactionId());
+        } catch (NumberFormatException e) {
+            throw new InvalidEntityException(
+                    "Invalid transaction ID format",
+                    ErrorCodes.PAYMENT_NOT_FOUND,
+                    List.of("Transaction ID must be a number")
+            );
+        }
+
+        PaymentTransaction transaction = paymentTransactionRepository.findById(transactionIdLong)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Payment transaction not found with id: " + refundRequest.getTransactionId(),
                         ErrorCodes.PAYMENT_NOT_FOUND,
@@ -144,7 +155,7 @@ public class RefundServiceImpl implements RefundService {
                 ));
 
         // Validate transaction for refund
-        RefundValidator.validateForTransaction(transaction, refundRequest.getAmount());
+        validateTransactionForRefund(transaction, refundRequest.getAmount());
 
         // Check if refund already exists
         if (refundRepository.existsByTransactionIdAndStatus(transaction.getId(), RefundStatus.COMPLETED)) {
@@ -155,12 +166,9 @@ public class RefundServiceImpl implements RefundService {
             );
         }
 
-        // Generate refund ID
-        String refundId = generateRefundId();
-
         // Create refund record
         Refund refund = Refund.builder()
-                .transactionId(refundRequest.getTransactionId())
+                .transactionId(transaction.getId())
                 .amount(refundRequest.getAmount())
                 .reason(refundRequest.getReason())
                 .status(RefundStatus.PENDING)
@@ -170,7 +178,7 @@ public class RefundServiceImpl implements RefundService {
 
         Refund savedRefund = refundRepository.save(refund);
 
-        log.info("✅ Refund requested successfully with ID: {}", refundId);
+        log.info("✅ Refund requested successfully with id: {}", savedRefund.getId());
         return convertToResponseDto(savedRefund);
     }
 
@@ -186,7 +194,7 @@ public class RefundServiceImpl implements RefundService {
                         List.of("No refund found")
                 ));
 
-        RefundValidator.validateRefundStatus(refund, newStatus);
+        validateRefundStatusTransition(refund, newStatus);
         refund.setStatus(newStatus);
 
         // If refund is completed, update the original transaction status
@@ -333,14 +341,12 @@ public class RefundServiceImpl implements RefundService {
             spec = spec.and(RefundSpecification.providerRefundIdEquals(filters.get("providerRefundId")));
         }
 
-        // Amount range filters
         if (filters.containsKey("minAmount") || filters.containsKey("maxAmount")) {
             BigDecimal minAmount = parseBigDecimal(filters, "minAmount");
             BigDecimal maxAmount = parseBigDecimal(filters, "maxAmount");
             spec = spec.and(RefundSpecification.amountBetween(minAmount, maxAmount));
         }
 
-        // Date filters
         if (StringUtils.hasLength(filters.get("refundDateFrom"))) {
             LocalDateTime from = parseLocalDateTime(filters.get("refundDateFrom"));
             spec = spec.and(RefundSpecification.refundDateBetween(from, null));
@@ -375,10 +381,6 @@ public class RefundServiceImpl implements RefundService {
         }
     }
 
-    private String generateRefundId() {
-        return "REF-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    }
-
     private void updateTransactionRefundStatus(Long transactionId) {
         PaymentTransaction transaction = paymentTransactionRepository.findById(transactionId).orElse(null);
         if (transaction != null && transaction.getStatus() != PaymentStatus.REFUNDED) {
@@ -388,6 +390,52 @@ public class RefundServiceImpl implements RefundService {
                 paymentTransactionRepository.save(transaction);
                 log.info("Transaction {} marked as REFUNDED", transactionId);
             }
+        }
+    }
+
+    private void validateTransactionForRefund(PaymentTransaction transaction, BigDecimal refundAmount) {
+        List<String> errors = new ArrayList<>();
+
+        if (transaction == null) {
+            errors.add("Transaction not found");
+            throw new InvalidEntityException("Transaction not found", ErrorCodes.PAYMENT_NOT_FOUND, errors);
+        }
+
+        if (transaction.getStatus() != PaymentStatus.COMPLETED) {
+            errors.add("Only completed transactions can be refunded");
+        }
+
+        if (transaction.getStatus() == PaymentStatus.REFUNDED) {
+            errors.add("Transaction has already been fully refunded");
+        }
+
+        if (refundAmount != null && refundAmount.compareTo(transaction.getAmount()) > 0) {
+            errors.add("Refund amount cannot exceed transaction amount");
+        }
+
+        if (!errors.isEmpty()) {
+            throw new InvalidEntityException("Cannot process refund for this transaction", ErrorCodes.PAYMENT_REFUND_FAILED, errors);
+        }
+    }
+
+    private void validateRefundStatusTransition(Refund refund, RefundStatus newStatus) {
+        List<String> errors = new ArrayList<>();
+
+        if (refund == null) {
+            errors.add("Refund record not found");
+            throw new InvalidEntityException("Refund not found", ErrorCodes.PAYMENT_REFUND_FAILED, errors);
+        }
+
+        if (refund.getStatus() == RefundStatus.COMPLETED) {
+            errors.add("Cannot change status of a completed refund");
+        }
+
+        if (refund.getStatus() == RefundStatus.FAILED && newStatus == RefundStatus.COMPLETED) {
+            errors.add("Cannot change failed refund to completed");
+        }
+
+        if (!errors.isEmpty()) {
+            throw new InvalidEntityException("Invalid refund status transition", ErrorCodes.PAYMENT_REFUND_FAILED, errors);
         }
     }
 
@@ -404,6 +452,4 @@ public class RefundServiceImpl implements RefundService {
                 .createdAt(refund.getCreatedAt())
                 .build();
     }
-
-
 }

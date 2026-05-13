@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.payment.validators;
+package com.tunindex.market_tool.payment.validators.gateway;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
@@ -34,6 +34,9 @@ public class RefundPaymentRequestValidator {
         if (request.getAmount() != null && request.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             errors.add("Refund amount must be greater than 0");
         }
+        if (request.getAmount() != null && request.getAmount().compareTo(new java.math.BigDecimal("10000")) > 0) {
+            errors.add("Refund amount cannot exceed 10,000 TND");
+        }
 
         // Validate reason (optional)
         if (request.getReason() != null && request.getReason().length() > 500) {
@@ -44,4 +47,5 @@ public class RefundPaymentRequestValidator {
             throw new InvalidEntityException("Invalid refund request", ErrorCodes.PAYMENT_REFUND_FAILED, errors);
         }
     }
+
 }

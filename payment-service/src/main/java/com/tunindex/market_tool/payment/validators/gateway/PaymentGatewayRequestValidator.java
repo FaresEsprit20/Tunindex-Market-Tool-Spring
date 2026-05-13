@@ -2,19 +2,24 @@ package com.tunindex.market_tool.payment.validators.gateway;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
-import com.tunindex.market_tool.payment.dto.CreatePaymentRequestDto;
+import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayRequest;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class CreatePaymentRequestValidator {
+public class PaymentGatewayRequestValidator {
 
-    public static void validate(CreatePaymentRequestDto request) {
+    public static void validate(PaymentGatewayRequest request) {
         List<String> errors = new ArrayList<>();
 
         if (request == null) {
-            errors.add("Payment request cannot be null");
-            throw new InvalidEntityException("Payment request is null", ErrorCodes.PAYMENT_GATEWAY_ERROR, errors);
+            errors.add("Gateway payment request cannot be null");
+            throw new InvalidEntityException("Gateway payment request is null", ErrorCodes.PAYMENT_GATEWAY_ERROR, errors);
+        }
+
+        // Validate transaction ID
+        if (request.getTransactionId() == null || request.getTransactionId().trim().isEmpty()) {
+            errors.add("Transaction ID must not be null or empty");
         }
 
         // Validate user ID
@@ -34,9 +39,6 @@ public class CreatePaymentRequestValidator {
         if (request.getAmount() != null && request.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             errors.add("Amount must be greater than 0");
         }
-        if (request.getAmount() != null && request.getAmount().compareTo(new java.math.BigDecimal("10000")) > 0) {
-            errors.add("Amount cannot exceed 10,000 TND");
-        }
 
         // Validate currency
         if (request.getCurrency() == null || request.getCurrency().trim().isEmpty()) {
@@ -44,14 +46,6 @@ public class CreatePaymentRequestValidator {
         }
         if (request.getCurrency() != null && !request.getCurrency().matches("^[A-Z]{3}$")) {
             errors.add("Currency must be a valid 3-letter ISO code");
-        }
-
-        // Validate billing period
-        if (request.getBillingPeriod() == null) {
-            errors.add("Billing period must not be null");
-        }
-        if (request.getBillingPeriod() != null && !request.getBillingPeriod().matches("(?i)^(MONTHLY|YEARLY)$")) {
-            errors.add("Billing period must be either MONTHLY or YEARLY");
         }
 
         // Validate customer email
@@ -70,16 +64,23 @@ public class CreatePaymentRequestValidator {
             errors.add("Customer name must be between 2 and 100 characters");
         }
 
-        // Validate customer phone (optional)
-        if (request.getCustomerPhone() != null && !request.getCustomerPhone().trim().isEmpty()) {
-            if (!request.getCustomerPhone().matches("^\\+?[0-9]{8,15}$")) {
-                errors.add("Customer phone must be a valid phone number");
-            }
+        // Validate URLs
+        if (request.getSuccessUrl() == null || request.getSuccessUrl().trim().isEmpty()) {
+            errors.add("Success URL must not be null or empty");
+        }
+
+        if (request.getCancelUrl() == null || request.getCancelUrl().trim().isEmpty()) {
+            errors.add("Cancel URL must not be null or empty");
+        }
+
+        if (request.getWebhookUrl() == null || request.getWebhookUrl().trim().isEmpty()) {
+            errors.add("Webhook URL must not be null or empty");
         }
 
         if (!errors.isEmpty()) {
-            throw new InvalidEntityException("Invalid payment request", ErrorCodes.PAYMENT_INVALID_AMOUNT, errors);
+            throw new InvalidEntityException("Invalid gateway payment request", ErrorCodes.PAYMENT_GATEWAY_ERROR, errors);
         }
     }
+
 
 }

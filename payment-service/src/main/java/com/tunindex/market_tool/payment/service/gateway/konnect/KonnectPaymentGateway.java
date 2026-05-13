@@ -15,8 +15,13 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -297,8 +302,59 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
     }
 
     private boolean verifySignature(PaymentGatewayWebhookPayload payload, String signature) {
-        // TODO: Implement actual signature verification using konnectConfig.getWebhookSecret()
-        return signature != null && !signature.isEmpty();
+        if (signature == null || signature.isEmpty()) {
+            log.warn("Missing webhook signature");
+            return false;
+        }
+
+        try {
+            // Get the webhook secret from configuration
+            String webhookSecret = konnectConfig.getWebhookSecret();
+            if (webhookSecret == null || webhookSecret.isEmpty()) {
+                log.warn("Webhook secret not configured - skipping signature verification");
+                return true; // In development, allow unsigned webhooks
+            }
+
+            // Build the payload string to verify
+            String payloadString = buildPayloadString(payload);
+
+            // Calculate HMAC-SHA256 signature
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKeySpec);
+            byte[] hmacBytes = mac.doFinal(payloadString.getBytes(StandardCharsets.UTF_8));
+            String calculatedSignature = Base64.getEncoder().encodeToString(hmacBytes);
+
+            // Compare signatures (constant time to prevent timing attacks)
+            boolean isValid = MessageDigest.isEqual(
+                    calculatedSignature.getBytes(StandardCharsets.UTF_8),
+                    signature.getBytes(StandardCharsets.UTF_8)
+            );
+
+            if (!isValid) {
+                log.warn("Invalid webhook signature. Expected: {}, Got: {}", calculatedSignature, signature);
+            }
+
+            return isValid;
+
+        } catch (Exception e) {
+            log.error("Error verifying webhook signature: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private String buildPayloadString(PaymentGatewayWebhookPayload payload) {
+        // Build the string that Konnect signed
+        // According to Konnect documentation, the payload string is typically:
+        // event_type + transaction_id + amount + currency + status + timestamp
+        StringBuilder sb = new StringBuilder();
+        sb.append(payload.getEventType() != null ? payload.getEventType() : "");
+        sb.append(payload.getTransactionId() != null ? payload.getTransactionId() : "");
+        sb.append(payload.getAmount() != null ? payload.getAmount().toString() : "");
+        sb.append(payload.getCurrency() != null ? payload.getCurrency() : "");
+        sb.append(payload.getStatus() != null ? payload.getStatus() : "");
+        sb.append(payload.getTimestamp() != null ? payload.getTimestamp().toString() : "");
+        return sb.toString();
     }
 
 }

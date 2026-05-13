@@ -14,6 +14,9 @@ import java.math.BigDecimal;
 public class PaymentRequestDto {
     private Long userId;
     private Long planId;
+    private String customerEmail;
+    private String customerName;
+    private String customerPhone;
     private BigDecimal amount;
     private String currency;
     private PaymentMethod paymentMethod;

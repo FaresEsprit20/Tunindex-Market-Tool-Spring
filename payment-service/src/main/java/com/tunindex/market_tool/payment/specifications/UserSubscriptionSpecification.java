@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.payment.specifications;
 
 import com.tunindex.market_tool.payment.entities.UserSubscription;
+import com.tunindex.market_tool.payment.entities.enums.BillingPeriod;
 import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
@@ -37,10 +38,11 @@ public class UserSubscriptionSpecification {
         };
     }
 
-    public static Specification<UserSubscription> billingPeriodEquals(String billingPeriod) {
+    // Change the billingPeriodEquals method to accept BillingPeriod enum:
+    public static Specification<UserSubscription> billingPeriodEquals(BillingPeriod billingPeriod) {
         return (root, query, cb) -> {
-            if (!StringUtils.hasLength(billingPeriod)) return null;
-            return cb.equal(cb.lower(root.get("billingPeriod")), billingPeriod.toLowerCase());
+            if (billingPeriod == null) return null;
+            return cb.equal(root.get("billingPeriod"), billingPeriod);
         };
     }
 

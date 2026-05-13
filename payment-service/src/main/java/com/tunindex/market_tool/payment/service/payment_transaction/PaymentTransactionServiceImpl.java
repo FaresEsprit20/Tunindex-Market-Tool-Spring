@@ -46,8 +46,7 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
 
         if (id == null || id <= 0) {
             errors.add("Transaction ID must be a positive number");
-            throw new InvalidEntityException("Invalid transaction ID",
-                    ErrorCodes.PAYMENT_NOT_FOUND, errors);
+            throw new InvalidEntityException("Invalid transaction ID", ErrorCodes.PAYMENT_NOT_FOUND, errors);
         }
 
         return paymentTransactionRepository.findById(id)
@@ -166,13 +165,10 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
     public PaymentResponseDto initiatePayment(PaymentRequestDto paymentRequest) {
         log.info("💰 Initiating payment for user: {}", paymentRequest.getUserId());
 
-        // Validate the payment request
         PaymentTransactionValidator.validate(paymentRequest);
 
-        // Generate unique transaction ID
         String transactionId = generateTransactionId();
 
-        // Create payment transaction
         PaymentTransaction transaction = PaymentTransaction.builder()
                 .transactionId(transactionId)
                 .userId(paymentRequest.getUserId())
@@ -348,14 +344,12 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
             spec = spec.and(PaymentTransactionSpecification.providerNameEquals(filters.get("providerName")));
         }
 
-        // Amount range filters
         if (filters.containsKey("minAmount") || filters.containsKey("maxAmount")) {
             BigDecimal minAmount = parseBigDecimal(filters, "minAmount");
             BigDecimal maxAmount = parseBigDecimal(filters, "maxAmount");
             spec = spec.and(PaymentTransactionSpecification.amountBetween(minAmount, maxAmount));
         }
 
-        // Date filters
         if (StringUtils.hasLength(filters.get("paymentDateFrom"))) {
             LocalDateTime from = parseLocalDateTime(filters.get("paymentDateFrom"));
             spec = spec.and(PaymentTransactionSpecification.paymentDateBetween(from, null));
@@ -407,7 +401,6 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
     }
 
     private String generatePaymentUrl(String transactionId) {
-        // This would be replaced with actual payment gateway URL
         return "/api/payments/" + transactionId + "/process";
     }
 }

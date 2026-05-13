@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.payment.dto;
 
+import com.tunindex.market_tool.payment.entities.enums.BillingPeriod;
 import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +20,7 @@ public class UserSubscriptionDto {
     private SubscriptionStatus status;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
-    private String billingPeriod;
+    private BillingPeriod billingPeriod;
     private Boolean autoRenew;
     private String cancellationReason;
     private LocalDateTime cancelledAt;

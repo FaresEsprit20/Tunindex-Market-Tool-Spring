@@ -1,17 +1,13 @@
 package com.tunindex.market_tool.payment.controller.gateway;
 
 import com.tunindex.market_tool.payment.controller.user_subscription.PaymentStatusResponseDto;
-import com.tunindex.market_tool.payment.dto.CreatePaymentRequestDto;
-import com.tunindex.market_tool.payment.dto.CreatePaymentResponseDto;
-import com.tunindex.market_tool.payment.dto.PaymentMethodType;
-import com.tunindex.market_tool.payment.dto.PaymentStatusRequestDto;
-import com.tunindex.market_tool.payment.dto.RefundPaymentRequestDto;
-import com.tunindex.market_tool.payment.dto.RefundPaymentResponseDto;
+import com.tunindex.market_tool.payment.dto.*;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayRequest;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayResponse;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayStatusRequest;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayStatusResponse;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
+import com.tunindex.market_tool.payment.service.gateway.PaymentMethodService;
 import com.tunindex.market_tool.payment.validators.gateway.CreatePaymentRequestValidator;
 import com.tunindex.market_tool.payment.validators.gateway.PaymentGatewayRequestValidator;
 import com.tunindex.market_tool.payment.validators.gateway.PaymentGatewayStatusRequestValidator;
@@ -23,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -41,6 +38,8 @@ public class PaymentGatewayController implements PaymentGatewayApi {
 
     @Value("${payment.webhook-url}")
     private String webhookUrl;
+
+    private final PaymentMethodService paymentMethodService;
 
     private String generateTransactionId() {
         return "TXN-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -146,4 +145,12 @@ public class PaymentGatewayController implements PaymentGatewayApi {
 
         return ResponseEntity.ok(response);
     }
+
+    @Override
+    public ResponseEntity<List<PaymentMethodResponseDto>> getAvailablePaymentMethods() {
+        log.info("GET /api/payments/payment-methods");
+        return ResponseEntity.ok(paymentMethodService.getAvailablePaymentMethods());
+    }
+
+    
 }

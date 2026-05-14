@@ -1,11 +1,7 @@
 package com.tunindex.market_tool.payment.controller.gateway;
 
 import com.tunindex.market_tool.payment.controller.user_subscription.PaymentStatusResponseDto;
-import com.tunindex.market_tool.payment.dto.CreatePaymentRequestDto;
-import com.tunindex.market_tool.payment.dto.CreatePaymentResponseDto;
-import com.tunindex.market_tool.payment.dto.PaymentStatusRequestDto;
-import com.tunindex.market_tool.payment.dto.RefundPaymentRequestDto;
-import com.tunindex.market_tool.payment.dto.RefundPaymentResponseDto;
+import com.tunindex.market_tool.payment.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -15,9 +11,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.util.List;
 
 @Tag(name = "Payment Gateway", description = "API for payment processing")
 @RequestMapping("/api/payments")
@@ -73,6 +72,17 @@ public interface PaymentGatewayApi {
             )
             @Valid @RequestBody CreatePaymentRequestDto request
     );
+
+
+    @GetMapping(value = "/payment-methods", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+            summary = "Get available payment methods",
+            description = "Returns the list of payment methods configured and available for the user"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payment methods retrieved successfully")
+    })
+    ResponseEntity<List<PaymentMethodResponseDto>> getAvailablePaymentMethods();
 
     @PostMapping(value = "/status", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(

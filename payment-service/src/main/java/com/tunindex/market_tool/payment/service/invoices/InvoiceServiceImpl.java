@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.payment.service.invoices;
 
+import com.itextpdf.text.pdf.PdfWriter;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
@@ -27,6 +28,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.*;
+import com.opencsv.CSVWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.StringWriter;
+import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
@@ -448,4 +455,292 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .createdAt(dto.getCreatedAt())
                 .build();
     }
+
+    @Override
+    public byte[] exportInvoicesToPdf(PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting invoices to PDF with pagination: page={}, size={}",
+                paginationDto.getPage(), paginationDto.getSize());
+
+        // Use large page size for export (500 records per page)
+        PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+        exportDto.setPage(1);
+        exportDto.setSize(500);
+        exportDto.setSortField(paginationDto.getSortField());
+        exportDto.setSortDirection(paginationDto.getSortDirection());
+        exportDto.setFilters(paginationDto.getFilters());
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4.rotate());
+
+        try {
+            PdfWriter writer = PdfWriter.getInstance(document, baos);
+            document.open();
+
+            // Add title
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Paragraph title = new Paragraph("Invoices Report", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph("Generated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+            document.add(new Paragraph(" "));
+
+            // Create table
+            PdfPTable table = new PdfPTable(9);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{10, 20, 15, 15, 15, 15, 20, 15, 15});
+
+            // Add headers
+            addTableHeader(table, "ID");
+            addTableHeader(table, "Invoice #");
+            addTableHeader(table, "User ID");
+            addTableHeader(table, "Amount");
+            addTableHeader(table, "Tax");
+            addTableHeader(table, "Total");
+            addTableHeader(table, "Status");
+            addTableHeader(table, "Issue Date");
+            addTableHeader(table, "Due Date");
+
+            // Fetch and add data with pagination
+            int page = 1;
+            boolean hasMore = true;
+
+            while (hasMore) {
+                exportDto.setPage(page);
+                Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+                Specification<Invoice> specification = buildSpecificationFromFilters(paginationDto.getFilters());
+                Page<Invoice> invoicePage = invoiceRepository.findAll(specification, pageable);
+
+                for (Invoice invoice : invoicePage.getContent()) {
+                    addTableRow(table, invoice);
+                }
+
+                hasMore = invoicePage.hasNext();
+                page++;
+            }
+
+            document.add(table);
+            document.close();
+
+            log.info("✅ PDF export completed. Size: {} bytes", baos.size());
+            return baos.toByteArray();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate PDF: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate PDF", e);
+        }
+    }
+
+    @Override
+    public byte[] exportInvoicesToCsv(PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting invoices to CSV with pagination: page={}, size={}",
+                paginationDto.getPage(), paginationDto.getSize());
+
+        PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+        exportDto.setPage(1);
+        exportDto.setSize(500);
+        exportDto.setSortField(paginationDto.getSortField());
+        exportDto.setSortDirection(paginationDto.getSortDirection());
+        exportDto.setFilters(paginationDto.getFilters());
+
+        StringWriter stringWriter = new StringWriter();
+        CSVWriter csvWriter = new CSVWriter(stringWriter);
+
+        // Write headers
+        String[] headers = {
+                "ID", "Invoice Number", "User ID", "Transaction ID",
+                "Amount", "Currency", "Tax Amount", "Total Amount",
+                "Status", "Issue Date", "Due Date", "Paid At", "Created At"
+        };
+        csvWriter.writeNext(headers);
+
+        // Fetch and write data with pagination
+        int page = 1;
+        boolean hasMore = true;
+
+        while (hasMore) {
+            exportDto.setPage(page);
+            Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+            Specification<Invoice> specification = buildSpecificationFromFilters(paginationDto.getFilters());
+            Page<Invoice> invoicePage = invoiceRepository.findAll(specification, pageable);
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+            for (Invoice invoice : invoicePage.getContent()) {
+                String[] row = {
+                        String.valueOf(invoice.getId()),
+                        invoice.getInvoiceNumber(),
+                        String.valueOf(invoice.getUserId()),
+                        String.valueOf(invoice.getTransactionId()),
+                        invoice.getAmount().toString(),
+                        invoice.getCurrency(),
+                        invoice.getTaxAmount() != null ? invoice.getTaxAmount().toString() : "",
+                        invoice.getTotalAmount().toString(),
+                        invoice.getStatus().name(),
+                        invoice.getIssueDate() != null ? invoice.getIssueDate().format(formatter) : "",
+                        invoice.getDueDate() != null ? invoice.getDueDate().format(formatter) : "",
+                        invoice.getPaidAt() != null ? invoice.getPaidAt().format(formatter) : "",
+                        invoice.getCreatedAt() != null ? invoice.getCreatedAt().format(formatter) : ""
+                };
+                csvWriter.writeNext(row);
+            }
+
+            hasMore = invoicePage.hasNext();
+            page++;
+        }
+
+        try {
+            csvWriter.close();
+            log.info("✅ CSV export completed");
+            return stringWriter.toString().getBytes();
+        } catch (Exception e) {
+            log.error("❌ Failed to generate CSV: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate CSV", e);
+        }
+    }
+
+    @Override
+    public byte[] exportUserInvoicesToPdf(Long userId, PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting invoices for user {} to PDF", userId);
+
+        PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+        exportDto.setPage(1);
+        exportDto.setSize(500);
+        exportDto.setSortField(paginationDto.getSortField());
+        exportDto.setSortDirection(paginationDto.getSortDirection());
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4.rotate());
+
+        try {
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Paragraph title = new Paragraph("Invoice Statement - User ID: " + userId, titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph("Generated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+            document.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(8);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{10, 20, 15, 15, 15, 20, 15, 15});
+
+            addTableHeader(table, "ID");
+            addTableHeader(table, "Invoice #");
+            addTableHeader(table, "Amount");
+            addTableHeader(table, "Tax");
+            addTableHeader(table, "Total");
+            addTableHeader(table, "Status");
+            addTableHeader(table, "Issue Date");
+            addTableHeader(table, "Due Date");
+
+            int page = 1;
+            boolean hasMore = true;
+
+            while (hasMore) {
+                exportDto.setPage(page);
+                Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+                Page<Invoice> invoicePage = invoiceRepository.findAllByUserId(userId, pageable);
+
+                for (Invoice invoice : invoicePage.getContent()) {
+                    addTableRow(table, invoice);
+                }
+
+                hasMore = invoicePage.hasNext();
+                page++;
+            }
+
+            document.add(table);
+            document.close();
+
+            return baos.toByteArray();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate user PDF: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate PDF", e);
+        }
+    }
+
+    @Override
+    public byte[] exportUserInvoicesToCsv(Long userId, PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting invoices for user {} to CSV", userId);
+
+        PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+        exportDto.setPage(1);
+        exportDto.setSize(500);
+        exportDto.setSortField(paginationDto.getSortField());
+        exportDto.setSortDirection(paginationDto.getSortDirection());
+
+        StringWriter stringWriter = new StringWriter();
+        CSVWriter csvWriter = new CSVWriter(stringWriter);
+
+        String[] headers = {
+                "ID", "Invoice Number", "Amount", "Currency",
+                "Tax Amount", "Total Amount", "Status", "Issue Date", "Due Date", "Paid At"
+        };
+        csvWriter.writeNext(headers);
+
+        int page = 1;
+        boolean hasMore = true;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        while (hasMore) {
+            exportDto.setPage(page);
+            Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+            Page<Invoice> invoicePage = invoiceRepository.findAllByUserId(userId, pageable);
+
+            for (Invoice invoice : invoicePage.getContent()) {
+                String[] row = {
+                        String.valueOf(invoice.getId()),
+                        invoice.getInvoiceNumber(),
+                        invoice.getAmount().toString(),
+                        invoice.getCurrency(),
+                        invoice.getTaxAmount() != null ? invoice.getTaxAmount().toString() : "",
+                        invoice.getTotalAmount().toString(),
+                        invoice.getStatus().name(),
+                        invoice.getIssueDate() != null ? invoice.getIssueDate().format(formatter) : "",
+                        invoice.getDueDate() != null ? invoice.getDueDate().format(formatter) : "",
+                        invoice.getPaidAt() != null ? invoice.getPaidAt().format(formatter) : ""
+                };
+                csvWriter.writeNext(row);
+            }
+
+            hasMore = invoicePage.hasNext();
+            page++;
+        }
+
+        try {
+            csvWriter.close();
+            return stringWriter.toString().getBytes();
+        } catch (Exception e) {
+            log.error("❌ Failed to generate user CSV: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate CSV", e);
+        }
+    }
+
+    private void addTableHeader(PdfPTable table, String headerText) {
+        Font font = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        PdfPCell cell = new PdfPCell(new Phrase(headerText, font));
+        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setPadding(5);
+        table.addCell(cell);
+    }
+
+    private void addTableRow(PdfPTable table, Invoice invoice) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        table.addCell(String.valueOf(invoice.getId()));
+        table.addCell(invoice.getInvoiceNumber());
+        table.addCell(String.valueOf(invoice.getUserId()));
+        table.addCell(invoice.getAmount().toString());
+        table.addCell(invoice.getTaxAmount() != null ? invoice.getTaxAmount().toString() : "-");
+        table.addCell(invoice.getTotalAmount().toString());
+        table.addCell(invoice.getStatus().name());
+        table.addCell(invoice.getIssueDate() != null ? invoice.getIssueDate().format(formatter) : "-");
+        table.addCell(invoice.getDueDate() != null ? invoice.getDueDate().format(formatter) : "-");
+    }
+
+
 }

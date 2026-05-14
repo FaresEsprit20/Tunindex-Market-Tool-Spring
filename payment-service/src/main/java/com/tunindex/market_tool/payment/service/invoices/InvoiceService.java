@@ -34,4 +34,12 @@ public interface InvoiceService {
     BigDecimal getTotalInvoicedAmountByUser(Long userId, InvoiceStatus status);
 
     void deleteInvoice(Long id);
+
+    byte[] exportInvoicesToPdf(PaginationAndFilteringDto paginationDto);
+
+    byte[] exportInvoicesToCsv(PaginationAndFilteringDto paginationDto);
+
+    byte[] exportUserInvoicesToPdf(Long userId, PaginationAndFilteringDto paginationDto);
+
+    byte[] exportUserInvoicesToCsv(Long userId, PaginationAndFilteringDto paginationDto);
 }

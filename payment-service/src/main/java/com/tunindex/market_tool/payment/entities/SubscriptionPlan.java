@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "subscription_plans")
@@ -31,9 +32,17 @@ public class SubscriptionPlan {
 
     private String currency;
 
+    // Multi-currency support - store prices in different currencies as JSON
+    @Convert(converter = PriceMapConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private Map<String, BigDecimal> pricesMonthly;
+
+    @Convert(converter = PriceMapConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private Map<String, BigDecimal> pricesYearly;
+
     private Integer durationDays;
 
-    @Column(columnDefinition = "TEXT")
     private String features;
 
     private Integer apiCallsLimit;

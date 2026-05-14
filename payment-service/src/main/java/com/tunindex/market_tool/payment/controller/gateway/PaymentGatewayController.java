@@ -152,5 +152,5 @@ public class PaymentGatewayController implements PaymentGatewayApi {
         return ResponseEntity.ok(paymentMethodService.getAvailablePaymentMethods());
     }
 
-    
+
 }

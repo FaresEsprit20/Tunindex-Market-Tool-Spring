@@ -44,8 +44,13 @@ public class UserSubscription {
 
     private LocalDateTime cancelledAt;
 
-    private LocalDateTime createdAt;
+    // New fields for auto-renewal
+    private Integer renewalAttempts;
+    private LocalDateTime lastRenewalAttempt;
+    private String lastRenewalError;
+    private Boolean renewalFailed;
 
+    private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     @PrePersist
@@ -53,6 +58,8 @@ public class UserSubscription {
         createdAt = LocalDateTime.now();
         startDate = LocalDateTime.now();
         autoRenew = true;
+        renewalAttempts = 0;
+        renewalFailed = false;
         if (status == null) status = SubscriptionStatus.PENDING;
     }
 

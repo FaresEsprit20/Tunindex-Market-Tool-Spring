@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
         "com.tunindex.market_tool.payment",
@@ -18,6 +19,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EnableJpaRepositories(basePackages = {
         "com.tunindex.market_tool.payment.repository"
 })
+@EnableScheduling
 @EnableDiscoveryClient
 @Slf4j
 public class PaymentServiceApplication {
@@ -31,4 +33,5 @@ public class PaymentServiceApplication {
         log.info("📖 Swagger UI: http://localhost:8088/swagger-ui.html");
         log.info("=".repeat(60));
     }
+
 }

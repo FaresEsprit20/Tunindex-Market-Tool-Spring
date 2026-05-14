@@ -8,10 +8,14 @@ import com.tunindex.market_tool.payment.entities.enums.InvoiceStatus;
 import com.tunindex.market_tool.payment.service.invoices.InvoiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -149,4 +153,95 @@ public class InvoiceController implements InvoiceApi {
         return ResponseEntity.ok(totalAmount);
     }
 
+    // ==================== EXPORT ENDPOINTS ====================
+
+    @Override
+    public ResponseEntity<byte[]> exportAllToPdf(String sortField, String sortDirection, InvoiceStatus status) {
+        log.info("GET /api/invoices/export/pdf - sortField: {}, sortDirection: {}, status: {}",
+                sortField, sortDirection, status);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        if (status != null) {
+            Map<String, String> filters = new HashMap<>();
+            filters.put("status", status.name());
+            paginationDto.setFilters(filters);
+        }
+
+        byte[] pdfBytes = invoiceService.exportInvoicesToPdf(paginationDto);
+        String filename = "invoices_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportAllToCsv(String sortField, String sortDirection, InvoiceStatus status) {
+        log.info("GET /api/invoices/export/csv - sortField: {}, sortDirection: {}, status: {}",
+                sortField, sortDirection, status);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        if (status != null) {
+            Map<String, String> filters = new HashMap<>();
+            filters.put("status", status.name());
+            paginationDto.setFilters(filters);
+        }
+
+        byte[] csvBytes = invoiceService.exportInvoicesToCsv(paginationDto);
+        String filename = "invoices_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csvBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportUserInvoicesToPdf(Long userId, String sortField, String sortDirection) {
+        log.info("GET /api/invoices/user/{}/export/pdf - sortField: {}, sortDirection: {}", userId, sortField, sortDirection);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        byte[] pdfBytes = invoiceService.exportUserInvoicesToPdf(userId, paginationDto);
+        String filename = "invoices_user_" + userId + "_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportUserInvoicesToCsv(Long userId, String sortField, String sortDirection) {
+        log.info("GET /api/invoices/user/{}/export/csv - sortField: {}, sortDirection: {}", userId, sortField, sortDirection);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        byte[] csvBytes = invoiceService.exportUserInvoicesToCsv(userId, paginationDto);
+        String filename = "invoices_user_" + userId + "_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csvBytes);
+    }
 }

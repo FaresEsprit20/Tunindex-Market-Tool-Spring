@@ -7,7 +7,6 @@ import com.tunindex.market_tool.payment.client.EmailServiceClient;
 import com.tunindex.market_tool.payment.config.KonnectConfig;
 import com.tunindex.market_tool.payment.dto.*;
 import com.tunindex.market_tool.payment.dto.gateway.*;
-import com.tunindex.market_tool.payment.entities.enums.BillingPeriod;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
 import com.tunindex.market_tool.payment.service.invoices.InvoiceService;
 import com.tunindex.market_tool.payment.service.payment_transaction.PaymentTransactionService;

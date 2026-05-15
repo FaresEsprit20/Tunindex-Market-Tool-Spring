@@ -1,6 +1,5 @@
 package com.tunindex.market_tool.payment.controller.gateway;
 
-import com.tunindex.market_tool.payment.controller.user_subscription.PaymentStatusResponseDto;
 import com.tunindex.market_tool.payment.dto.*;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayRequest;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayResponse;
@@ -29,6 +28,7 @@ import java.util.UUID;
 public class PaymentGatewayController implements PaymentGatewayApi {
 
     private final PaymentGatewayService paymentGatewayService;
+    private final PaymentMethodService paymentMethodService;
 
     @Value("${payment.success-redirect-url}")
     private String successRedirectUrl;
@@ -38,8 +38,6 @@ public class PaymentGatewayController implements PaymentGatewayApi {
 
     @Value("${payment.webhook-url}")
     private String webhookUrl;
-
-    private final PaymentMethodService paymentMethodService;
 
     private String generateTransactionId() {
         return "TXN-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -103,7 +101,7 @@ public class PaymentGatewayController implements PaymentGatewayApi {
         PaymentMethodType paymentMethod = null;
         if (gatewayResponse.getPaymentMethod() != null) {
             try {
-                paymentMethod = PaymentMethodType.valueOf(gatewayResponse.getPaymentMethod().toUpperCase());
+                paymentMethod = gatewayResponse.getPaymentMethod();
             } catch (IllegalArgumentException e) {
                 log.warn("Unknown payment method: {}", gatewayResponse.getPaymentMethod());
             }
@@ -151,6 +149,4 @@ public class PaymentGatewayController implements PaymentGatewayApi {
         log.info("GET /api/payments/payment-methods");
         return ResponseEntity.ok(paymentMethodService.getAvailablePaymentMethods());
     }
-
-
 }

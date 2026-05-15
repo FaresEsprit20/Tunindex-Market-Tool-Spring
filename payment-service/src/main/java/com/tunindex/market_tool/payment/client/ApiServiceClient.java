@@ -1,6 +1,5 @@
 package com.tunindex.market_tool.payment.client;
 
-import com.tunindex.market_tool.payment.dto.UserPaymentInfoDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

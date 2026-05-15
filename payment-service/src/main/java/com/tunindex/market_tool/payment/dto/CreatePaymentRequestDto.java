@@ -2,7 +2,6 @@ package com.tunindex.market_tool.payment.dto;
 
 import lombok.Data;
 import java.math.BigDecimal;
-import java.util.List;
 
 @Data
 public class CreatePaymentRequestDto {

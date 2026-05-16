@@ -2,8 +2,8 @@ package com.tunindex.market_tool.user_subscription.service.user_subscription;
 
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
-import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
 import com.tunindex.market_tool.user_subscription.dto.UserSubscriptionDto;
+import com.tunindex.market_tool.user_subscription.entities.enums.SubscriptionStatus;
 
 import java.time.LocalDateTime;
 

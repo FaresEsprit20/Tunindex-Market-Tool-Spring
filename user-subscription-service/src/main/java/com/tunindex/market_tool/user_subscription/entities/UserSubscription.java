@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.user_subscription.entities;
 
+import com.tunindex.market_tool.user_subscription.entities.enums.BillingPeriod;
 import com.tunindex.market_tool.user_subscription.entities.enums.SubscriptionStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

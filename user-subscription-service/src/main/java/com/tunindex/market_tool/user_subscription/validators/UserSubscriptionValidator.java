@@ -2,9 +2,9 @@ package com.tunindex.market_tool.user_subscription.validators;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
-import com.tunindex.market_tool.payment.entities.UserSubscription;
-import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
 import com.tunindex.market_tool.user_subscription.dto.UserSubscriptionDto;
+import com.tunindex.market_tool.user_subscription.entities.UserSubscription;
+import com.tunindex.market_tool.user_subscription.entities.enums.SubscriptionStatus;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

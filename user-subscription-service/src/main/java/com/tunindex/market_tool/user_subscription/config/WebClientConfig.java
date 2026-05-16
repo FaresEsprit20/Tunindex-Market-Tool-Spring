@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.payment.config;
+package com.tunindex.market_tool.user_subscription.config;
 
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslContext;

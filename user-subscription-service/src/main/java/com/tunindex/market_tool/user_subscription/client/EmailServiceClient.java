@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.payment.client;
+package com.tunindex.market_tool.user_subscription.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

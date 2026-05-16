@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.user_subscription.specifications;
 
-import com.tunindex.market_tool.payment.entities.SubscriptionPlan;
+import com.tunindex.market_tool.user_subscription.entities.SubscriptionPlan;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 

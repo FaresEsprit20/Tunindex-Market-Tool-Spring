@@ -6,12 +6,13 @@ import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.PaginationUtil;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
-import com.tunindex.market_tool.payment.entities.SubscriptionPlan;
-import com.tunindex.market_tool.payment.entities.UserSubscription;
-import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
-import com.tunindex.market_tool.payment.repository.SubscriptionPlanRepository;
-import com.tunindex.market_tool.payment.repository.UserSubscriptionRepository;
 import com.tunindex.market_tool.user_subscription.dto.UserSubscriptionDto;
+import com.tunindex.market_tool.user_subscription.entities.SubscriptionPlan;
+import com.tunindex.market_tool.user_subscription.entities.UserSubscription;
+import com.tunindex.market_tool.user_subscription.entities.enums.BillingPeriod;
+import com.tunindex.market_tool.user_subscription.entities.enums.SubscriptionStatus;
+import com.tunindex.market_tool.user_subscription.repository.SubscriptionPlanRepository;
+import com.tunindex.market_tool.user_subscription.repository.UserSubscriptionRepository;
 import com.tunindex.market_tool.user_subscription.specifications.UserSubscriptionSpecification;
 import com.tunindex.market_tool.user_subscription.validators.UserSubscriptionValidator;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,6 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
         }
 
         return userSubscriptionRepository.findById(id)
-                .map(this::convertToDto)
                 .orElseThrow(() -> {
                     errors.add("No subscription found with id: " + id);
                     return new EntityNotFoundException(

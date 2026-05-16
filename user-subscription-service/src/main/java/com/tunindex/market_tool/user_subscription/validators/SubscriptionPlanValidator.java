@@ -2,8 +2,8 @@ package com.tunindex.market_tool.user_subscription.validators;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
-import com.tunindex.market_tool.payment.entities.SubscriptionPlan;
 import com.tunindex.market_tool.user_subscription.dto.SubscriptionPlanDto;
+import com.tunindex.market_tool.user_subscription.entities.SubscriptionPlan;
 
 import java.util.ArrayList;
 import java.util.List;

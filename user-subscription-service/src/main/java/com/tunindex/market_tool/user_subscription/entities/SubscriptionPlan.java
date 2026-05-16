@@ -32,15 +32,6 @@ public class SubscriptionPlan {
 
     private String currency;
 
-    // Multi-currency support - store prices in different currencies as JSON
-    @Convert(converter = PriceMapConverter.class)
-    @Column(columnDefinition = "TEXT")
-    private Map<String, BigDecimal> pricesMonthly;
-
-    @Convert(converter = PriceMapConverter.class)
-    @Column(columnDefinition = "TEXT")
-    private Map<String, BigDecimal> pricesYearly;
-
     private Integer durationDays;
 
     private String features;

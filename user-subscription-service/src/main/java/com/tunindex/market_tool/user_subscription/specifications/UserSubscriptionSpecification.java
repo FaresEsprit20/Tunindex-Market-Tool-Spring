@@ -1,9 +1,8 @@
 package com.tunindex.market_tool.user_subscription.specifications;
 
-import com.tunindex.market_tool.payment.entities.UserSubscription;
-import com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus;
+import com.tunindex.market_tool.user_subscription.entities.UserSubscription;
+import com.tunindex.market_tool.user_subscription.entities.enums.SubscriptionStatus;
 import org.springframework.data.jpa.domain.Specification;
-
 import java.time.LocalDateTime;
 
 public class UserSubscriptionSpecification {

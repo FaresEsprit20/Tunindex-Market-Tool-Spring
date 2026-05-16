@@ -11,7 +11,7 @@
     </parent>
 
 
-    <artifactId>payment-service</artifactId>
+    <artifactId>billing-service</artifactId>
     <packaging>jar</packaging>
 
     <properties>

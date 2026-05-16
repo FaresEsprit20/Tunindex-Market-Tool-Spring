@@ -6,9 +6,9 @@ import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import com.tunindex.market_tool.common.utils.pagination.PaginationAndFilteringDto;
 import com.tunindex.market_tool.common.utils.pagination.PaginationUtil;
 import com.tunindex.market_tool.common.utils.pagination.response.PagedResponse;
-import com.tunindex.market_tool.payment.entities.SubscriptionPlan;
-import com.tunindex.market_tool.payment.repository.SubscriptionPlanRepository;
 import com.tunindex.market_tool.user_subscription.dto.SubscriptionPlanDto;
+import com.tunindex.market_tool.user_subscription.entities.SubscriptionPlan;
+import com.tunindex.market_tool.user_subscription.repository.SubscriptionPlanRepository;
 import com.tunindex.market_tool.user_subscription.specifications.SubscriptionPlanSpecification;
 import com.tunindex.market_tool.user_subscription.validators.SubscriptionPlanValidator;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +46,6 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         }
 
         return subscriptionPlanRepository.findById(id)
-                .map(this::convertToDto)
                 .orElseThrow(() -> {
                     errors.add("No subscription plan found with id: " + id);
                     return new EntityNotFoundException(

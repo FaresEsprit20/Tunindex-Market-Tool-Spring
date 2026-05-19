@@ -30,14 +30,10 @@ class PaymentTransactionRepositoryTest {
     @Autowired
     private TestEntityManager entityManager;
 
-    private PaymentTransaction transaction1;
-    private PaymentTransaction transaction2;
-    private PaymentTransaction transaction3;
-
     @BeforeEach
     void setUp() {
         // Create test data
-        transaction1 = PaymentTransaction.builder()
+        PaymentTransaction transaction1 = PaymentTransaction.builder()
                 .transactionId("TXN-001")
                 .userId(1L)
                 .amount(new BigDecimal("99.99"))
@@ -52,7 +48,7 @@ class PaymentTransactionRepositoryTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        transaction2 = PaymentTransaction.builder()
+        PaymentTransaction transaction2 = PaymentTransaction.builder()
                 .transactionId("TXN-002")
                 .userId(1L)
                 .amount(new BigDecimal("49.99"))
@@ -67,7 +63,7 @@ class PaymentTransactionRepositoryTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        transaction3 = PaymentTransaction.builder()
+        PaymentTransaction transaction3 = PaymentTransaction.builder()
                 .transactionId("TXN-003")
                 .userId(2L)
                 .amount(new BigDecimal("199.99"))

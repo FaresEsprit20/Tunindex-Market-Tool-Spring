@@ -28,13 +28,11 @@ class RefundRepositoryTest {
     @Autowired
     private TestEntityManager entityManager;
 
-    private Refund refund1;
-    private Refund refund2;
-    private Refund refund3;
+
 
     @BeforeEach
     void setUp() {
-        refund1 = Refund.builder()
+        Refund refund1 = Refund.builder()
                 .transactionId(100L)
                 .amount(new BigDecimal("99.99"))
                 .reason("Customer request")
@@ -44,7 +42,7 @@ class RefundRepositoryTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        refund2 = Refund.builder()
+        Refund refund2 = Refund.builder()
                 .transactionId(100L)
                 .amount(new BigDecimal("50.00"))
                 .reason("Partial refund")
@@ -54,7 +52,7 @@ class RefundRepositoryTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        refund3 = Refund.builder()
+        Refund refund3 = Refund.builder()
                 .transactionId(200L)
                 .amount(new BigDecimal("199.99"))
                 .reason("Service issue")

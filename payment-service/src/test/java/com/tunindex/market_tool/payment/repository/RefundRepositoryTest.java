@@ -28,7 +28,7 @@ class RefundRepositoryTest {
     @Autowired
     private TestEntityManager entityManager;
 
-
+    private Refund refund2;
 
     @BeforeEach
     void setUp() {
@@ -42,7 +42,7 @@ class RefundRepositoryTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        Refund refund2 = Refund.builder()
+        refund2 = Refund.builder()
                 .transactionId(100L)
                 .amount(new BigDecimal("50.00"))
                 .reason("Partial refund")

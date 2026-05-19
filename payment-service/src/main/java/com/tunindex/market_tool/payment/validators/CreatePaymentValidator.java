@@ -78,16 +78,6 @@ public class CreatePaymentValidator {
             }
         }
 
-        // Validate allowed payment methods (optional)
-        if (request.getAllowedPaymentMethods() != null && !request.getAllowedPaymentMethods().isEmpty()) {
-            for (PaymentMethodType method : request.getAllowedPaymentMethods()) {
-                if (method == null) {
-                    errors.add("Payment method cannot be null");
-                    break;
-                }
-            }
-        }
-
         if (!errors.isEmpty()) {
             throw new InvalidEntityException("Invalid payment request", ErrorCodes.PAYMENT_INVALID_AMOUNT, errors);
         }

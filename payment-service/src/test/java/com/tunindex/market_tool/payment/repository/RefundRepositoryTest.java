@@ -20,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@Transactional
 class RefundRepositoryTest {
 
     @Autowired
@@ -239,6 +240,7 @@ class RefundRepositoryTest {
     }
 
     @Test
+    @Transactional
     void save_ShouldPersistRefund() {
         // Given
         Refund newRefund = Refund.builder()

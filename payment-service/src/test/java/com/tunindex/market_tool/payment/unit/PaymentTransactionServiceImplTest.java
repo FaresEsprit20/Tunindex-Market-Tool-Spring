@@ -105,7 +105,7 @@ class PaymentTransactionServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> paymentTransactionService.findById(null))
                 .isInstanceOf(InvalidEntityException.class)
-                .hasMessageContaining("Transaction ID must be a positive number");
+                .hasMessage("Invalid transaction ID");
     }
 
     @Test
@@ -113,7 +113,7 @@ class PaymentTransactionServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> paymentTransactionService.findById(0L))
                 .isInstanceOf(InvalidEntityException.class)
-                .hasMessageContaining("Transaction ID must be a positive number");
+                .hasMessage("Invalid transaction ID");
     }
 
     @Test
@@ -218,7 +218,6 @@ class PaymentTransactionServiceImplTest {
         // Given
         Pageable pageable = PageRequest.of(0, 10);
         Page<PaymentTransaction> page = new PageImpl<>(List.of(paymentTransaction), pageable, 1);
-        // Fix: Use eq() with explicit type casting to avoid ambiguity
         when(paymentTransactionRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
         // When
@@ -250,15 +249,29 @@ class PaymentTransactionServiceImplTest {
     @Test
     void updateTransactionStatus_ShouldUpdateAndReturn() {
         // Given
+        PaymentTransaction updatedTransaction = PaymentTransaction.builder()
+                .id(1L)
+                .transactionId("TXN-001")
+                .userId(1L)
+                .amount(new BigDecimal("99.99"))
+                .currency("TND")
+                .paymentMethod(PaymentMethod.CREDIT_CARD)
+                .status(PaymentStatus.COMPLETED)  // Updated status
+                .description("Test payment")
+                .subscriptionId(100L)
+                .createdAt(LocalDateTime.now())
+                .paymentDate(LocalDateTime.now())
+                .build();
+
         when(paymentTransactionRepository.findByTransactionId("TXN-001")).thenReturn(Optional.of(paymentTransaction));
-        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(paymentTransaction);
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(updatedTransaction);
 
         // When
         PaymentResponseDto result = paymentTransactionService.updateTransactionStatus("TXN-001", PaymentStatus.COMPLETED);
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getStatus()).isEqualTo(PaymentStatus.PENDING); // Still PENDING because we mocked
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
 
         verify(paymentTransactionRepository).findByTransactionId("TXN-001");
         verify(paymentTransactionRepository).save(any(PaymentTransaction.class));
@@ -292,42 +305,88 @@ class PaymentTransactionServiceImplTest {
     @Test
     void markAsCompleted_ShouldCallUpdateTransactionStatus() {
         // Given
+        PaymentTransaction completedTransaction = PaymentTransaction.builder()
+                .id(1L)
+                .transactionId("TXN-001")
+                .userId(1L)
+                .amount(new BigDecimal("99.99"))
+                .currency("TND")
+                .paymentMethod(PaymentMethod.CREDIT_CARD)
+                .status(PaymentStatus.COMPLETED)
+                .description("Test payment")
+                .subscriptionId(100L)
+                .createdAt(LocalDateTime.now())
+                .paymentDate(LocalDateTime.now())
+                .build();
+
         when(paymentTransactionRepository.findByTransactionId("TXN-001")).thenReturn(Optional.of(paymentTransaction));
-        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(paymentTransaction);
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(completedTransaction);
 
         // When
         PaymentResponseDto result = paymentTransactionService.markAsCompleted("TXN-001");
 
         // Then
         assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
         verify(paymentTransactionRepository).findByTransactionId("TXN-001");
     }
 
     @Test
     void markAsFailed_ShouldCallUpdateTransactionStatusWithReason() {
         // Given
+        PaymentTransaction failedTransaction = PaymentTransaction.builder()
+                .id(1L)
+                .transactionId("TXN-001")
+                .userId(1L)
+                .amount(new BigDecimal("99.99"))
+                .currency("TND")
+                .paymentMethod(PaymentMethod.CREDIT_CARD)
+                .status(PaymentStatus.FAILED)
+                .failureReason("Payment failed")
+                .description("Test payment")
+                .subscriptionId(100L)
+                .createdAt(LocalDateTime.now())
+                .paymentDate(LocalDateTime.now())
+                .build();
+
         when(paymentTransactionRepository.findByTransactionId("TXN-001")).thenReturn(Optional.of(paymentTransaction));
-        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(paymentTransaction);
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(failedTransaction);
 
         // When
         PaymentResponseDto result = paymentTransactionService.markAsFailed("TXN-001", "Payment failed");
 
         // Then
         assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.FAILED);
         verify(paymentTransactionRepository).findByTransactionId("TXN-001");
     }
 
     @Test
     void markAsRefunded_ShouldCallUpdateTransactionStatus() {
         // Given
+        PaymentTransaction refundedTransaction = PaymentTransaction.builder()
+                .id(1L)
+                .transactionId("TXN-001")
+                .userId(1L)
+                .amount(new BigDecimal("99.99"))
+                .currency("TND")
+                .paymentMethod(PaymentMethod.CREDIT_CARD)
+                .status(PaymentStatus.REFUNDED)
+                .description("Test payment")
+                .subscriptionId(100L)
+                .createdAt(LocalDateTime.now())
+                .paymentDate(LocalDateTime.now())
+                .build();
+
         when(paymentTransactionRepository.findByTransactionId("TXN-001")).thenReturn(Optional.of(paymentTransaction));
-        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(paymentTransaction);
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(refundedTransaction);
 
         // When
         PaymentResponseDto result = paymentTransactionService.markAsRefunded("TXN-001");
 
         // Then
         assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
         verify(paymentTransactionRepository).findByTransactionId("TXN-001");
     }
 
@@ -366,7 +425,7 @@ class PaymentTransactionServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> paymentTransactionService.findAllByUserId(1L, paginationDto))
                 .isInstanceOf(InvalidEntityException.class)
-                .hasMessageContaining("Invalid pagination parameters");
+                .hasMessage("Invalid pagination parameters");
     }
 
     @Test
@@ -377,7 +436,7 @@ class PaymentTransactionServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> paymentTransactionService.findAllByUserId(1L, paginationDto))
                 .isInstanceOf(InvalidEntityException.class)
-                .hasMessageContaining("Invalid pagination parameters");
+                .hasMessage("Invalid pagination parameters");
     }
 
     @Test
@@ -388,7 +447,7 @@ class PaymentTransactionServiceImplTest {
         // When & Then
         assertThatThrownBy(() -> paymentTransactionService.findAllByUserId(1L, paginationDto))
                 .isInstanceOf(InvalidEntityException.class)
-                .hasMessageContaining("Page size cannot exceed 100");
+                .hasMessage("Invalid pagination parameters");
     }
 
     @Test
@@ -419,4 +478,5 @@ class PaymentTransactionServiceImplTest {
         assertThat(result.getStatus()).isEqualTo(paymentTransaction.getStatus());
         assertThat(result.getCreatedAt()).isEqualTo(paymentTransaction.getCreatedAt());
     }
+
 }

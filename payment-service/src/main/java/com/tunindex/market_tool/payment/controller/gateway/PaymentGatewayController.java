@@ -2,7 +2,6 @@ package com.tunindex.market_tool.payment.controller.gateway;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
-import com.tunindex.market_tool.payment.client.ApiServiceClient;
 import com.tunindex.market_tool.payment.dto.*;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayRequest;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayResponse;
@@ -35,7 +34,6 @@ public class PaymentGatewayController implements PaymentGatewayApi {
     private final PaymentGatewayService paymentGatewayService;
     private final PaymentMethodService paymentMethodService;
     private final WebClient.Builder webClientBuilder;
-    private final ApiServiceClient apiServiceClient;
 
     @Value("${internal.api.key}")
     private String internalApiKey;

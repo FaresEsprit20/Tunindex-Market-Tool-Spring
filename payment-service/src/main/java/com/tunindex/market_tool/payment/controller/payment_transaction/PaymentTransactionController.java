@@ -9,10 +9,14 @@ import com.tunindex.market_tool.payment.entities.enums.PaymentStatus;
 import com.tunindex.market_tool.payment.service.payment_transaction.PaymentTransactionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -134,5 +138,120 @@ public class PaymentTransactionController implements PaymentTransactionApi {
         long count = paymentTransactionService.countSuccessfulPaymentsByUser(userId);
         return ResponseEntity.ok(count);
     }
+
+    @Override
+    public ResponseEntity<byte[]> exportTransactionsToPdf(String sortField, String sortDirection, PaymentStatus status) {
+        log.info("GET /api/payments/export/pdf - sortField: {}, sortDirection: {}, status: {}", sortField, sortDirection, status);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        if (status != null) {
+            Map<String, String> filters = new HashMap<>();
+            filters.put("status", status.name());
+            paginationDto.setFilters(filters);
+        }
+
+        byte[] pdfBytes = paymentTransactionService.exportTransactionsToPdf(paginationDto);
+        String filename = "transactions_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportTransactionsToCsv(String sortField, String sortDirection, PaymentStatus status) {
+        log.info("GET /api/payments/export/csv - sortField: {}, sortDirection: {}, status: {}", sortField, sortDirection, status);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        if (status != null) {
+            Map<String, String> filters = new HashMap<>();
+            filters.put("status", status.name());
+            paginationDto.setFilters(filters);
+        }
+
+        byte[] csvBytes = paymentTransactionService.exportTransactionsToCsv(paginationDto);
+        String filename = "transactions_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csvBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportUserTransactionsToPdf(Long userId, String sortField, String sortDirection) {
+        log.info("GET /api/payments/user/{}/export/pdf - sortField: {}, sortDirection: {}", userId, sortField, sortDirection);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        byte[] pdfBytes = paymentTransactionService.exportUserTransactionsToPdf(userId, paginationDto);
+        String filename = "user_" + userId + "_transactions_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportUserTransactionsToCsv(Long userId, String sortField, String sortDirection) {
+        log.info("GET /api/payments/user/{}/export/csv - sortField: {}, sortDirection: {}", userId, sortField, sortDirection);
+
+        PaginationAndFilteringDto paginationDto = new PaginationAndFilteringDto();
+        paginationDto.setPage(1);
+        paginationDto.setSize(500);
+        paginationDto.setSortField(sortField);
+        paginationDto.setSortDirection(SortingDirection.valueOf(sortDirection.toUpperCase()));
+
+        byte[] csvBytes = paymentTransactionService.exportUserTransactionsToCsv(userId, paginationDto);
+        String filename = "user_" + userId + "_transactions_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csvBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportSingleTransactionToPdf(String transactionId) {
+        log.info("GET /api/payments/{}/export/pdf", transactionId);
+
+        byte[] pdfBytes = paymentTransactionService.exportSingleTransactionToPdf(transactionId);
+        String filename = "transaction_" + transactionId + ".pdf";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> exportSingleTransactionToCsv(String transactionId) {
+        log.info("GET /api/payments/{}/export/csv", transactionId);
+
+        byte[] csvBytes = paymentTransactionService.exportSingleTransactionToCsv(transactionId);
+        String filename = "transaction_" + transactionId + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csvBytes);
+    }
+
 
 }

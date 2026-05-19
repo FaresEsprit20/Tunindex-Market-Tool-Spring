@@ -282,4 +282,88 @@ public interface PaymentTransactionApi {
             @Parameter(description = "User ID", required = true, example = "1")
             @PathVariable @NotNull @Positive Long userId
     );
+
+
+    @GetMapping(value = BASE_URL + "/export/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Export all transactions to PDF", description = "Exports all transactions to PDF format")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "PDF exported successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid parameters", content = @Content)
+    })
+    ResponseEntity<byte[]> exportTransactionsToPdf(
+            @Parameter(description = "Sort field", example = "createdAt")
+            @RequestParam(defaultValue = "createdAt") String sortField,
+            @Parameter(description = "Sort direction (ASC or DESC)", example = "DESC")
+            @RequestParam(defaultValue = "DESC") String sortDirection,
+            @Parameter(description = "Filter by status", example = "COMPLETED")
+            @RequestParam(required = false) PaymentStatus status
+    );
+
+    @GetMapping(value = BASE_URL + "/export/csv", produces = "text/csv")
+    @Operation(summary = "Export all transactions to CSV", description = "Exports all transactions to CSV format")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "CSV exported successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid parameters", content = @Content)
+    })
+    ResponseEntity<byte[]> exportTransactionsToCsv(
+            @Parameter(description = "Sort field", example = "createdAt")
+            @RequestParam(defaultValue = "createdAt") String sortField,
+            @Parameter(description = "Sort direction (ASC or DESC)", example = "DESC")
+            @RequestParam(defaultValue = "DESC") String sortDirection,
+            @Parameter(description = "Filter by status", example = "COMPLETED")
+            @RequestParam(required = false) PaymentStatus status
+    );
+
+    @GetMapping(value = BASE_URL + "/user/{userId}/export/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Export user transactions to PDF", description = "Exports transactions for a specific user to PDF")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "PDF exported successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid parameters", content = @Content)
+    })
+    ResponseEntity<byte[]> exportUserTransactionsToPdf(
+            @Parameter(description = "User ID", required = true, example = "1")
+            @PathVariable @NotNull @Positive Long userId,
+            @Parameter(description = "Sort field", example = "createdAt")
+            @RequestParam(defaultValue = "createdAt") String sortField,
+            @Parameter(description = "Sort direction (ASC or DESC)", example = "DESC")
+            @RequestParam(defaultValue = "DESC") String sortDirection
+    );
+
+    @GetMapping(value = BASE_URL + "/user/{userId}/export/csv", produces = "text/csv")
+    @Operation(summary = "Export user transactions to CSV", description = "Exports transactions for a specific user to CSV")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "CSV exported successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid parameters", content = @Content)
+    })
+    ResponseEntity<byte[]> exportUserTransactionsToCsv(
+            @Parameter(description = "User ID", required = true, example = "1")
+            @PathVariable @NotNull @Positive Long userId,
+            @Parameter(description = "Sort field", example = "createdAt")
+            @RequestParam(defaultValue = "createdAt") String sortField,
+            @Parameter(description = "Sort direction (ASC or DESC)", example = "DESC")
+            @RequestParam(defaultValue = "DESC") String sortDirection
+    );
+
+    @GetMapping(value = BASE_URL + "/{transactionId}/export/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Export single transaction to PDF", description = "Exports a single transaction to PDF")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "PDF exported successfully"),
+            @ApiResponse(responseCode = "404", description = "Transaction not found", content = @Content)
+    })
+    ResponseEntity<byte[]> exportSingleTransactionToPdf(
+            @Parameter(description = "Transaction ID", required = true, example = "TXN-1705123456789-ABC123")
+            @PathVariable @NotNull String transactionId
+    );
+
+    @GetMapping(value = BASE_URL + "/{transactionId}/export/csv", produces = "text/csv")
+    @Operation(summary = "Export single transaction to CSV", description = "Exports a single transaction to CSV")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "CSV exported successfully"),
+            @ApiResponse(responseCode = "404", description = "Transaction not found", content = @Content)
+    })
+    ResponseEntity<byte[]> exportSingleTransactionToCsv(
+            @Parameter(description = "Transaction ID", required = true, example = "TXN-1705123456789-ABC123")
+            @PathVariable @NotNull String transactionId
+    );
+
 }

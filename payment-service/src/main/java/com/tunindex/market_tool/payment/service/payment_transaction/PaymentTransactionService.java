@@ -39,4 +39,18 @@ public interface PaymentTransactionService {
     BigDecimal getTotalAmountSpentByUser(Long userId, PaymentStatus status);
 
     long countSuccessfulPaymentsByUser(Long userId);
+
+    // ========== EXPORT METHODS ==========
+
+    byte[] exportTransactionsToPdf(PaginationAndFilteringDto paginationDto);
+
+    byte[] exportTransactionsToCsv(PaginationAndFilteringDto paginationDto);
+
+    byte[] exportUserTransactionsToPdf(Long userId, PaginationAndFilteringDto paginationDto);
+
+    byte[] exportUserTransactionsToCsv(Long userId, PaginationAndFilteringDto paginationDto);
+
+    byte[] exportSingleTransactionToPdf(String transactionId);
+
+    byte[] exportSingleTransactionToCsv(String transactionId);
 }

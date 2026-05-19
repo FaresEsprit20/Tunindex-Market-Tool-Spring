@@ -1,5 +1,8 @@
 package com.tunindex.market_tool.payment.service.payment_transaction;
 
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.*;
+import com.opencsv.CSVWriter;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
@@ -23,8 +26,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.ByteArrayOutputStream;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -261,6 +267,355 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
         return paymentTransactionRepository.countSuccessfulPaymentsByUser(userId, PaymentStatus.COMPLETED);
     }
 
+    // ========== EXPORT METHODS ==========
+
+    @Override
+    public byte[] exportTransactionsToPdf(PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting all transactions to PDF");
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4.rotate());
+
+        try {
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            // Add title
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Paragraph title = new Paragraph("Payment Transactions Report", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph(" "));
+            document.add(new Paragraph("Generated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+            document.add(new Paragraph(" "));
+
+            // Create table
+            PdfPTable table = new PdfPTable(9);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{10, 20, 15, 15, 15, 20, 15, 20, 20});
+
+            // Add headers
+            addPdfTableHeader(table, "ID");
+            addPdfTableHeader(table, "Transaction ID");
+            addPdfTableHeader(table, "User ID");
+            addPdfTableHeader(table, "Amount");
+            addPdfTableHeader(table, "Currency");
+            addPdfTableHeader(table, "Status");
+            addPdfTableHeader(table, "Payment Method");
+            addPdfTableHeader(table, "Payment Date");
+            addPdfTableHeader(table, "Description");
+
+            // Fetch all pages
+            int page = 1;
+            boolean hasMore = true;
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+            while (hasMore) {
+                PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+                exportDto.setPage(page);
+                exportDto.setSize(500);
+                exportDto.setSortField(paginationDto.getSortField());
+                exportDto.setSortDirection(paginationDto.getSortDirection());
+                exportDto.setFilters(paginationDto.getFilters());
+
+                Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+                Specification<PaymentTransaction> specification = buildSpecificationFromFilters(paginationDto.getFilters());
+                Page<PaymentTransaction> transactionPage = paymentTransactionRepository.findAll(specification, pageable);
+
+                for (PaymentTransaction transaction : transactionPage.getContent()) {
+                    addPdfTableRow(table, transaction, dateFormatter);
+                }
+
+                hasMore = transactionPage.hasNext();
+                page++;
+            }
+
+            document.add(table);
+            document.close();
+
+            log.info("✅ PDF export completed. Size: {} bytes", baos.size());
+            return baos.toByteArray();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate PDF: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate PDF", e);
+        }
+    }
+
+    @Override
+    public byte[] exportTransactionsToCsv(PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting all transactions to CSV");
+
+        StringWriter stringWriter = new StringWriter();
+        CSVWriter csvWriter = new CSVWriter(stringWriter);
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        try {
+            // Write headers
+            String[] headers = {
+                    "ID", "Transaction ID", "User ID", "Amount", "Currency",
+                    "Status", "Payment Method", "Payment Date", "Description", "Failure Reason"
+            };
+            csvWriter.writeNext(headers);
+
+            // Fetch all pages
+            int page = 1;
+            boolean hasMore = true;
+
+            while (hasMore) {
+                PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+                exportDto.setPage(page);
+                exportDto.setSize(500);
+                exportDto.setSortField(paginationDto.getSortField());
+                exportDto.setSortDirection(paginationDto.getSortDirection());
+                exportDto.setFilters(paginationDto.getFilters());
+
+                Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+                Specification<PaymentTransaction> specification = buildSpecificationFromFilters(paginationDto.getFilters());
+                Page<PaymentTransaction> transactionPage = paymentTransactionRepository.findAll(specification, pageable);
+
+                for (PaymentTransaction transaction : transactionPage.getContent()) {
+                    String[] row = {
+                            String.valueOf(transaction.getId()),
+                            transaction.getTransactionId(),
+                            String.valueOf(transaction.getUserId()),
+                            transaction.getAmount().toString(),
+                            transaction.getCurrency(),
+                            transaction.getStatus().name(),
+                            transaction.getPaymentMethod() != null ? transaction.getPaymentMethod().name() : "",
+                            transaction.getPaymentDate() != null ? transaction.getPaymentDate().format(dateFormatter) : "",
+                            transaction.getDescription() != null ? transaction.getDescription() : "",
+                            transaction.getFailureReason() != null ? transaction.getFailureReason() : ""
+                    };
+                    csvWriter.writeNext(row);
+                }
+
+                hasMore = transactionPage.hasNext();
+                page++;
+            }
+
+            csvWriter.close();
+            log.info("✅ CSV export completed");
+            return stringWriter.toString().getBytes();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate CSV: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate CSV", e);
+        }
+    }
+
+    @Override
+    public byte[] exportUserTransactionsToPdf(Long userId, PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting transactions for user {} to PDF", userId);
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4.rotate());
+
+        try {
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Paragraph title = new Paragraph("User Payment Transactions Report - User ID: " + userId, titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph(" "));
+            document.add(new Paragraph("Generated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+            document.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(8);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{10, 20, 15, 15, 15, 20, 15, 20});
+
+            addPdfTableHeader(table, "ID");
+            addPdfTableHeader(table, "Transaction ID");
+            addPdfTableHeader(table, "Amount");
+            addPdfTableHeader(table, "Currency");
+            addPdfTableHeader(table, "Status");
+            addPdfTableHeader(table, "Payment Method");
+            addPdfTableHeader(table, "Payment Date");
+            addPdfTableHeader(table, "Description");
+
+            int page = 1;
+            boolean hasMore = true;
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+            while (hasMore) {
+                PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+                exportDto.setPage(page);
+                exportDto.setSize(500);
+                exportDto.setSortField(paginationDto.getSortField());
+                exportDto.setSortDirection(paginationDto.getSortDirection());
+
+                Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+                Page<PaymentTransaction> transactionPage = paymentTransactionRepository.findAllByUserId(userId, pageable);
+
+                for (PaymentTransaction transaction : transactionPage.getContent()) {
+                    addPdfTableRowForUser(table, transaction, dateFormatter);
+                }
+
+                hasMore = transactionPage.hasNext();
+                page++;
+            }
+
+            document.add(table);
+            document.close();
+
+            return baos.toByteArray();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate user PDF: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate PDF", e);
+        }
+    }
+
+    @Override
+    public byte[] exportUserTransactionsToCsv(Long userId, PaginationAndFilteringDto paginationDto) {
+        log.info("📄 Exporting transactions for user {} to CSV", userId);
+
+        StringWriter stringWriter = new StringWriter();
+        CSVWriter csvWriter = new CSVWriter(stringWriter);
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        try {
+            String[] headers = {
+                    "ID", "Transaction ID", "Amount", "Currency",
+                    "Status", "Payment Method", "Payment Date", "Description", "Failure Reason"
+            };
+            csvWriter.writeNext(headers);
+
+            int page = 1;
+            boolean hasMore = true;
+
+            while (hasMore) {
+                PaginationAndFilteringDto exportDto = new PaginationAndFilteringDto();
+                exportDto.setPage(page);
+                exportDto.setSize(500);
+                exportDto.setSortField(paginationDto.getSortField());
+                exportDto.setSortDirection(paginationDto.getSortDirection());
+
+                Pageable pageable = PaginationUtil.createPageRequest(exportDto);
+                Page<PaymentTransaction> transactionPage = paymentTransactionRepository.findAllByUserId(userId, pageable);
+
+                for (PaymentTransaction transaction : transactionPage.getContent()) {
+                    String[] row = {
+                            String.valueOf(transaction.getId()),
+                            transaction.getTransactionId(),
+                            transaction.getAmount().toString(),
+                            transaction.getCurrency(),
+                            transaction.getStatus().name(),
+                            transaction.getPaymentMethod() != null ? transaction.getPaymentMethod().name() : "",
+                            transaction.getPaymentDate() != null ? transaction.getPaymentDate().format(dateFormatter) : "",
+                            transaction.getDescription() != null ? transaction.getDescription() : "",
+                            transaction.getFailureReason() != null ? transaction.getFailureReason() : ""
+                    };
+                    csvWriter.writeNext(row);
+                }
+
+                hasMore = transactionPage.hasNext();
+                page++;
+            }
+
+            csvWriter.close();
+            return stringWriter.toString().getBytes();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate user CSV: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate CSV", e);
+        }
+    }
+
+    @Override
+    public byte[] exportSingleTransactionToPdf(String transactionId) {
+        log.info("📄 Exporting single transaction {} to PDF", transactionId);
+
+        PaymentTransaction transaction = paymentTransactionRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Transaction not found: " + transactionId,
+                        ErrorCodes.PAYMENT_NOT_FOUND,
+                        List.of("Transaction not found")
+                ));
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4);
+
+        try {
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+            Paragraph title = new Paragraph("Payment Transaction Receipt", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(2);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{30, 70});
+
+            addPdfDetailRow(table, "Transaction ID:", transaction.getTransactionId());
+            addPdfDetailRow(table, "User ID:", String.valueOf(transaction.getUserId()));
+            addPdfDetailRow(table, "Amount:", transaction.getAmount().toString() + " " + transaction.getCurrency());
+            addPdfDetailRow(table, "Status:", transaction.getStatus().name());
+            addPdfDetailRow(table, "Payment Method:", transaction.getPaymentMethod() != null ? transaction.getPaymentMethod().name() : "");
+            addPdfDetailRow(table, "Payment Date:", transaction.getPaymentDate() != null ?
+                    transaction.getPaymentDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
+            addPdfDetailRow(table, "Description:", transaction.getDescription() != null ? transaction.getDescription() : "");
+            if (transaction.getFailureReason() != null) {
+                addPdfDetailRow(table, "Failure Reason:", transaction.getFailureReason());
+            }
+
+            document.add(table);
+            document.close();
+
+            return baos.toByteArray();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate single transaction PDF: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate PDF", e);
+        }
+    }
+
+    @Override
+    public byte[] exportSingleTransactionToCsv(String transactionId) {
+        log.info("📄 Exporting single transaction {} to CSV", transactionId);
+
+        PaymentTransaction transaction = paymentTransactionRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Transaction not found: " + transactionId,
+                        ErrorCodes.PAYMENT_NOT_FOUND,
+                        List.of("Transaction not found")
+                ));
+
+        StringWriter stringWriter = new StringWriter();
+        CSVWriter csvWriter = new CSVWriter(stringWriter);
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        try {
+            String[] headers = {"Field", "Value"};
+            csvWriter.writeNext(headers);
+
+            csvWriter.writeNext(new String[]{"Transaction ID", transaction.getTransactionId()});
+            csvWriter.writeNext(new String[]{"User ID", String.valueOf(transaction.getUserId())});
+            csvWriter.writeNext(new String[]{"Amount", transaction.getAmount().toString() + " " + transaction.getCurrency()});
+            csvWriter.writeNext(new String[]{"Status", transaction.getStatus().name()});
+            csvWriter.writeNext(new String[]{"Payment Method", transaction.getPaymentMethod() != null ? transaction.getPaymentMethod().name() : ""});
+            csvWriter.writeNext(new String[]{"Payment Date", transaction.getPaymentDate() != null ?
+                    transaction.getPaymentDate().format(dateFormatter) : ""});
+            csvWriter.writeNext(new String[]{"Description", transaction.getDescription() != null ? transaction.getDescription() : ""});
+            if (transaction.getFailureReason() != null) {
+                csvWriter.writeNext(new String[]{"Failure Reason", transaction.getFailureReason()});
+            }
+
+            csvWriter.close();
+            return stringWriter.toString().getBytes();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to generate single transaction CSV: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate CSV", e);
+        }
+    }
+
     // ========== PRIVATE HELPER METHODS ==========
 
     private void validatePaginationDto(PaginationAndFilteringDto paginationDto) {
@@ -395,7 +750,6 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
                 .amount(transaction.getAmount())
                 .currency(transaction.getCurrency())
                 .status(transaction.getStatus())
-                .paymentUrl(generatePaymentUrl(transaction.getTransactionId()))
                 .createdAt(transaction.getCreatedAt())
                 .build();
     }
@@ -403,4 +757,54 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
     private String generatePaymentUrl(String transactionId) {
         return "/api/payments/" + transactionId + "/process";
     }
+
+    // PDF Helper Methods
+    private void addPdfTableHeader(PdfPTable table, String headerText) {
+        Font font = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        PdfPCell cell = new PdfPCell(new Phrase(headerText, font));
+        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setPadding(5);
+        table.addCell(cell);
+    }
+
+    private void addPdfTableRow(PdfPTable table, PaymentTransaction transaction, DateTimeFormatter formatter) {
+        table.addCell(String.valueOf(transaction.getId()));
+        table.addCell(transaction.getTransactionId());
+        table.addCell(String.valueOf(transaction.getUserId()));
+        table.addCell(transaction.getAmount().toString());
+        table.addCell(transaction.getCurrency());
+        table.addCell(transaction.getStatus().name());
+        table.addCell(transaction.getPaymentMethod() != null ? transaction.getPaymentMethod().name() : "");
+        table.addCell(transaction.getPaymentDate() != null ? transaction.getPaymentDate().format(formatter) : "");
+        table.addCell(transaction.getDescription() != null ? transaction.getDescription() : "");
+    }
+
+    private void addPdfTableRowForUser(PdfPTable table, PaymentTransaction transaction, DateTimeFormatter formatter) {
+        table.addCell(String.valueOf(transaction.getId()));
+        table.addCell(transaction.getTransactionId());
+        table.addCell(transaction.getAmount().toString());
+        table.addCell(transaction.getCurrency());
+        table.addCell(transaction.getStatus().name());
+        table.addCell(transaction.getPaymentMethod() != null ? transaction.getPaymentMethod().name() : "");
+        table.addCell(transaction.getPaymentDate() != null ? transaction.getPaymentDate().format(formatter) : "");
+        table.addCell(transaction.getDescription() != null ? transaction.getDescription() : "");
+    }
+
+    private void addPdfDetailRow(PdfPTable table, String label, String value) {
+        Font labelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        Font valueFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont));
+        labelCell.setPadding(5);
+        labelCell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont));
+        valueCell.setPadding(5);
+
+        table.addCell(labelCell);
+        table.addCell(valueCell);
+    }
+
+
 }

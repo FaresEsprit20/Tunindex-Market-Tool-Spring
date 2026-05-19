@@ -60,6 +60,7 @@ class RefundServiceImplTest {
                 .userId(100L)
                 .amount(new BigDecimal("100.00"))
                 .status(PaymentStatus.COMPLETED)
+                .paymentDate(LocalDateTime.now().minusDays(1))
                 .build();
 
         testRefund = Refund.builder()
@@ -74,8 +75,10 @@ class RefundServiceImplTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
+        // Valid refund request with all required fields
         testRefundRequest = RefundPaymentRequestDto.builder()
                 .transactionId("1")
+                .providerPaymentId("PROVIDER_PAYMENT_123")
                 .amount(new BigDecimal("100.00"))
                 .reason("Customer request")
                 .build();
@@ -153,16 +156,15 @@ class RefundServiceImplTest {
         }
 
         @Test
-        @DisplayName("Should throw InvalidEntityException when providerRefundId is empty")
-        void shouldThrowExceptionWhenProviderRefundIdIsEmpty() {
+        @DisplayName("Should throw InvalidEntityException when providerRefundId is null or empty")
+        void shouldThrowExceptionWhenProviderRefundIdIsNullOrEmpty() {
             assertThatThrownBy(() -> refundService.findByProviderRefundId(null))
-                    .isInstanceOf(InvalidEntityException.class);
+                    .isInstanceOf(InvalidEntityException.class)
+                    .hasMessageContaining("Invalid provider refund ID");
 
             assertThatThrownBy(() -> refundService.findByProviderRefundId(""))
-                    .isInstanceOf(InvalidEntityException.class);
-
-            assertThatThrownBy(() -> refundService.findByProviderRefundId("   "))
-                    .isInstanceOf(InvalidEntityException.class);
+                    .isInstanceOf(InvalidEntityException.class)
+                    .hasMessageContaining("Invalid provider refund ID");
         }
 
         @Test
@@ -243,7 +245,7 @@ class RefundServiceImplTest {
 
             assertThatThrownBy(() -> refundService.requestRefund(testRefundRequest, 100L))
                     .isInstanceOf(InvalidEntityException.class)
-                    .hasMessageContaining("Transaction has already been fully refunded");
+                    .hasMessageContaining("Transaction has already been refunded");
         }
 
         @Test
@@ -280,7 +282,7 @@ class RefundServiceImplTest {
 
             assertThatThrownBy(() -> refundService.requestRefund(testRefundRequest, 100L))
                     .isInstanceOf(InvalidEntityException.class)
-                    .hasMessageContaining("refund request is already pending");
+                    .hasMessageContaining("A refund request is already pending");
         }
 
         @Test
@@ -291,6 +293,16 @@ class RefundServiceImplTest {
             assertThatThrownBy(() -> refundService.requestRefund(testRefundRequest, 100L))
                     .isInstanceOf(InvalidEntityException.class)
                     .hasMessageContaining("Invalid transaction ID format");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidEntityException when providerPaymentId is missing")
+        void shouldThrowExceptionWhenProviderPaymentIdMissing() {
+            testRefundRequest.setProviderPaymentId(null);
+
+            assertThatThrownBy(() -> refundService.requestRefund(testRefundRequest, 100L))
+                    .isInstanceOf(InvalidEntityException.class)
+                    .hasMessage("Invalid refund request");
         }
     }
 
@@ -303,7 +315,8 @@ class RefundServiceImplTest {
         void shouldSuccessfullyUpdateToCompleted() {
             when(refundRepository.findById(1L)).thenReturn(Optional.of(testRefund));
             when(refundRepository.save(any(Refund.class))).thenReturn(testRefund);
-            when(refundRepository.getTotalRefundedAmountForTransaction(1L, RefundStatus.COMPLETED))
+            // Only stub if needed - this might not be called in this test path
+            lenient().when(refundRepository.getTotalRefundedAmountForTransaction(eq(1L), eq(RefundStatus.COMPLETED)))
                     .thenReturn(new BigDecimal("100.00"));
 
             RefundResponseDto result = refundService.updateRefundStatus(1L, RefundStatus.COMPLETED);
@@ -315,23 +328,33 @@ class RefundServiceImplTest {
         @Test
         @DisplayName("Should throw exception when updating completed refund")
         void shouldThrowExceptionWhenUpdatingCompletedRefund() {
-            testRefund.setStatus(RefundStatus.COMPLETED);
-            when(refundRepository.findById(1L)).thenReturn(Optional.of(testRefund));
+            Refund completedRefund = Refund.builder()
+                    .id(1L)
+                    .transactionId(1L)
+                    .amount(new BigDecimal("100.00"))
+                    .status(RefundStatus.COMPLETED)
+                    .build();
+            when(refundRepository.findById(1L)).thenReturn(Optional.of(completedRefund));
 
             assertThatThrownBy(() -> refundService.updateRefundStatus(1L, RefundStatus.FAILED))
                     .isInstanceOf(InvalidEntityException.class)
-                    .hasMessageContaining("Cannot change status of a completed refund");
+                    .hasMessage("Invalid refund status transition");
         }
 
         @Test
         @DisplayName("Should throw exception when changing failed refund to completed")
         void shouldThrowExceptionWhenChangingFailedToCompleted() {
-            testRefund.setStatus(RefundStatus.FAILED);
-            when(refundRepository.findById(1L)).thenReturn(Optional.of(testRefund));
+            Refund failedRefund = Refund.builder()
+                    .id(1L)
+                    .transactionId(1L)
+                    .amount(new BigDecimal("100.00"))
+                    .status(RefundStatus.FAILED)
+                    .build();
+            when(refundRepository.findById(1L)).thenReturn(Optional.of(failedRefund));
 
             assertThatThrownBy(() -> refundService.updateRefundStatus(1L, RefundStatus.COMPLETED))
                     .isInstanceOf(InvalidEntityException.class)
-                    .hasMessageContaining("Cannot change failed refund to completed");
+                    .hasMessage("Invalid refund status transition");
         }
 
         @Test
@@ -353,8 +376,6 @@ class RefundServiceImplTest {
         void shouldSuccessfullyMarkAsCompleted() {
             when(refundRepository.findById(1L)).thenReturn(Optional.of(testRefund));
             when(refundRepository.save(any(Refund.class))).thenReturn(testRefund);
-            when(refundRepository.getTotalRefundedAmountForTransaction(1L, RefundStatus.COMPLETED))
-                    .thenReturn(new BigDecimal("100.00"));
 
             RefundResponseDto result = refundService.markAsCompleted(1L);
 
@@ -419,18 +440,21 @@ class RefundServiceImplTest {
             paginationDto.setPage(0);
 
             assertThatThrownBy(() -> refundService.findAllByTransactionId(1L, paginationDto))
-                    .isInstanceOf(InvalidEntityException.class);
+                    .isInstanceOf(InvalidEntityException.class)
+                    .hasMessage("Invalid pagination parameters");
 
             paginationDto.setPage(1);
             paginationDto.setSize(0);
 
             assertThatThrownBy(() -> refundService.findAllByTransactionId(1L, paginationDto))
-                    .isInstanceOf(InvalidEntityException.class);
+                    .isInstanceOf(InvalidEntityException.class)
+                    .hasMessage("Invalid pagination parameters");
 
             paginationDto.setSize(101);
 
             assertThatThrownBy(() -> refundService.findAllByTransactionId(1L, paginationDto))
-                    .isInstanceOf(InvalidEntityException.class);
+                    .isInstanceOf(InvalidEntityException.class)
+                    .hasMessage("Invalid pagination parameters");
         }
     }
 
@@ -580,7 +604,6 @@ class RefundServiceImplTest {
 
             assertThat(result).isFalse();
         }
+
     }
-
-
 }

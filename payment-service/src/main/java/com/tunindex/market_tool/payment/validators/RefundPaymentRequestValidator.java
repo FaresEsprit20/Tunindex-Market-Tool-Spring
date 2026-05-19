@@ -87,7 +87,9 @@ public class RefundPaymentRequestValidator {
         }
 
         if (!errors.isEmpty()) {
-            throw new InvalidEntityException("Cannot process refund for this transaction", ErrorCodes.PAYMENT_REFUND_FAILED, errors);
+            // Include specific errors in the message
+            String message = "Cannot process refund for this transaction: " + String.join("; ", errors);
+            throw new InvalidEntityException(message, ErrorCodes.PAYMENT_REFUND_FAILED, errors);
         }
     }
 

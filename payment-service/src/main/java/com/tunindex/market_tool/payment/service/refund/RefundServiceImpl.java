@@ -15,7 +15,7 @@ import com.tunindex.market_tool.payment.entities.enums.RefundStatus;
 import com.tunindex.market_tool.payment.repository.PaymentTransactionRepository;
 import com.tunindex.market_tool.payment.repository.RefundRepository;
 import com.tunindex.market_tool.payment.specifications.RefundSpecification;
-import com.tunindex.market_tool.payment.validators.gateway.RefundPaymentRequestValidator;
+import com.tunindex.market_tool.payment.validators.RefundPaymentRequestValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -412,28 +412,9 @@ public class RefundServiceImpl implements RefundService {
     }
 
     private void validateTransactionForRefund(PaymentTransaction transaction, BigDecimal refundAmount) {
-        List<String> errors = new ArrayList<>();
+        RefundPaymentRequestValidator.validateForTransaction(transaction, refundAmount);
 
-        if (transaction == null) {
-            errors.add("Transaction not found");
-            throw new InvalidEntityException("Transaction not found", ErrorCodes.PAYMENT_NOT_FOUND, errors);
-        }
 
-        if (transaction.getStatus() != PaymentStatus.COMPLETED) {
-            errors.add("Only completed transactions can be refunded");
-        }
-
-        if (transaction.getStatus() == PaymentStatus.REFUNDED) {
-            errors.add("Transaction has already been fully refunded");
-        }
-
-        if (refundAmount != null && refundAmount.compareTo(transaction.getAmount()) != 0) {
-            errors.add("Refund must be for the full amount");
-        }
-
-        if (!errors.isEmpty()) {
-            throw new InvalidEntityException("Cannot process refund for this transaction", ErrorCodes.PAYMENT_REFUND_FAILED, errors);
-        }
     }
 
     private void validateRefundStatusTransition(Refund refund, RefundStatus newStatus) {

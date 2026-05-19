@@ -6,54 +6,100 @@
 
 ## 📋 Overview
 
-The Payment Service is a comprehensive microservice for handling all payment-related operations in the Market Tool platform. It manages subscription plans, user subscriptions, payment transactions, invoices, refunds, and integrates with Konnect payment gateway for Tunisian market support.
+The Payment Service is a pure payment processing microservice for the Market Tool platform. It handles payment creation, status tracking, webhook processing, refunds, and integrates with the Konnect payment gateway for Tunisian market support.
+
+**This service ONLY handles payments - no subscriptions, no invoices, no user management.**
 
 **Port:** 8087  
 **Database:** PostgreSQL (tunindex-payment)
 
 ## 🏗️ Architecture
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│ PAYMENT SERVICE ARCHITECTURE │
+│ PURE PAYMENT SERVICE ARCHITECTURE │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ EXTERNAL API (Port 8087) │
-│ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ │
-│ │ Subscription │ │ Payment │ │ Invoice │ │ Refund │ │
-│ │ Plans │ │ Gateway │ │ Controller │ │ Controller │ │
-│ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ │
-└──────────┼──────────────────┼──────────────────┼──────────────────┼────────────────────┘
+│ │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ PaymentGatewayController │ │
 │ │ │ │
-▼ ▼ ▼ ▼
+│ │ - POST /api/payments/create Create payment │ │
+│ │ - POST /api/payments/status Get payment status │ │
+│ │ - GET /api/payments/payment-methods Get available payment methods │ │
+│ │ - GET /api/payments/export/pdf Export transactions to PDF │ │
+│ │ - GET /api/payments/export/csv Export transactions to CSV │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│ │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Internal Controllers (Internal only) │ │
+│ │ │ │
+│ │ - POST /internal/payments/webhook/konnect Konnect webhook handler │ │
+│ │ - POST /internal/refund/process Process refund (internal) │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+│
+▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ SERVICE LAYER │
-│ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ │
-│ │ Subscription │ │ Payment │ │ Invoice │ │ Refund │ │
-│ │ Service │ │ Transaction │ │ Service │ │ Service │ │
-│ │ │ │ Service │ │ │ │ │ │
-│ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ │
-└──────────┼──────────────────┼──────────────────┼──────────────────┼────────────────────┘
+│ │
+│ ┌─────────────────────────────┐ ┌─────────────────────────────────────────────────┐ │
+│ │ PaymentGatewayService │ │ RefundService │ │
+│ │ │ │ │ │
+│ │ - createPayment() │ │ - requestRefund() │ │
+│ │ - getPaymentStatus() │ │ - updateRefundStatus() │ │
+│ │ - processWebhook() │ │ - markAsCompleted/Failed() │ │
+│ │ - refundPayment() │ │ - getTotalRefundedAmount() │ │
+│ └─────────────────────────────┘ └─────────────────────────────────────────────────┘ │
+│ │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ PaymentTransactionService │ │
 │ │ │ │
-▼ ▼ ▼ ▼
+│ │ - initiatePayment() │ │
+│ │ - findByTransactionId() │ │
+│ │ - updateTransactionStatus() │ │
+│ │ - markAsCompleted/Failed/Refunded() │ │
+│ │ - exportTransactionsToPdf/Csv() │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+│
+▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ REPOSITORY LAYER │
-│ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ │
-│ │ Subscription │ │ Payment │ │ Invoice │ │ Refund │ │
-│ │ Plan Repo │ │ Transaction │ │ Repository │ │ Repository │ │
-│ │ │ │ Repository │ │ │ │ │ │
-│ └───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘ │
+│ │
+│ ┌─────────────────────────────┐ ┌─────────────────────────────────────────────────┐ │
+│ │ PaymentTransactionRepository │ │ RefundRepository │ │
+│ │ │ │ │ │
+│ │ - findByTransactionId() │ │ - findByTransactionId() │ │
+│ │ - findAllByUserId() │ │ - findAllByStatus() │ │
+│ │ - updateTransactionStatus() │ │ - updateRefundStatus() │ │
+│ └─────────────────────────────┘ └─────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 │
 ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ POSTGRESQL DATABASE │
-│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
-│ │ subscription_plans | user_subscriptions | payment_transactions | invoices | refunds │ │
-│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│ │
+│ ┌─────────────────────────────┐ ┌─────────────────────────────────────────────────┐ │
+│ │ payment_transactions │ │ refunds │ │
+│ │ │ │ │ │
+│ │ - id │ │ - id │ │
+│ │ - transaction_id (unique) │ │ - transaction_id │ │
+│ │ - user_id │ │ - amount │ │
+│ │ - amount │ │ - reason │ │
+│ │ - currency │ │ - status │ │
+│ │ - status │ │ - provider_refund_id │ │
+│ │ - payment_method │ └─────────────────────────────────────────────────┘ │
+│ │ - provider_payment_id │ │
+│ │ - provider_name │ │
+│ │ - description │ │
+│ │ - failure_reason │ │
+│ │ - payment_date │ │
+│ └─────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│ INTERNAL INTEGRATIONS │
+│ EXTERNAL INTEGRATIONS │
 │ │
 │ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ │
 │ │ API Service │────▶│ Konnect │────▶│ Mailing │ │
@@ -79,19 +125,17 @@ payment-service/
 │ │ └── WebClientConfig.java # WebClient with LoadBalanced
 │ ├── controller/
 │ │ ├── api/
-│ │ │ ├── InvoiceApi.java # Invoice API interface
-│ │ │ ├── PaymentGatewayApi.java # Payment API interface
-│ │ │ └── SubscriptionPlanApi.java # Subscription plan API interface
+│ │ │ └── PaymentGatewayApi.java # Payment API interface
 │ │ ├── gateway/
 │ │ │ └── PaymentGatewayController.java
 │ │ ├── internal/
-│ │ │ └── InternalPaymentWebhookController.java
-│ │ └── subscription_plan/
-│ │ └── SubscriptionPlanController.java
+│ │ │ ├── InternalPaymentWebhookController.java
+│ │ │ └── InternalRefundController.java
+│ │ └── payment_transaction/
+│ │ └── PaymentTransactionController.java
 │ ├── dto/
 │ │ ├── CreatePaymentRequestDto.java
 │ │ ├── CreatePaymentResponseDto.java
-│ │ ├── InvoiceDto.java
 │ │ ├── PaymentMethodType.java
 │ │ ├── PaymentRequestDto.java
 │ │ ├── PaymentResponseDto.java
@@ -99,73 +143,49 @@ payment-service/
 │ │ ├── PaymentStatusResponseDto.java
 │ │ ├── RefundPaymentRequestDto.java
 │ │ ├── RefundPaymentResponseDto.java
-│ │ ├── RefundRequestDto.java
 │ │ ├── RefundResponseDto.java
-│ │ ├── SubscriptionPlanDto.java
-│ │ ├── UserPaymentInfoDto.java
-│ │ ├── UserSubscriptionDto.java
-│ │ └── gateway/
-│ │ ├── PaymentGatewayRequest.java
-│ │ ├── PaymentGatewayResponse.java
-│ │ ├── PaymentGatewayStatusRequest.java
-│ │ ├── PaymentGatewayStatusResponse.java
-│ │ └── PaymentGatewayWebhookPayload.java
+│ │ ├── gateway/
+│ │ │ ├── PaymentGatewayRequest.java
+│ │ │ ├── PaymentGatewayResponse.java
+│ │ │ ├── PaymentGatewayStatusRequest.java
+│ │ │ ├── PaymentGatewayStatusResponse.java
+│ │ │ └── PaymentGatewayWebhookPayload.java
+│ │ └── export/
+│ │ └── ExportRequestDto.java
 │ ├── entities/
-│ │ ├── Invoice.java
 │ │ ├── PaymentTransaction.java
 │ │ ├── Refund.java
-│ │ ├── SubscriptionPlan.java
-│ │ ├── UserSubscription.java
 │ │ └── enums/
-│ │ ├── BillingPeriod.java
-│ │ ├── InvoiceStatus.java
 │ │ ├── PaymentMethod.java
 │ │ ├── PaymentStatus.java
-│ │ ├── RefundStatus.java
-│ │ └── SubscriptionStatus.java
+│ │ └── RefundStatus.java
 │ ├── repository/
-│ │ ├── InvoiceRepository.java
 │ │ ├── PaymentTransactionRepository.java
-│ │ ├── RefundRepository.java
-│ │ ├── SubscriptionPlanRepository.java
-│ │ └── UserSubscriptionRepository.java
+│ │ └── RefundRepository.java
 │ ├── service/
 │ │ ├── gateway/
 │ │ │ ├── PaymentGatewayService.java
 │ │ │ └── konnect/
 │ │ │ └── KonnectPaymentGateway.java
-│ │ ├── invoices/
-│ │ │ ├── InvoiceService.java
-│ │ │ └── InvoiceServiceImpl.java
 │ │ ├── payment_transaction/
 │ │ │ ├── PaymentTransactionService.java
 │ │ │ └── PaymentTransactionServiceImpl.java
 │ │ ├── refund/
 │ │ │ ├── RefundService.java
 │ │ │ └── RefundServiceImpl.java
-│ │ ├── subscription_plan/
-│ │ │ ├── SubscriptionPlanService.java
-│ │ │ └── SubscriptionPlanServiceImpl.java
-│ │ └── user_subscription/
-│ │ ├── UserSubscriptionService.java
-│ │ └── UserSubscriptionServiceImpl.java
+│ │ └── internal/
+│ │ └── RefundInternalService.java
 │ ├── specifications/
-│ │ ├── InvoiceSpecification.java
 │ │ ├── PaymentTransactionSpecification.java
-│ │ ├── RefundSpecification.java
-│ │ ├── SubscriptionPlanSpecification.java
-│ │ └── UserSubscriptionSpecification.java
+│ │ └── RefundSpecification.java
 │ └── validators/
-│ ├── CreatePaymentRequestValidator.java
-│ ├── InvoiceValidator.java
-│ ├── PaymentGatewayRequestValidator.java
-│ ├── PaymentGatewayStatusRequestValidator.java
-│ ├── PaymentStatusRequestValidator.java
-│ ├── RefundPaymentRequestValidator.java
-│ ├── RefundValidator.java
-│ ├── SubscriptionPlanValidator.java
-│ ├── UserSubscriptionValidator.java
-│ └── WebhookValidator.java
+│ ├── gateway/
+│ │ ├── CreatePaymentRequestValidator.java
+│ │ ├── PaymentGatewayRequestValidator.java
+│ │ ├── PaymentGatewayStatusRequestValidator.java
+│ │ ├── PaymentStatusRequestValidator.java
+│ │ └── RefundPaymentRequestValidator.java
+│ └── RefundValidator.java
 └── src/main/resources/
 ├── application.properties
 ├── application-dev.properties
@@ -175,41 +195,9 @@ text
 
 ## 📊 Database Schema
 
-### Subscription Plans Table
+### Payment Transactions Table
+
 ```sql
-CREATE TABLE subscription_plans (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL,
-    description TEXT,
-    price_monthly DECIMAL(10,2) NOT NULL,
-    price_yearly DECIMAL(10,2),
-    currency VARCHAR(3) DEFAULT 'TND',
-    duration_days INTEGER DEFAULT 30,
-    features TEXT,
-    api_calls_limit INTEGER DEFAULT 1000,
-    is_active BOOLEAN DEFAULT TRUE,
-    display_order INTEGER,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-User Subscriptions Table
-sql
-CREATE TABLE user_subscriptions (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    plan_id BIGINT REFERENCES subscription_plans(id),
-    status VARCHAR(20) DEFAULT 'PENDING',
-    start_date TIMESTAMP,
-    end_date TIMESTAMP,
-    billing_period VARCHAR(10),
-    auto_renew BOOLEAN DEFAULT TRUE,
-    cancellation_reason TEXT,
-    cancelled_at TIMESTAMP,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-Payment Transactions Table
-sql
 CREATE TABLE payment_transactions (
     id BIGSERIAL PRIMARY KEY,
     transaction_id VARCHAR(100) UNIQUE NOT NULL,
@@ -228,29 +216,11 @@ CREATE TABLE payment_transactions (
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
-Invoices Table
-sql
-CREATE TABLE invoices (
-    id BIGSERIAL PRIMARY KEY,
-    invoice_number VARCHAR(50) UNIQUE NOT NULL,
-    user_id BIGINT NOT NULL,
-    transaction_id BIGINT REFERENCES payment_transactions(id),
-    amount DECIMAL(10,2) NOT NULL,
-    tax_amount DECIMAL(10,2) DEFAULT 0,
-    total_amount DECIMAL(10,2) NOT NULL,
-    currency VARCHAR(3) DEFAULT 'TND',
-    status VARCHAR(20) DEFAULT 'ISSUED',
-    pdf_url TEXT,
-    issue_date TIMESTAMP,
-    due_date TIMESTAMP,
-    paid_at TIMESTAMP,
-    created_at TIMESTAMP
-);
 Refunds Table
 sql
 CREATE TABLE refunds (
     id BIGSERIAL PRIMARY KEY,
-    transaction_id BIGINT REFERENCES payment_transactions(id),
+    transaction_id BIGINT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     reason TEXT,
     status VARCHAR(20) DEFAULT 'PENDING',
@@ -265,7 +235,7 @@ text
 │                              COMPLETE PAYMENT FLOW                                      │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 
-1. User selects subscription plan
+1. User initiates payment (from Subscription service or direct)
          │
          ▼
 2. Frontend calls POST /api/payments/create
@@ -296,18 +266,15 @@ text
          ▼
 9. On SUCCESS:
    - PaymentTransactionService.markAsCompleted()
-   - UserSubscriptionService.createSubscription()
-   - InvoiceService.generateInvoice()
-   - EmailServiceClient.sendPaymentReceiptEmail()
+   - EmailServiceClient.sendPaymentConfirmationEmail()
+   - (Subscription service is notified separately)
          │
          ▼
-10. User subscription is ACTIVE
+10. On FAILURE:
+    - PaymentTransactionService.markAsFailed()
          │
          ▼
-11. Frontend polls GET /api/payments/{id}/status
-         │
-         ▼
-12. User accesses premium features
+11. Payment record is updated with final status
 🔧 Configuration
 application.properties
 properties
@@ -345,47 +312,47 @@ internal.api.key=market-tool-internal-secret-key-2026
 # Mailing Service
 mailing.service.url=http://mailing-service
 
+# API Service
+api.service.url=http://api-service
+
 # Logging
 logging.level.com.tunindex.market_tool.payment=DEBUG
 📡 API Endpoints
-Subscription Plans (/api/subscription-plans)
+Public Payment Endpoints (/api/payments)
 Method	Endpoint	Description
-GET	/{id}	Get plan by ID
-GET	/active	Get all active plans
-GET	/price-range?maxPrice={price}	Get plans by max price
-Payments (/api/payments)
-Method	Endpoint	Description
-POST	/create	Create new payment
-GET	/{transactionId}/status	Get payment status
-POST	/refund	Request refund
+POST	/create	Create a new payment
+POST	/status	Get payment status
+POST	/refund	Request a refund
 GET	/payment-methods	Get available payment methods
-Invoices (/api/invoices)
+GET	/export/pdf	Export all transactions to PDF
+GET	/export/csv	Export all transactions to CSV
+GET	/user/{userId}/export/pdf	Export user transactions to PDF
+GET	/user/{userId}/export/csv	Export user transactions to CSV
+GET	/{transactionId}/export/pdf	Export single transaction to PDF
+GET	/{transactionId}/export/csv	Export single transaction to CSV
+Internal Endpoints (Service-to-Service)
 Method	Endpoint	Description
-GET	/{id}	Get invoice by ID
-GET	/number/{invoiceNumber}	Get invoice by number
-GET	/user/{userId}	Get user invoices
-GET	/export/pdf	Export all invoices to PDF
-GET	/export/csv	Export all invoices to CSV
-GET	/user/{userId}/export/pdf	Export user invoices to PDF
-GET	/user/{userId}/export/csv	Export user invoices to CSV
-Internal Webhook (/internal/payments/webhook)
-Method	Endpoint	Description
-POST	/konnect	Konnect payment webhook
+POST	/internal/payments/webhook/konnect	Konnect payment webhook
+POST	/internal/refund/process	Process refund (internal)
+GET	/internal/refund/status/{transactionId}	Get refund status
 🧪 Testing
 Run Tests
 bash
 cd payment-service
+
+# Run all tests
 mvn test
 
 # Run specific test class
 mvn test -Dtest=PaymentTransactionServiceTest
-mvn test -Dtest=InvoiceServiceTest
+mvn test -Dtest=PaymentTransactionRepositoryTest
+mvn test -Dtest=RefundRepositoryTest
 Test Coverage
 Component	Coverage Target
 Services	80%
-Controllers	70%
+Repositories	85%
 Validators	90%
-Specifications	60%
+Controllers	70%
 🚀 Deployment
 Build and Run
 bash
@@ -417,14 +384,11 @@ cd mailing-service && mvn spring-boot:run
 # 4. Payment Service
 cd payment-service && mvn spring-boot:run
 🔐 Security
-Internal API Key: All internal endpoints require X-API-Key header
-
-Webhook Signature: Konnect webhooks are verified using HMAC-SHA256
-
-Input Validation: All DTOs are validated before processing
-
-HTTPS: Production profile enforces HTTPS
-
+Security Feature	Description
+Internal API Key	All internal endpoints require X-API-Key header
+Webhook Signature	Konnect webhooks verified using HMAC-SHA256
+Input Validation	All DTOs validated before processing
+HTTPS	Production profile enforces HTTPS
 📦 Dependencies
 Dependency	Version	Purpose
 Spring Boot Starter Web	3.5.13	REST API
@@ -436,27 +400,34 @@ Lombok	1.18.44	Code generation
 SpringDoc OpenAPI	2.1.0	API documentation
 iTextPDF	5.5.13.3	PDF export
 OpenCSV	5.7.1	CSV export
+❌ What This Service Does NOT Do
+Feature	Where it belongs
+Subscription plans	Subscription Service
+User subscriptions	Subscription Service
+Invoices	Invoice Service
+Promo codes	Subscription Service
+User management	API Service
+📋 What This Service Does
+Feature	Description
+✅ Create payment	Initiate payment with Konnect
+✅ Get payment status	Check payment status
+✅ Process webhooks	Handle Konnect callbacks
+✅ Process refunds	Refund payments (with conditions)
+✅ Export transactions	PDF/CSV export with pagination
+✅ Payment history	View user payment history
 🎯 Future Enhancements
-Wallet/Balance system for prepaid users
-
-Subscription auto-renewal scheduler
-
-Bank transfer manual verification
-
-Admin dashboard for payment management
-
 Multiple payment gateway support (Stripe, etc.)
 
 Payment analytics and reporting
 
-Installment payment support
+Saved payment methods for users
+
+Recurring payment support
+
+Payment retry logic
 
 👨‍💻 Author
 Fares Ben Slama
 
 📄 License
 MIT License
-
-text
-
-This README provides a complete overview of the Payment Service including architecture, database schema, API endpoints, configuration, deployment, and future enhancements. ✅

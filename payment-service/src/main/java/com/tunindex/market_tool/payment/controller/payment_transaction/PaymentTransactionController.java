@@ -134,4 +134,5 @@ public class PaymentTransactionController implements PaymentTransactionApi {
         long count = paymentTransactionService.countSuccessfulPaymentsByUser(userId);
         return ResponseEntity.ok(count);
     }
+
 }

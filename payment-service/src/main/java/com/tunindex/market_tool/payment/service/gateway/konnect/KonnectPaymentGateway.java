@@ -2,16 +2,14 @@ package com.tunindex.market_tool.payment.service.gateway.konnect;
 
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
-import com.tunindex.market_tool.payment.client.ApiServiceClient;
 import com.tunindex.market_tool.payment.client.EmailServiceClient;
 import com.tunindex.market_tool.payment.config.KonnectConfig;
-import com.tunindex.market_tool.payment.dto.*;
+import com.tunindex.market_tool.payment.dto.PaymentMethodType;
+import com.tunindex.market_tool.payment.dto.PaymentRequestDto;
 import com.tunindex.market_tool.payment.dto.gateway.*;
+import com.tunindex.market_tool.payment.entities.enums.PaymentStatus;
 import com.tunindex.market_tool.payment.service.gateway.PaymentGatewayService;
-import com.tunindex.market_tool.payment.service.invoices.InvoiceService;
 import com.tunindex.market_tool.payment.service.payment_transaction.PaymentTransactionService;
-import com.tunindex.market_tool.payment.service.susbscription_plan.SubscriptionPlanService;
-import com.tunindex.market_tool.payment.service.user_subscription.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -37,21 +35,11 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
 
     private final WebClient.Builder webClientBuilder;
     private final KonnectConfig konnectConfig;
-    private final EmailServiceClient emailServiceClient;
-    private final ApiServiceClient apiServiceClient;
     private final PaymentTransactionService paymentTransactionService;
-    private final UserSubscriptionService userSubscriptionService;
-    private final InvoiceService invoiceService;
-    private final SubscriptionPlanService subscriptionPlanService;
+    private final EmailServiceClient emailServiceClient;
 
+    // Store transaction metadata temporarily
     private final Map<String, TransactionMetadata> transactionMetadataMap = new HashMap<>();
-
-    private BillingPeriod parseBillingPeriod(String billingPeriod) {
-        if ("YEARLY".equalsIgnoreCase(billingPeriod)) {
-            return BillingPeriod.YEARLY;
-        }
-        return BillingPeriod.MONTHLY;
-    }
 
     @Override
     public String getProviderName() {
@@ -63,31 +51,29 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         log.info("💰 Creating Konnect payment for transaction: {}", request.getTransactionId());
 
         try {
-            String billingPeriodStr = "MONTHLY";
-            if (request.getMetadata() != null && request.getMetadata().get("billingPeriod") != null) {
-                billingPeriodStr = request.getMetadata().get("billingPeriod").toString();
-            }
-
+            // Store transaction metadata
             TransactionMetadata metadata = new TransactionMetadata();
             metadata.setUserId(request.getUserId());
-            metadata.setPlanId(request.getPlanId());
-            metadata.setBillingPeriodStr(billingPeriodStr);
-            metadata.setBillingPeriod(parseBillingPeriod(billingPeriodStr));
             metadata.setAmount(request.getAmount());
             metadata.setCurrency(request.getCurrency());
+            metadata.setCustomerEmail(request.getCustomerEmail());
+            metadata.setCustomerName(request.getCustomerName());
             transactionMetadataMap.put(request.getTransactionId(), metadata);
 
+            // Convert PaymentGatewayRequest to PaymentRequestDto
             PaymentRequestDto paymentRequest = PaymentRequestDto.builder()
                     .userId(request.getUserId())
                     .planId(request.getPlanId())
                     .amount(request.getAmount())
                     .currency(request.getCurrency())
-                    .billingPeriod(billingPeriodStr)
                     .customerEmail(request.getCustomerEmail())
                     .customerName(request.getCustomerName())
                     .customerPhone(request.getCustomerPhone())
+                    .successUrl(request.getSuccessUrl())
+                    .cancelUrl(request.getCancelUrl())
                     .build();
 
+            // Create payment record with PENDING status
             paymentTransactionService.initiatePayment(paymentRequest);
 
             Map<String, Object> konnectRequest = buildKonnectRequest(request);
@@ -158,10 +144,10 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
             return PaymentGatewayStatusResponse.builder()
                     .providerPaymentId(request.getProviderPaymentId())
                     .transactionId(request.getTransactionId())
-                    .status(mapKonnectStatus(status))
+                    .status(mapKonnectStatusToEnum(status))
                     .amount(amount)
                     .currency((String) paymentData.get("currency"))
-                    .paymentMethod((String) paymentData.get("payment_method"))
+                    .paymentMethod(PaymentMethodType.valueOf(((String) paymentData.get("payment_method")).toUpperCase()))
                     .paymentDate(LocalDateTime.now())
                     .build();
 
@@ -202,56 +188,28 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
                     );
                 }
 
-                Long userId = metadata.getUserId();
-                Long planId = metadata.getPlanId();
-                BillingPeriod billingPeriod = metadata.getBillingPeriod();
-                BigDecimal amount = payload.getAmount();
-                String currency = payload.getCurrency();
-
+                // Mark payment as COMPLETED
                 paymentTransactionService.markAsCompleted(payload.getTransactionId());
                 log.info("✅ Payment transaction completed: {}", payload.getTransactionId());
 
-                UserSubscriptionDto subscription = new UserSubscriptionDto();
-                subscription.setUserId(userId);
-                subscription.setPlanId(planId);
-                subscription.setBillingPeriod(billingPeriod);
-                subscription.setStatus(com.tunindex.market_tool.payment.entities.enums.SubscriptionStatus.ACTIVE);
-                subscription.setAutoRenew(true);
-                subscription.setStartDate(LocalDateTime.now());
+                // Send payment confirmation email using existing method
+                emailServiceClient.sendPaymentConfirmationEmail(
+                        metadata.getCustomerEmail(),
+                        metadata.getCustomerName(),
+                        payload.getAmount().toString(),
+                        metadata.getCurrency(),
+                        payload.getTransactionId()
+                );
+                log.info("✅ Payment confirmation email sent to: {}", metadata.getCustomerEmail());
 
-                if (billingPeriod == BillingPeriod.YEARLY) {
-                    subscription.setEndDate(LocalDateTime.now().plusYears(1));
-                } else {
-                    subscription.setEndDate(LocalDateTime.now().plusMonths(1));
-                }
-
-                UserSubscriptionDto createdSubscription = userSubscriptionService.createSubscription(subscription);
-                log.info("✅ Subscription created - ID: {}, User: {}, Plan: {}",
-                        createdSubscription.getId(), userId, planId);
-
-                log.info("✅ Invoice generated for transaction: {}", payload.getTransactionId());
-
-                UserPaymentInfoDto user = apiServiceClient.getUserPaymentInfo(userId);
-                String planName = subscriptionPlanService.findById(planId).getName();
-
-                if (user != null && user.getEmail() != null) {
-                    emailServiceClient.sendPaymentReceiptEmail(
-                            user.getEmail(),
-                            user.getFirstName() + " " + user.getLastName(),
-                            amount.toString(),
-                            currency,
-                            payload.getTransactionId(),
-                            planName
-                    );
-                    log.info("✅ Payment receipt email sent to: {}", user.getEmail());
-                }
-
+                // Clean up metadata
                 transactionMetadataMap.remove(payload.getTransactionId());
 
             } catch (Exception e) {
                 log.error("❌ Failed to process successful payment: {}", e.getMessage(), e);
             }
         } else {
+            // Payment failed - update transaction status
             paymentTransactionService.markAsFailed(payload.getTransactionId(), "Payment failed: " + status);
             log.warn("❌ Payment failed for transaction: {}, status: {}", payload.getTransactionId(), status);
             transactionMetadataMap.remove(payload.getTransactionId());
@@ -260,7 +218,7 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         return PaymentGatewayStatusResponse.builder()
                 .providerPaymentId(payload.getProviderPaymentId())
                 .transactionId(payload.getTransactionId())
-                .status(mapKonnectStatus(status))
+                .status(mapKonnectStatusToEnum(status))
                 .amount(payload.getAmount())
                 .currency(payload.getCurrency())
                 .paymentDate(LocalDateTime.now())
@@ -273,16 +231,6 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         log.info("🔄 Processing Konnect refund for payment: {}", providerPaymentId);
 
         try {
-            PaymentResponseDto transaction = paymentTransactionService.findByProviderPaymentId(providerPaymentId);
-
-            if (transaction == null) {
-                throw new InvalidOperationException(
-                        "Transaction not found for provider payment ID: " + providerPaymentId,
-                        ErrorCodes.PAYMENT_NOT_FOUND,
-                        List.of("Transaction not found")
-                );
-            }
-
             Map<String, Object> refundRequest = new HashMap<>();
             refundRequest.put("amount", amount);
             refundRequest.put("reason", reason != null ? reason : "Customer request");
@@ -305,18 +253,19 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
                 );
             }
 
-            paymentTransactionService.markAsRefunded(transaction.getTransactionReference());
+            Map<String, Object> refundData = (Map<String, Object>) response.get("data");
+            String transactionId = (String) refundData.get("order_id");
 
-            try {
-                sendRefundConfirmationEmail(providerPaymentId, amount);
-            } catch (Exception e) {
-                log.error("Failed to send refund confirmation email: {}", e.getMessage());
-            }
+            // Mark transaction as refunded
+            paymentTransactionService.markAsRefunded(transactionId);
+
+            // Send refund confirmation email
+            sendRefundConfirmationEmail(providerPaymentId, amount, transactionId);
 
             return PaymentGatewayResponse.builder()
                     .providerPaymentId(providerPaymentId)
                     .status("REFUNDED")
-                    .transactionId(transaction.getTransactionReference())
+                    .transactionId(transactionId)
                     .build();
 
         } catch (Exception e) {
@@ -368,47 +317,33 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         return konnectRequest;
     }
 
-    private void sendPaymentSuccessEmail(PaymentGatewayWebhookPayload payload) {
-        try {
-            TransactionMetadata metadata = transactionMetadataMap.get(payload.getTransactionId());
-            if (metadata != null && metadata.getUserId() != null) {
-                UserPaymentInfoDto user = apiServiceClient.getUserPaymentInfo(metadata.getUserId());
-                if (user != null && user.getEmail() != null) {
-                    emailServiceClient.sendPaymentConfirmationEmail(
-                            user.getEmail(),
-                            user.getFirstName() + " " + user.getLastName(),
-                            payload.getAmount().toString(),
-                            payload.getCurrency(),
-                            payload.getTransactionId()
-                    );
-                    log.info("Payment confirmation email sent to: {}", user.getEmail());
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to send payment confirmation email: {}", e.getMessage());
+    private void sendRefundConfirmationEmail(String providerPaymentId, BigDecimal amount, String transactionId) {
+        // Get metadata from map
+        TransactionMetadata metadata = transactionMetadataMap.values().stream()
+                .filter(m -> m.getAmount().equals(amount))
+                .findFirst()
+                .orElse(null);
+
+        if (metadata != null && metadata.getCustomerEmail() != null) {
+            emailServiceClient.sendPaymentConfirmationEmail(
+                    metadata.getCustomerEmail(),
+                    metadata.getCustomerName(),
+                    amount.toString(),
+                    metadata.getCurrency(),
+                    transactionId
+            );
         }
     }
 
-    private void sendRefundConfirmationEmail(String providerPaymentId, BigDecimal amount) {
-        try {
-            PaymentResponseDto transaction = paymentTransactionService.findByProviderPaymentId(providerPaymentId);
-            if (transaction != null && transaction.getTransactionReference() != null) {
-                log.info("Refund confirmed for transaction: {}", transaction.getTransactionReference());
-            }
-        } catch (Exception e) {
-            log.error("Failed to send refund confirmation email: {}", e.getMessage());
-        }
-    }
-
-    private String mapKonnectStatus(String konnectStatus) {
-        if (konnectStatus == null) return "PENDING";
+    private PaymentStatus mapKonnectStatusToEnum(String konnectStatus) {
+        if (konnectStatus == null) return PaymentStatus.PENDING;
         switch (konnectStatus.toLowerCase()) {
-            case "completed": case "success": case "paid": return "COMPLETED";
-            case "failed": case "error": case "declined": return "FAILED";
-            case "refunded": return "REFUNDED";
-            case "processing": return "PROCESSING";
-            case "cancelled": return "CANCELLED";
-            default: return "PENDING";
+            case "completed": case "success": case "paid": return PaymentStatus.COMPLETED;
+            case "failed": case "error": case "declined": return PaymentStatus.FAILED;
+            case "refunded": return PaymentStatus.REFUNDED;
+            case "processing": return PaymentStatus.PROCESSING;
+            case "cancelled": return PaymentStatus.CANCELLED;
+            default: return PaymentStatus.PENDING;
         }
     }
 
@@ -454,25 +389,5 @@ public class KonnectPaymentGateway implements PaymentGatewayService {
         return sb.toString();
     }
 
-    private static class TransactionMetadata {
-        private Long userId;
-        private Long planId;
-        private String billingPeriodStr;
-        private BillingPeriod billingPeriod;
-        private BigDecimal amount;
-        private String currency;
 
-        public Long getUserId() { return userId; }
-        public void setUserId(Long userId) { this.userId = userId; }
-        public Long getPlanId() { return planId; }
-        public void setPlanId(Long planId) { this.planId = planId; }
-        public String getBillingPeriodStr() { return billingPeriodStr; }
-        public void setBillingPeriodStr(String billingPeriodStr) { this.billingPeriodStr = billingPeriodStr; }
-        public BillingPeriod getBillingPeriod() { return billingPeriod; }
-        public void setBillingPeriod(BillingPeriod billingPeriod) { this.billingPeriod = billingPeriod; }
-        public BigDecimal getAmount() { return amount; }
-        public void setAmount(BigDecimal amount) { this.amount = amount; }
-        public String getCurrency() { return currency; }
-        public void setCurrency(String currency) { this.currency = currency; }
-    }
 }

@@ -129,13 +129,13 @@ public class RefundServiceImpl implements RefundService {
 
     @Override
     @Transactional
-    public RefundResponseDto requestRefund(RefundPaymentRequestDto refundRequest) {
-        log.info("💰 Requesting refund for transaction: {}", refundRequest.getTransactionId());
+    public RefundResponseDto requestRefund(RefundPaymentRequestDto refundRequest, Long userId) {
+        log.info("💰 User {} requesting refund for transaction: {}", userId, refundRequest.getTransactionId());
 
-        // Validate the refund request using RefundPaymentRequestValidator
+        // Validate the refund request
         RefundPaymentRequestValidator.validate(refundRequest);
 
-        // Get the original transaction (convert transactionId String to Long)
+        // Get the original transaction
         Long transactionIdLong;
         try {
             transactionIdLong = Long.valueOf(refundRequest.getTransactionId());
@@ -154,6 +154,15 @@ public class RefundServiceImpl implements RefundService {
                         List.of("No transaction found")
                 ));
 
+        // Verify the user owns this transaction
+        if (!transaction.getUserId().equals(userId)) {
+            throw new InvalidEntityException(
+                    "You can only request refunds for your own transactions",
+                    ErrorCodes.PAYMENT_REFUND_FAILED,
+                    List.of("Unauthorized refund request")
+            );
+        }
+
         // Validate transaction for refund
         validateTransactionForRefund(transaction, refundRequest.getAmount());
 
@@ -163,6 +172,15 @@ public class RefundServiceImpl implements RefundService {
                     "A refund has already been processed for this transaction",
                     ErrorCodes.PAYMENT_REFUND_ALREADY_PROCESSED,
                     List.of("Refund already exists")
+            );
+        }
+
+        // Check if user already requested a refund for this transaction
+        if (refundRepository.existsByTransactionIdAndStatus(transaction.getId(), RefundStatus.PENDING)) {
+            throw new InvalidEntityException(
+                    "A refund request is already pending for this transaction",
+                    ErrorCodes.PAYMENT_REFUND_ALREADY_PROCESSED,
+                    List.of("Pending refund already exists")
             );
         }
 
@@ -178,7 +196,7 @@ public class RefundServiceImpl implements RefundService {
 
         Refund savedRefund = refundRepository.save(refund);
 
-        log.info("✅ Refund requested successfully with id: {}", savedRefund.getId());
+        log.info("✅ Refund requested successfully by user {} with id: {}", userId, savedRefund.getId());
         return convertToResponseDto(savedRefund);
     }
 
@@ -409,8 +427,8 @@ public class RefundServiceImpl implements RefundService {
             errors.add("Transaction has already been fully refunded");
         }
 
-        if (refundAmount != null && refundAmount.compareTo(transaction.getAmount()) > 0) {
-            errors.add("Refund amount cannot exceed transaction amount");
+        if (refundAmount != null && refundAmount.compareTo(transaction.getAmount()) != 0) {
+            errors.add("Refund must be for the full amount");
         }
 
         if (!errors.isEmpty()) {

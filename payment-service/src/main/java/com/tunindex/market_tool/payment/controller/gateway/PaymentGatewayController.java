@@ -1,5 +1,8 @@
 package com.tunindex.market_tool.payment.controller.gateway;
 
+import com.tunindex.market_tool.common.exception.ErrorCodes;
+import com.tunindex.market_tool.common.exception.InvalidOperationException;
+import com.tunindex.market_tool.payment.client.ApiServiceClient;
 import com.tunindex.market_tool.payment.dto.*;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayRequest;
 import com.tunindex.market_tool.payment.dto.gateway.PaymentGatewayResponse;
@@ -15,8 +18,10 @@ import com.tunindex.market_tool.payment.validators.gateway.RefundPaymentRequestV
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 import java.util.Map;
@@ -29,6 +34,14 @@ public class PaymentGatewayController implements PaymentGatewayApi {
 
     private final PaymentGatewayService paymentGatewayService;
     private final PaymentMethodService paymentMethodService;
+    private final WebClient.Builder webClientBuilder;
+    private final ApiServiceClient apiServiceClient;
+
+    @Value("${internal.api.key}")
+    private String internalApiKey;
+
+    @Value("${payment.service.url:http://payment-service}")
+    private String paymentServiceUrl;
 
     @Value("${payment.success-redirect-url}")
     private String successRedirectUrl;
@@ -125,23 +138,44 @@ public class PaymentGatewayController implements PaymentGatewayApi {
     public ResponseEntity<RefundPaymentResponseDto> refundPayment(RefundPaymentRequestDto request) {
         log.info("POST /api/payments/refund - Transaction: {}, Amount: {}", request.getTransactionId(), request.getAmount());
 
+        // 1. Validate the request
         RefundPaymentRequestValidator.validate(request);
 
-        PaymentGatewayResponse gatewayResponse = paymentGatewayService.refundPayment(
-                request.getProviderPaymentId(),
-                request.getAmount(),
-                request.getReason()
-        );
 
-        RefundPaymentResponseDto response = RefundPaymentResponseDto.builder()
-                .transactionId(request.getTransactionId())
-                .providerRefundId(gatewayResponse.getProviderPaymentId())
-                .amount(request.getAmount())
-                .status(gatewayResponse.getStatus())
-                .refundDate(java.time.LocalDateTime.now())
-                .build();
+        // 3. Call internal refund controller using WebClient
+        String internalUrl = paymentServiceUrl + "/internal/refund/process";
 
-        return ResponseEntity.ok(response);
+        try {
+            Map<String, Object> internalResponse = webClientBuilder.build()
+                    .post()
+                    .uri(internalUrl)
+                    .header("X-API-Key", internalApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            if (internalResponse != null && Boolean.TRUE.equals(internalResponse.get("success"))) {
+                return ResponseEntity.ok(RefundPaymentResponseDto.builder()
+                        .transactionId(request.getTransactionId())
+                        .providerRefundId((String) internalResponse.get("refundId"))
+                        .amount(request.getAmount())
+                        .status("REFUNDED")
+                        .refundDate(java.time.LocalDateTime.now())
+                        .build());
+            } else {
+                throw new RuntimeException("Refund processing failed");
+            }
+
+        } catch (Exception e) {
+            log.error("Refund failed: {}", e.getMessage());
+            throw new InvalidOperationException(
+                    "Failed to process refund: " + e.getMessage(),
+                    ErrorCodes.PAYMENT_REFUND_FAILED,
+                    List.of(e.getMessage())
+            );
+        }
     }
 
     @Override
@@ -149,4 +183,5 @@ public class PaymentGatewayController implements PaymentGatewayApi {
         log.info("GET /api/payments/payment-methods");
         return ResponseEntity.ok(paymentMethodService.getAvailablePaymentMethods());
     }
+
 }

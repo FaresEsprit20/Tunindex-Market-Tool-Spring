@@ -21,7 +21,7 @@ public interface RefundService {
 
     PagedResponse<RefundResponseDto> filterRefunds(PaginationAndFilteringDto paginationDto);
 
-    RefundResponseDto requestRefund(RefundPaymentRequestDto refundRequest);
+    RefundResponseDto requestRefund(RefundPaymentRequestDto refundRequest, Long userId);
 
     RefundResponseDto updateRefundStatus(Long refundId, RefundStatus newStatus);
 

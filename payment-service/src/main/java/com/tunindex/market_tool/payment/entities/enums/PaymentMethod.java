@@ -5,5 +5,6 @@ public enum PaymentMethod {
     BANK_TRANSFER,
     ORANGE_MONEY,
     MTN_MOBILE_MONEY,
-    E_DINAR
+    E_DINAR,
+    FLOUCI
 }

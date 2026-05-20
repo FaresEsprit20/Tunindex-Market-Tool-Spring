@@ -218,9 +218,7 @@ class KonnectPaymentGatewayTest {
             paymentData.put("status", "completed");
             paymentData.put("amount", 99.99);
             paymentData.put("currency", "TND");
-            // Use a valid enum value - check your PaymentMethodType enum for available values
-            // Common values: CREDIT_CARD, DEBIT_CARD, PAYPAL, etc.
-            paymentData.put("payment_method", "CREDIT_CARD");
+            paymentData.put("payment_method", "CREDIT_CARD");  // Add this required field
             konnectResponse.put("data", paymentData);
 
             when(konnectConfig.getApiUrl()).thenReturn("https://api.konnect.com");
@@ -285,19 +283,18 @@ class KonnectPaymentGatewayTest {
         }
 
         @Test
-        @DisplayName("Should handle webhook when no secret configured - metadata missing logs error but doesn't throw")
+        @DisplayName("Should handle webhook when no secret configured - returns response")
         void shouldHandleWebhookWhenNoSecretConfigured() {
             // Given
             when(konnectConfig.getWebhookSecret()).thenReturn(null);
 
-            // When - the method catches exceptions internally and doesn't throw them
+            // When
             PaymentGatewayStatusResponse result = konnectPaymentGateway.processWebhook(webhookPayload, "any-signature");
 
-            // Then - it still returns a response even if metadata is missing
+            // Then
             assertThat(result).isNotNull();
             assertThat(result.getTransactionId()).isEqualTo("TXN-001");
-            // The status might be COMPLETED even though metadata was missing
-            // because the webhook processing continues despite the error
+            assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
         }
 
         @Test

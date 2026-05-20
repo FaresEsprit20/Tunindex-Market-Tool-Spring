@@ -22,13 +22,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableDiscoveryClient
 @Slf4j
-public class PaymentServiceApplication {
+public class BillingServiceApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(PaymentServiceApplication.class, args);
+        SpringApplication.run(BillingServiceApplication.class, args);
 
         log.info("=".repeat(60));
-        log.info("💳 PAYMENT SERVICE STARTED");
+        log.info("💳 Billing SERVICE STARTED");
         log.info("📡 Web server running on http://localhost:8088");
         log.info("📖 Swagger UI: http://localhost:8088/swagger-ui.html");
         log.info("=".repeat(60));

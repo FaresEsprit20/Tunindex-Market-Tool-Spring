@@ -207,8 +207,8 @@ class KonnectPaymentGatewayTest {
     class GetPaymentStatusTests {
 
         @Test
-        @DisplayName("Should successfully get payment status")
-        void shouldSuccessfullyGetPaymentStatus() {
+        @DisplayName("Should successfully get payment status with BANK_CARD")
+        void shouldSuccessfullyGetPaymentStatusWithBankCard() {
             // Given
             when(webClientBuilder.build()).thenReturn(webClient);
 
@@ -218,7 +218,7 @@ class KonnectPaymentGatewayTest {
             paymentData.put("status", "completed");
             paymentData.put("amount", 99.99);
             paymentData.put("currency", "TND");
-            paymentData.put("payment_method", "CREDIT_CARD");  // Add this required field
+            paymentData.put("payment_method", "BANK_CARD");  // Use enum name, not konnectValue
             konnectResponse.put("data", paymentData);
 
             when(konnectConfig.getApiUrl()).thenReturn("https://api.konnect.com");
@@ -238,6 +238,70 @@ class KonnectPaymentGatewayTest {
             assertThat(result.getProviderPaymentId()).isEqualTo("KONNECT-123");
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
             assertThat(result.getAmount()).isEqualByComparingTo("99.99");
+        }
+
+        @Test
+        @DisplayName("Should successfully get payment status with FLOUCI")
+        void shouldSuccessfullyGetPaymentStatusWithFlouci() {
+            // Given
+            when(webClientBuilder.build()).thenReturn(webClient);
+
+            Map<String, Object> konnectResponse = new HashMap<>();
+            konnectResponse.put("success", true);
+            Map<String, Object> paymentData = new HashMap<>();
+            paymentData.put("status", "completed");
+            paymentData.put("amount", 99.99);
+            paymentData.put("currency", "TND");
+            paymentData.put("payment_method", "FLOUCI");  // Use enum name
+            konnectResponse.put("data", paymentData);
+
+            when(konnectConfig.getApiUrl()).thenReturn("https://api.konnect.com");
+            when(konnectConfig.getApiKey()).thenReturn("test-api-key");
+
+            when(webClient.get()).thenReturn(requestHeadersUriSpec);
+            when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+            when(requestHeadersSpec.header(eq("X-API-Key"), anyString())).thenReturn(requestHeadersSpec);
+            when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+            when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(konnectResponse));
+
+            // When
+            PaymentGatewayStatusResponse result = konnectPaymentGateway.getPaymentStatus(statusRequest);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        }
+
+        @Test
+        @DisplayName("Should successfully get payment status with WALLET")
+        void shouldSuccessfullyGetPaymentStatusWithWallet() {
+            // Given
+            when(webClientBuilder.build()).thenReturn(webClient);
+
+            Map<String, Object> konnectResponse = new HashMap<>();
+            konnectResponse.put("success", true);
+            Map<String, Object> paymentData = new HashMap<>();
+            paymentData.put("status", "completed");
+            paymentData.put("amount", 99.99);
+            paymentData.put("currency", "TND");
+            paymentData.put("payment_method", "WALLET");  // Use enum name
+            konnectResponse.put("data", paymentData);
+
+            when(konnectConfig.getApiUrl()).thenReturn("https://api.konnect.com");
+            when(konnectConfig.getApiKey()).thenReturn("test-api-key");
+
+            when(webClient.get()).thenReturn(requestHeadersUriSpec);
+            when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+            when(requestHeadersSpec.header(eq("X-API-Key"), anyString())).thenReturn(requestHeadersSpec);
+            when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+            when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(konnectResponse));
+
+            // When
+            PaymentGatewayStatusResponse result = konnectPaymentGateway.getPaymentStatus(statusRequest);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
         }
 
         @Test

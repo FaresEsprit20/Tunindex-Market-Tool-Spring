@@ -1,6 +1,6 @@
 package com.tunindex.market_tool.api.config.security.handler;
 
-import com.tunindex.market_tool.api.config.security.jwt.OAuth2TokenService;
+import com.tunindex.market_tool.api.config.security.oauth2.OAuth2TokenService;
 import com.tunindex.market_tool.api.entities.User;
 import com.tunindex.market_tool.api.entities.enums.TokenType;
 import com.tunindex.market_tool.api.repository.UnifiedTokenRepository;

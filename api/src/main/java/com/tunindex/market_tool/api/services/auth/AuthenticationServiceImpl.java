@@ -1,7 +1,7 @@
 package com.tunindex.market_tool.api.services.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tunindex.market_tool.api.config.security.jwt.JwtService;
+import com.tunindex.market_tool.api.config.security.oauth2.JwtService;
 import com.tunindex.market_tool.common.dto.auth.AuthCheckResponse;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationRequest;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationResponse;

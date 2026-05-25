@@ -1,7 +1,10 @@
 package com.tunindex.market_tool.api.config.security.filters;
 
-import com.tunindex.market_tool.api.config.security.jwt.JwtService;
-import io.jsonwebtoken.ExpiredJwtException;
+import com.tunindex.market_tool.api.config.security.oauth2.OAuth2TokenService;
+import com.tunindex.market_tool.api.entities.UnifiedToken;
+import com.tunindex.market_tool.api.entities.User;
+import com.tunindex.market_tool.api.repository.UnifiedTokenRepository;
+import com.tunindex.market_tool.api.services.users.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -13,21 +16,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
 @Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class OAuth2AuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
-    private final JwtTokenRepository tokenRepository;
+    private final OAuth2TokenService tokenService;
+    private final CustomUserDetailsService userDetailsService;
+    private final UnifiedTokenRepository tokenRepository;
 
     @Override
     protected void doFilterInternal(
@@ -37,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         String path = request.getServletPath();
-        log.debug("🔍 JwtFilter processing: {}", path);
+        log.debug("🔍 OAuth2Filter processing: {}", path);
 
         // Log cookies received
         if (request.getCookies() != null) {
@@ -57,48 +60,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String jwt = extractJwtFromCookie(request);
-        if (jwt == null) {
-            log.debug("⏭️ No JWT cookie found, continuing filter chain");
+        String token = extractTokenFromCookie(request);
+        if (token == null) {
+            log.debug("⏭️ No token cookie found, continuing filter chain");
             filterChain.doFilter(request, response);
             return;
         }
 
-        log.debug("✅ JWT cookie found, validating...");
+        log.debug("✅ Token cookie found, validating...");
 
-        String userEmail;
-        try {
-            userEmail = jwtService.extractUsername(jwt);
-            log.debug("📧 Extracted email from JWT: {}", userEmail);
-        } catch (ExpiredJwtException e) {
-            log.warn("⏰ JWT token expired, clearing cookies");
-            // Handle expired token: delete ALL cookies
+        // Validate token with OAuth2TokenService
+        Optional<UnifiedToken> tokenOpt = tokenService.validateToken(token, request);
+
+        if (tokenOpt.isEmpty()) {
+            log.warn("❌ Invalid or expired token, clearing cookies");
             clearAllCookies(request, response);
             filterChain.doFilter(request, response);
             return;
-        } catch (Exception e) {
-            log.error("❌ Error parsing JWT: {}", e.getMessage());
-            // Handle other token parsing issues - continue without authentication
-            filterChain.doFilter(request, response);
-            return;
         }
+
+        UnifiedToken unifiedToken = tokenOpt.get();
+        String userEmail = unifiedToken.getUserEmail();
+
+        log.debug("📧 Extracted email from token: {}", userEmail);
 
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             log.debug("🔐 Loading user details for: {}", userEmail);
             UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
 
-            boolean isTokenValid = tokenRepository.findByToken(jwt)
-                    .map(token -> {
-                        boolean valid = !token.isExpired() && !token.isRevoked();
-                        log.debug("🎫 Token in DB: expired={}, revoked={}, valid={}",
-                                token.isExpired(), token.isRevoked(), valid);
-                        return valid;
-                    })
-                    .orElse(false);
+            // Check if token is still valid (not revoked, not expired)
+            boolean isTokenValid = !unifiedToken.isRevoked() &&
+                    !unifiedToken.isExpired() &&
+                    unifiedToken.getExpirationDate() != null &&
+                    unifiedToken.getExpirationDate().isAfter(java.time.LocalDateTime.now());
 
-            log.debug("🔍 Token validation: isTokenValid={}", isTokenValid);
+            log.debug("🎫 Token in DB: revoked={}, expired={}, valid={}",
+                    unifiedToken.isRevoked(), unifiedToken.isExpired(), isTokenValid);
 
-            if (jwtService.isTokenValid(jwt, userDetails, request) && isTokenValid) {
+            if (isTokenValid && userDetails instanceof User) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
@@ -109,9 +108,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 log.info("✅ Authentication set in SecurityContext for user: {}", userEmail);
             } else {
                 log.warn("❌ Token validation failed for user: {}", userEmail);
+                // Token is invalid - clear cookies
+                clearAllCookies(request, response);
+                filterChain.doFilter(request, response);
+                return;
             }
         } else if (userEmail == null) {
-            log.warn("❌ No userEmail extracted from JWT");
+            log.warn("❌ No userEmail associated with token");
+            clearAllCookies(request, response);
+            filterChain.doFilter(request, response);
+            return;
         } else {
             log.debug("⏭️ Authentication already exists in SecurityContext");
         }
@@ -120,9 +126,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Extracts JWT from the 'accessToken' cookie only.
+     * Extracts OAuth2 token from the 'accessToken' cookie only.
      */
-    private String extractJwtFromCookie(HttpServletRequest request) {
+    private String extractTokenFromCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("accessToken".equals(cookie.getName())) {
@@ -144,9 +150,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Cookie clearedCookie = new Cookie(cookie.getName(), "");
             clearedCookie.setMaxAge(0);
             clearedCookie.setPath("/");
-            clearedCookie.setHttpOnly(cookie.isHttpOnly());
-            clearedCookie.setSecure(cookie.getSecure());
+            clearedCookie.setHttpOnly(true);
+            clearedCookie.setSecure(true);
+            response.addCookie(clearedCookie);
+            log.debug("Cleared cookie: {}", cookie.getName());
+        }
+
+        // Also clear specific auth cookies even if not in request
+        String[] authCookies = {"accessToken", "refreshToken", "JSESSIONID"};
+        for (String cookieName : authCookies) {
+            Cookie clearedCookie = new Cookie(cookieName, "");
+            clearedCookie.setMaxAge(0);
+            clearedCookie.setPath("/");
+            clearedCookie.setHttpOnly(true);
+            clearedCookie.setSecure(true);
             response.addCookie(clearedCookie);
         }
+
+        log.info("All authentication cookies cleared");
     }
 }

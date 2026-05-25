@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.api.config.security.jwt;
+package com.tunindex.market_tool.api.config.security.oauth2;
 
 import com.tunindex.market_tool.api.entities.UnifiedToken;
 import com.tunindex.market_tool.api.entities.User;

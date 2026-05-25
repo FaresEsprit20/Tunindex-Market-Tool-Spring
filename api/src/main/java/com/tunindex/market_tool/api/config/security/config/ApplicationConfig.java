@@ -1,9 +1,11 @@
 package com.tunindex.market_tool.api.config.security.config;
 
 import com.tunindex.market_tool.api.repository.UserRepository;
+import com.tunindex.market_tool.api.services.users.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -17,10 +19,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @RequiredArgsConstructor
 public class ApplicationConfig {
 
-
     private final UserRepository repository;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Bean
+    @Primary  // This is the main UserDetailsService for username/password auth
     public UserDetailsService userDetailsService() {
         return username -> repository.findUserByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));

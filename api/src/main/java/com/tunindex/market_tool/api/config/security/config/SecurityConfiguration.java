@@ -3,7 +3,6 @@ package com.tunindex.market_tool.api.config.security.config;
 import com.tunindex.market_tool.api.config.security.filters.InputSanitizerFilter;
 import com.tunindex.market_tool.api.config.security.filters.JwtAuthenticationFilter;
 import com.tunindex.market_tool.api.config.security.filters.RateLimitingFilter;
-import com.tunindex.market_tool.api.config.security.filters.RecaptchaFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,7 +33,7 @@ public class SecurityConfiguration {
     private final AuthenticationProvider authProvider;
     private final RateLimitingFilter rateLimitingFilter;
     private final InputSanitizerFilter inputSanitizerFilter;
-    private final RecaptchaFilter recaptchaFilter;
+//    private final RecaptchaFilter recaptchaFilter;
 
 
     private static final String[] WHITE_LIST = {

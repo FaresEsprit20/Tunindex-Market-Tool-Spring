@@ -17,6 +17,7 @@ import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -35,10 +36,9 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     private final PasswordResetTokenRepository tokenRepo;
     private final UnifiedTokenRepository unifiedTokenRepository;
     private final UserService userService;
-    private final WebClient.Builder webClientBuilder;
 
-    @Value("${mailing.service.url:http://mailing-service}")
-    private String mailingServiceUrl;
+    @LoadBalanced
+    private final WebClient.Builder loadBalancedWebClientBuilder;
 
     @Value("${internal.api.key}")
     private String internalApiKey;
@@ -117,9 +117,10 @@ public class PasswordResetServiceImpl implements PasswordResetService {
                     "label", label
             );
 
-            Map<String, Object> response = webClientBuilder.build()
+            // Use service discovery - call by SERVICE NAME, not localhost
+            Map<String, Object> response = loadBalancedWebClientBuilder.build()
                     .post()
-                    .uri(mailingServiceUrl + "/internal/email/send-html")
+                    .uri("http://mailing-service/internal/email/send-html")
                     .header("X-API-Key", internalApiKey)
                     .bodyValue(request)
                     .retrieve()
@@ -235,6 +236,4 @@ public class PasswordResetServiceImpl implements PasswordResetService {
                 .remainingTimeSeconds(remainingTimeSeconds)
                 .build();
     }
-
-
 }

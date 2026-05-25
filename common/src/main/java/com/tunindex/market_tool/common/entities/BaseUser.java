@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -49,5 +50,19 @@ public abstract class BaseUser extends AbstractEntity {
     private String provider;
     private String providerId;
 
+    @Column(name = "enabled")
+    private boolean enabled = true;
+
+    @Column(name = "account_non_expired")
+    private boolean accountNonExpired = true;
+
+    @Column(name = "account_non_locked")
+    private boolean accountNonLocked = true;
+
+    @Column(name = "credentials_non_expired")
+    private boolean credentialsNonExpired = true;
+
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
     // Relationships - NO @ManyToMany here, handled in API module
 }

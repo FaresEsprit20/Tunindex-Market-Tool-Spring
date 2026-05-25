@@ -10,7 +10,6 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import java.time.LocalDateTime;
 
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -78,18 +77,25 @@ public class UnifiedToken {
     protected void onCreate() {
         this.creationDate = LocalDateTime.now();
 
-        // Initialize fields based on token type
         switch (this.tokenType) {
-            case JWT:
-                // JWT tokens: set default expiration to 24 hours, not revoked/expired initially
-                this.expirationDate = LocalDateTime.now().plusHours(24);
+
+            case OAUTH2_ACCESS:
+                // OAuth2 access token - short lived (15 minutes)
+                this.expirationDate = LocalDateTime.now().plusMinutes(15);
+                this.revoked = false;
+                this.expired = false;
+                this.isUsed = false;
+                break;
+
+            case OAUTH2_REFRESH:
+                // OAuth2 refresh token - long lived (7 days)
+                this.expirationDate = LocalDateTime.now().plusDays(7);
                 this.revoked = false;
                 this.expired = false;
                 this.isUsed = false;
                 break;
 
             case PASSWORD_RESET:
-                // Password reset tokens: set expiration to 15 minutes, not used initially
                 this.expirationDate = LocalDateTime.now().plusMinutes(15);
                 this.isUsed = false;
                 this.revoked = false;
@@ -97,7 +103,6 @@ public class UnifiedToken {
                 break;
 
             case TWO_FACTOR:
-                // Two-factor tokens: set expiration to 3 minutes, initialize 2FA specific fields
                 this.expirationDate = LocalDateTime.now().plusMinutes(3);
                 this.attempts = 0;
                 this.isVerified = false;
@@ -108,7 +113,6 @@ public class UnifiedToken {
                 break;
 
             default:
-                // Default initialization for unknown token types
                 this.expirationDate = LocalDateTime.now().plusHours(1);
                 this.revoked = false;
                 this.expired = false;

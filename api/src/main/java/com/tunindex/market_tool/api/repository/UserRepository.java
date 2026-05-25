@@ -39,6 +39,12 @@ public interface UserRepository extends JpaRepository<User, Integer>, JpaSpecifi
     boolean existsUserByNumTel(@Param("numTel") String numTel);
 
 
+    // NEW: For OAuth2 lookup
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
+
+    // Check if OAuth2 user exists
+    boolean existsByProviderAndProviderId(String provider, String providerId);
+
 
 
 }

@@ -70,10 +70,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         user.setProviderId(providerId);
         user.setEmail(email);
         user.setLocked(false);
-        user.setEnabled(true);
-        user.setAccountNonExpired(true);
-        user.setAccountNonLocked(true);
-        user.setCredentialsNonExpired(true);
+
 
         // Extract first name and last name from full name
         if (name != null && !name.isEmpty()) {
@@ -161,13 +158,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         return userRepository.existsByProviderAndProviderId(provider, providerId);
     }
 
-    /**
-     * Update user's last login time
-     */
-    @Transactional
-    public void updateLastLogin(User user) {
-        user.setLastLogin(java.time.LocalDateTime.now());
-        userRepository.save(user);
-    }
+
 
 }

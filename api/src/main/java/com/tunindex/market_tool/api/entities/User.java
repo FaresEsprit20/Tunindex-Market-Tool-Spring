@@ -44,23 +44,10 @@ public class User extends BaseUser implements UserDetails {
         return getEmail();
     }
 
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
 
     @Override
     public boolean isAccountNonLocked() {
         return !Boolean.TRUE.equals(getLocked());
     }
 
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return true;
-    }
 }

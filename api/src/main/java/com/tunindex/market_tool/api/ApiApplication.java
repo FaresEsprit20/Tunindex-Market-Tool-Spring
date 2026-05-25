@@ -28,4 +28,5 @@ public class ApiApplication {
         log.info("📖 Swagger UI: http://localhost:8082/swagger-ui.html");
         log.info("=".repeat(60));
     }
+
 }

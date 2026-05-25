@@ -13,28 +13,28 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
-import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfiguration {
 
-    private final OAuth2AuthenticationFilter oauth2AuthFilter;  // Changed from JwtAuthenticationFilter
+    private final OAuth2AuthenticationFilter oauth2AuthFilter;
     private final AuthenticationProvider authProvider;
     private final RateLimitingFilter rateLimitingFilter;
     private final InputSanitizerFilter inputSanitizerFilter;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
-//    private final RecaptchaFilter recaptchaFilter;
+    private final OAuth2ResourceServer oAuth2ResourceServer;  // Add Resource Server
 
     private static final String[] WHITE_LIST = {
             "/tunindex/market/tool/v1/auth/**",
@@ -44,15 +44,14 @@ public class SecurityConfiguration {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/oauth2/**",           // OAuth2 endpoints
-            "/login/oauth2/**",     // OAuth2 login endpoints
-            "/oauth2/success",      // OAuth2 success redirect
-            "/oauth2/error"         // OAuth2 error redirect
+            "/oauth2/**",
+            "/login/oauth2/**",
+            "/oauth2/success",
+            "/oauth2/error"
     };
 
-    // Add internal endpoints that don't need authentication
     private static final String[] INTERNAL_WHITE_LIST = {
-            "/internal/**"  // Allow all internal calls without authentication
+            "/internal/**"
     };
 
     @Bean
@@ -63,14 +62,15 @@ public class SecurityConfiguration {
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
                 )
-                .authorizeHttpRequests(auth -> auth
-                        // Allow internal endpoints without authentication
-                        .requestMatchers(INTERNAL_WHITE_LIST).permitAll()
-                        // Allow public endpoints
-                        .requestMatchers(WHITE_LIST).permitAll()
-                        // Everything else needs authentication
-                        .anyRequest().authenticated()
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // OAuth2 Resource Server (validates opaque tokens and loads roles)
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .opaqueToken(opaqueToken -> opaqueToken
+                                .introspector(oAuth2ResourceServer)
+                        )
                 )
+
                 // OAuth2 Login Configuration
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oAuth2LoginSuccessHandler)
@@ -78,6 +78,14 @@ public class SecurityConfiguration {
                             response.sendRedirect("/oauth2/error?message=" + exception.getMessage());
                         })
                 )
+
+                // Authorization rules
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(INTERNAL_WHITE_LIST).permitAll()
+                        .requestMatchers(WHITE_LIST).permitAll()
+                        .anyRequest().authenticated()
+                )
+
                 // Logout Configuration
                 .logout(logout -> logout
                         .logoutUrl("/logout")
@@ -91,13 +99,11 @@ public class SecurityConfiguration {
                         .clearAuthentication(true)
                         .deleteCookies("accessToken", "refreshToken", "JSESSIONID")
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
+
                 .authenticationProvider(authProvider)
-                // Add OAuth2 filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(oauth2AuthFilter, UsernamePasswordAuthenticationFilter.class)
-                // Optional: Add rate limiting and input sanitization filters
                 .addFilterBefore(rateLimitingFilter, OAuth2AuthenticationFilter.class)
-                .addFilterBefore(inputSanitizerFilter, rateLimitingFilter.getClass());
+                .addFilterBefore(inputSanitizerFilter, RateLimitingFilter.class);
 
         return http.build();
     }

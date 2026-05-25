@@ -1,11 +1,11 @@
 package com.tunindex.market_tool.api.services.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tunindex.market_tool.api.config.security.oauth2.JwtService;
+import com.tunindex.market_tool.api.config.security.config.IpUaExtractor;
+import com.tunindex.market_tool.api.config.security.oauth2.OAuth2TokenService;
 import com.tunindex.market_tool.common.dto.auth.AuthCheckResponse;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationRequest;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationResponse;
-import com.tunindex.market_tool.api.entities.UnifiedToken;
 import com.tunindex.market_tool.api.entities.User;
 import com.tunindex.market_tool.api.entities.enums.TokenType;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
@@ -24,7 +24,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -44,7 +43,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final UserRepository userRepository;
     private final UnifiedTokenRepository unifiedTokenRepository;
-    private final JwtService jwtService;
+    private final OAuth2TokenService oauth2TokenService;
+    private final IpUaExtractor ipUaExtractor;
     private final AuthenticationManager authenticationManager;
 
     @Override
@@ -71,19 +71,31 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             );
         }
 
-        // 3. Generate tokens
-        String accessToken = jwtService.generateToken(user, request);
-        String refreshToken = jwtService.generateRefreshToken(user, request);
+        // 3. Generate opaque tokens (not JWT)
+        String accessToken = oauth2TokenService.generateAccessToken();
+        String refreshToken = oauth2TokenService.generateRefreshToken();
 
-        // 4. Revoke old tokens and save new ones
+        // 4. Get IP and User-Agent hashes
+        String ipHash = ipUaExtractor.hashIp(request);
+        String uaHash = ipUaExtractor.hashUserAgent(request);
+
+        // 5. Revoke old tokens and save new ones
         revokeAllUserTokens(user);
-        saveUserToken(user, accessToken, request);
 
-        // 5. Set cookies
+        // Store access token (15 minutes expiry)
+        oauth2TokenService.storeToken(accessToken, TokenType.OAUTH2_ACCESS,
+                user.getId(), user.getEmail(), request, 15);
+
+        // Store refresh token (7 days expiry)
+        oauth2TokenService.storeToken(refreshToken, TokenType.OAUTH2_REFRESH,
+                user.getId(), user.getEmail(), request, 10080); // 7 days = 10080 minutes
+
+        // 6. Set cookies
         setAuthCookies(request, accessToken, refreshToken);
 
-        log.info("✅ Authentication successful for user: {}", user.getEmail());
+        log.info("✅ Authentication successful for user: {} with opaque tokens", user.getEmail());
 
+        // Return same DTO structure (no changes to DTO)
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -116,29 +128,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
             response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-            log.info("✅ JWT cookies set successfully");
+            log.info("✅ OAuth2 opaque cookies set successfully");
         }
-    }
-
-    private void saveUserToken(User user, String jwtToken, HttpServletRequest request) {
-        String ipHash = jwtService.hashIp(jwtService.getValidatedIp(request));
-        String userAgentHash = jwtService.hashUserAgent(request);
-
-        UnifiedToken token = UnifiedToken.builder()
-                .user(user)
-                .token(jwtToken)
-                .ipHash(ipHash)
-                .userAgentHash(userAgentHash)
-                .tokenType(TokenType.JWT)
-                .expired(false)
-                .revoked(false)
-                .build();
-        unifiedTokenRepository.save(token);
     }
 
     @Transactional
     public void revokeAllUserTokens(User user) {
-        unifiedTokenRepository.deleteByUserEmailAndType(user.getEmail(), TokenType.JWT);
+        // Revoke all OAuth2 tokens for this user
+        unifiedTokenRepository.revokeAllOAuth2TokensByUser(user.getId());
+        log.info("Revoked all tokens for user: {}", user.getEmail());
     }
 
     @Override
@@ -152,18 +150,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         try {
-            String userEmail = jwtService.extractUsername(refreshToken);
-            User user = userRepository.findUserByEmail(userEmail)
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+            // Validate refresh token and get new access token
+            Optional<String> newAccessTokenOpt = oauth2TokenService.refreshAccessToken(refreshToken, request);
 
-            if (!isTokenValid(refreshToken, user, request)) {
+            if (newAccessTokenOpt.isEmpty()) {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid refresh token");
                 return;
             }
 
-            String newAccessToken = jwtService.generateToken(user, request);
+            String newAccessToken = newAccessTokenOpt.get();
             setAccessTokenCookie(response, newAccessToken);
 
+            // Return same DTO structure (no changes)
             AuthenticationResponse authResponse = AuthenticationResponse.builder()
                     .accessToken(newAccessToken)
                     .refreshToken(refreshToken)
@@ -190,8 +188,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                         List.of("User with EMAIL " + email + " is not found")
                 ));
 
-        long validTokensCount = unifiedTokenRepository.countByUserEmailAndTokenTypeAndExpiredFalseAndRevokedFalse(
-                user.getEmail(), TokenType.JWT);
+        // Check for active OAuth2 tokens instead of JWT
+        long validTokensCount = unifiedTokenRepository.countActiveOAuth2TokensByUser(user.getId(), java.time.LocalDateTime.now());
 
         boolean isAuthenticated = validTokensCount > 0;
 
@@ -200,19 +198,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .email(user.getEmail())
                 .userId(user.getId())
                 .build();
-    }
-
-    public boolean isTokenValid(String token, User user, HttpServletRequest request) {
-        if (!jwtService.isTokenValid(token, user, request)) {
-            return false;
-        }
-
-        String currentIpHash = jwtService.hashIp(jwtService.getValidatedIp(request));
-        Optional<UnifiedToken> storedToken = unifiedTokenRepository.findByTokenAndIpHashAndTokenType(
-                token, currentIpHash, TokenType.JWT);
-
-        return storedToken.filter(unifiedToken -> !unifiedToken.isExpired() && !unifiedToken.isRevoked()).isPresent();
-
     }
 
     private String extractRefreshToken(HttpServletRequest request) {
@@ -237,5 +222,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
+
 
 }

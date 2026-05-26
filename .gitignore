@@ -79,4 +79,4 @@ Desktop.ini
 # Secret/Key files (if you have them)
 # ========================
 **/keys/*.pem
-**.pem
+**.pem.env

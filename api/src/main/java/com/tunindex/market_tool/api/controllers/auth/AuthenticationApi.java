@@ -22,7 +22,9 @@ public interface AuthenticationApi {
     String AUTHENTICATION_ENDPOINT = APP_ROOT + "/auth";
 
     @Operation(summary = "Authenticate user",
-            description = "Authenticates user credentials and returns JWT tokens")
+            description = "Supports Google OAuth2: login='google', password='authorization_code' | " +
+                    "Token validation: login='token', password='access_token' | " +
+                    "Token refresh: login='refresh', password='refresh_token'")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Authentication successful"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid credentials"),
@@ -34,6 +36,14 @@ public interface AuthenticationApi {
             @Valid @RequestBody AuthenticationRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse response);
+
+    @Operation(summary = "Get Google OAuth2 login URL",
+            description = "Returns the Google OAuth2 login URL to redirect users")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "URL returned successfully")
+    })
+    @GetMapping(AUTHENTICATION_ENDPOINT + "/google/login-url")
+    ResponseEntity<?> getGoogleLoginUrl();
 
     @Operation(summary = "Check authentication state",
             description = "Checks if the current user is authenticated")

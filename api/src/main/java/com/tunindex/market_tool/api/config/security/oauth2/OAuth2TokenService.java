@@ -25,7 +25,7 @@ public class OAuth2TokenService {
 
     private final UnifiedTokenRepository tokenRepository;
 
-    @Value("${application.security.ip-salt:d6f644b79a844c8a9b32f12e4a7c8d1e5f309a8714b247d5c12e8a7d6f4b29a}")
+    @Value("${application.security.ip-salt}")
     private String ipSalt;
 
     @Value("${application.security.trusted-proxies:}")

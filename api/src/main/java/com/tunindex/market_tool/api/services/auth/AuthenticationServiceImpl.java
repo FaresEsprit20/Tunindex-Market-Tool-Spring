@@ -4,13 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tunindex.market_tool.api.config.security.config.IpUaExtractor;
 import com.tunindex.market_tool.api.config.security.oauth2.OAuth2TokenService;
 import com.tunindex.market_tool.common.dto.auth.AuthCheckResponse;
-import com.tunindex.market_tool.common.dto.auth.AuthenticationRequest;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationResponse;
 import com.tunindex.market_tool.api.entities.User;
 import com.tunindex.market_tool.api.entities.enums.TokenType;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
-import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import com.tunindex.market_tool.api.repository.UnifiedTokenRepository;
 import com.tunindex.market_tool.api.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
@@ -21,9 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -31,6 +27,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.tunindex.market_tool.common.utils.constants.Constants.PRODUCTION_ENVIRONMENT;
@@ -45,41 +42,52 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UnifiedTokenRepository unifiedTokenRepository;
     private final OAuth2TokenService oauth2TokenService;
     private final IpUaExtractor ipUaExtractor;
-    private final AuthenticationManager authenticationManager;
 
     @Override
-    public AuthenticationResponse authenticate(AuthenticationRequest authRequest, HttpServletRequest request) {
-        log.info("🔐 Authentication attempt for user: {}", authRequest.getLogin());
+    public AuthenticationResponse authenticateWithOAuth2(OAuth2AuthenticationToken oauthToken, HttpServletRequest request) {
+        log.info("🔐 OAuth2 authentication attempt");
 
-        // 1. Validate credentials
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        authRequest.getLogin(),
-                        authRequest.getPassword()
-                )
-        );
+        // Extract user info from Google OAuth2 token
+        Map<String, Object> attributes = oauthToken.getPrincipal().getAttributes();
+        String email = (String) attributes.get("email");
+        String name = (String) attributes.get("name");
+        String provider = oauthToken.getAuthorizedClientRegistrationId();
+        String providerId = (String) attributes.get("sub");
 
-        // 2. Load and validate user
-        User user = userRepository.findUserByEmail(authRequest.getLogin())
-                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        log.info("OAuth2 user: email={}, provider={}", email, provider);
 
-        if (user.getLocked()) {
-            throw new InvalidOperationException(
-                    "User is locked",
-                    ErrorCodes.USER_ACCOUNT_LOCK_NOT_VALID,
-                    List.of("User account is locked")
-            );
-        }
+        // Find or create user
+        User user = userRepository.findByProviderAndProviderId(provider, providerId)
+                .orElseGet(() -> userRepository.findUserByEmail(email)
+                        .map(existingUser -> {
+                            // Link OAuth2 provider to existing user
+                            existingUser.setProvider(provider);
+                            existingUser.setProviderId(providerId);
+                            return userRepository.save(existingUser);
+                        })
+                        .orElseGet(() -> {
+                            // Create new user
+                            User newUser = new User();
+                            newUser.setEmail(email);
+                            newUser.setFirstName(name != null ? name.split(" ")[0] : "");
+                            newUser.setLastName(name != null && name.split(" ").length > 1 ? name.split(" ")[1] : "");
+                            newUser.setProvider(provider);
+                            newUser.setProviderId(providerId);
+                            newUser.setLocked(false);
+                            newUser.setNumTel("0000000000");
+                            return userRepository.save(newUser);
+                        })
+                );
 
-        // 3. Generate opaque tokens (not JWT)
+        // Generate opaque tokens
         String accessToken = oauth2TokenService.generateAccessToken();
         String refreshToken = oauth2TokenService.generateRefreshToken();
 
-        // 4. Get IP and User-Agent hashes
+        // Get IP and User-Agent hashes
         String ipHash = ipUaExtractor.hashIp(request);
         String uaHash = ipUaExtractor.hashUserAgent(request);
 
-        // 5. Revoke old tokens and save new ones
+        // Revoke old tokens and save new ones
         revokeAllUserTokens(user);
 
         // Store access token (15 minutes expiry)
@@ -88,17 +96,55 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         // Store refresh token (7 days expiry)
         oauth2TokenService.storeToken(refreshToken, TokenType.OAUTH2_REFRESH,
-                user.getId(), user.getEmail(), request, 10080); // 7 days = 10080 minutes
+                user.getId(), user.getEmail(), request, 10080);
 
-        // 6. Set cookies
+        // Set cookies
         setAuthCookies(request, accessToken, refreshToken);
 
-        log.info("✅ Authentication successful for user: {} with opaque tokens", user.getEmail());
+        log.info("✅ OAuth2 authentication successful for user: {}", user.getEmail());
 
-        // Return same DTO structure (no changes to DTO)
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .build();
+    }
+
+    @Override
+    public AuthenticationResponse authenticateWithToken(String token, HttpServletRequest request) {
+        log.info("🔐 Token authentication attempt");
+
+        var tokenOpt = oauth2TokenService.validateToken(token, request);
+
+        if (tokenOpt.isEmpty()) {
+            throw new RuntimeException("Invalid or expired token");
+        }
+
+        var unifiedToken = tokenOpt.get();
+        String email = unifiedToken.getUserEmail();
+
+        User user = userRepository.findUserByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "User not found", ErrorCodes.USER_NOT_FOUND, List.of()));
+
+        // Generate new tokens
+        String newAccessToken = oauth2TokenService.generateAccessToken();
+        String newRefreshToken = oauth2TokenService.generateRefreshToken();
+
+        String ipHash = ipUaExtractor.hashIp(request);
+        String uaHash = ipUaExtractor.hashUserAgent(request);
+
+        revokeAllUserTokens(user);
+
+        oauth2TokenService.storeToken(newAccessToken, TokenType.OAUTH2_ACCESS,
+                user.getId(), user.getEmail(), request, 15);
+        oauth2TokenService.storeToken(newRefreshToken, TokenType.OAUTH2_REFRESH,
+                user.getId(), user.getEmail(), request, 10080);
+
+        setAuthCookies(request, newAccessToken, newRefreshToken);
+
+        return AuthenticationResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .build();
     }
 
@@ -107,7 +153,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .currentRequestAttributes()).getResponse();
 
         if (response != null) {
-            // Set access token cookie (15 minutes)
             ResponseCookie accessCookie = ResponseCookie.from("accessToken", accessToken)
                     .httpOnly(true)
                     .secure(PRODUCTION_ENVIRONMENT)
@@ -116,7 +161,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .sameSite(PRODUCTION_ENVIRONMENT ? "Strict" : "Lax")
                     .build();
 
-            // Set refresh token cookie (7 days)
             ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
                     .httpOnly(true)
                     .secure(PRODUCTION_ENVIRONMENT)
@@ -128,13 +172,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
             response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-            log.info("✅ OAuth2 opaque cookies set successfully");
+            log.info("✅ OAuth2 cookies set successfully");
         }
     }
 
     @Transactional
     public void revokeAllUserTokens(User user) {
-        // Revoke all OAuth2 tokens for this user
         unifiedTokenRepository.revokeAllOAuth2TokensByUser(user.getId());
         log.info("Revoked all tokens for user: {}", user.getEmail());
     }
@@ -150,7 +193,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         try {
-            // Validate refresh token and get new access token
             Optional<String> newAccessTokenOpt = oauth2TokenService.refreshAccessToken(refreshToken, request);
 
             if (newAccessTokenOpt.isEmpty()) {
@@ -161,7 +203,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             String newAccessToken = newAccessTokenOpt.get();
             setAccessTokenCookie(response, newAccessToken);
 
-            // Return same DTO structure (no changes)
             AuthenticationResponse authResponse = AuthenticationResponse.builder()
                     .accessToken(newAccessToken)
                     .refreshToken(refreshToken)
@@ -178,23 +219,24 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public AuthCheckResponse checkUserAuthentication(String email) {
         if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("Email cannot be null or empty");
+            return AuthCheckResponse.builder()
+                    .isAuthenticated(false)
+                    .build();
         }
 
         User user = userRepository.findUserByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "User with EMAIL " + email + " is not found",
-                        ErrorCodes.USER_NOT_FOUND,
-                        List.of("User with EMAIL " + email + " is not found")
-                ));
+                .orElse(null);
 
-        // Check for active OAuth2 tokens instead of JWT
+        if (user == null) {
+            return AuthCheckResponse.builder()
+                    .isAuthenticated(false)
+                    .build();
+        }
+
         long validTokensCount = unifiedTokenRepository.countActiveOAuth2TokensByUser(user.getId(), java.time.LocalDateTime.now());
 
-        boolean isAuthenticated = validTokensCount > 0;
-
         return AuthCheckResponse.builder()
-                .isAuthenticated(isAuthenticated)
+                .isAuthenticated(validTokensCount > 0)
                 .email(user.getEmail())
                 .userId(user.getId())
                 .build();
@@ -222,6 +264,4 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
-
-
 }

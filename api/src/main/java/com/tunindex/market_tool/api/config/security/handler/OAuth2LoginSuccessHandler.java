@@ -34,8 +34,8 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final OAuth2TokenService tokenService;
     private final UnifiedTokenRepository tokenRepository;
 
-    @Value("${app.oauth2.redirect-url:http://localhost:4200/oauth2/success}")
-    private String redirectUrl;
+    @Value("${app.oauth2.success-url:/oauth2/success}")
+    private String successUrl;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -58,9 +58,6 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // Load or create user
         User user = (User) userDetailsService.loadUserByOAuth2Provider(provider, providerId, email, name);
 
-        // Revoke all existing tokens for this user (optional - single session only)
-        // tokenService.revokeAllUserTokens(user.getId());
-
         // Generate new opaque tokens
         String accessToken = tokenService.generateAccessToken();
         String refreshToken = tokenService.generateRefreshToken();
@@ -78,8 +75,8 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // Set cookies
         setAuthCookies(response, accessToken, refreshToken);
 
-        // Build redirect URL with tokens (for frontend)
-        String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
+        // Redirect to API success endpoint with tokens as query params
+        String targetUrl = UriComponentsBuilder.fromUriString(successUrl)
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
                 .build()

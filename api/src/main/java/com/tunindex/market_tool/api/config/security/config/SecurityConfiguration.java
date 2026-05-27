@@ -7,6 +7,7 @@ import com.tunindex.market_tool.api.config.security.handler.OAuth2LoginSuccessHa
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,6 +21,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -34,7 +37,7 @@ public class SecurityConfiguration {
     private final RateLimitingFilter rateLimitingFilter;
     private final InputSanitizerFilter inputSanitizerFilter;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
-    private final OAuth2ResourceServer oAuth2ResourceServer;  // Add Resource Server
+    private final OAuth2ResourceServer oAuth2ResourceServer;
 
     private static final String[] WHITE_LIST = {
             "/tunindex/market/tool/v1/auth/**",
@@ -44,10 +47,9 @@ public class SecurityConfiguration {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/oauth2/**",
-            "/login/oauth2/**",
+            "/oauth2/error",
             "/oauth2/success",
-            "/oauth2/error"
+            "/login/oauth2/**"
     };
 
     private static final String[] INTERNAL_WHITE_LIST = {
@@ -55,6 +57,7 @@ public class SecurityConfiguration {
     };
 
     @Bean
+    @Order(1)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -75,7 +78,14 @@ public class SecurityConfiguration {
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oAuth2LoginSuccessHandler)
                         .failureHandler((request, response, exception) -> {
-                            response.sendRedirect("/oauth2/error?message=" + exception.getMessage());
+                            String message = exception.getMessage();
+                            if (message == null) {
+                                message = "authentication_failed";
+                            }
+                            // Remove invalid characters
+                            message = message.replace("[", "").replace("]", "").replace("{", "").replace("}", "");
+                            String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
+                            response.sendRedirect("/oauth2/error?error=authentication_failed&message=" + encodedMessage);
                         })
                 )
 

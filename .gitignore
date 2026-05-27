@@ -80,3 +80,5 @@ Desktop.ini
 # ========================
 **/keys/*.pem
 **.pem.env
+.env
+.env

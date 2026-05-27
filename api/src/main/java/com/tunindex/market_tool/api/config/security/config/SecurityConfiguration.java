@@ -5,6 +5,7 @@ import com.tunindex.market_tool.api.config.security.filters.OAuth2Authentication
 import com.tunindex.market_tool.api.config.security.filters.RateLimitingFilter;
 import com.tunindex.market_tool.api.config.security.handler.OAuth2LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -26,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
@@ -47,8 +49,7 @@ public class SecurityConfiguration {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/oauth2/error",
-            "/oauth2/success",
+            "/oauth2/**",
             "/login/oauth2/**"
     };
 
@@ -65,28 +66,28 @@ public class SecurityConfiguration {
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+
+                // OAuth2 Login Configuration - THIS MUST COME FIRST
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2LoginSuccessHandler)
+                        .failureHandler((request, response, exception) -> {
+                            log.error("OAuth2 login failed: {}", exception.getMessage());
+                            String message = exception.getMessage();
+                            if (message == null) {
+                                message = "authentication_failed";
+                            }
+                            String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
+                            response.sendRedirect("/oauth2/error?error=authentication_failed&message=" + encodedMessage);
+                        })
+                        .permitAll()
+                )
 
                 // OAuth2 Resource Server (validates opaque tokens and loads roles)
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .opaqueToken(opaqueToken -> opaqueToken
                                 .introspector(oAuth2ResourceServer)
                         )
-                )
-
-                // OAuth2 Login Configuration
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2LoginSuccessHandler)
-                        .failureHandler((request, response, exception) -> {
-                            String message = exception.getMessage();
-                            if (message == null) {
-                                message = "authentication_failed";
-                            }
-                            // Remove invalid characters
-                            message = message.replace("[", "").replace("]", "").replace("{", "").replace("}", "");
-                            String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
-                            response.sendRedirect("/oauth2/error?error=authentication_failed&message=" + encodedMessage);
-                        })
                 )
 
                 // Authorization rules

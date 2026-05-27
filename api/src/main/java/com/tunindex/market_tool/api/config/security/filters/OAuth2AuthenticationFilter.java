@@ -40,41 +40,32 @@ public class OAuth2AuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         String path = request.getServletPath();
-        log.debug("🔍 OAuth2Filter processing: {}", path);
 
-        // Log cookies received
-        if (request.getCookies() != null) {
-            log.debug("🍪 Received {} cookies", request.getCookies().length);
-            for (Cookie cookie : request.getCookies()) {
-                log.debug("🍪 Cookie: {} = {}...", cookie.getName(),
-                        cookie.getValue().substring(0, Math.min(20, cookie.getValue().length())));
-            }
-        } else {
-            log.debug("❌ NO COOKIES in request to: {}", path);
-        }
-
-        // Reject any Authorization header immediately
-        if (request.getHeader("Authorization") != null) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
-                    "Authorization headers are not allowed. Use secure cookies only.");
-            return;
-        }
-
-        String token = extractTokenFromCookie(request);
-        if (token == null) {
-            log.debug("⏭️ No token cookie found, continuing filter chain");
+        // Skip filter for public endpoints
+        if (path.startsWith("/oauth2/") || path.startsWith("/login/") ||
+                path.startsWith("/tunindex/market/tool/v1/auth/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        log.debug("✅ Token cookie found, validating...");
+        log.debug("🔍 OAuth2Filter processing: {}", path);
+
+        // Extract token from Cookie OR Authorization header
+        String token = extractToken(request);
+
+        if (token == null) {
+            log.debug("⏭️ No token found, continuing filter chain");
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        log.debug("✅ Token found, validating...");
 
         // Validate token with OAuth2TokenService
         Optional<UnifiedToken> tokenOpt = tokenService.validateToken(token, request);
 
         if (tokenOpt.isEmpty()) {
-            log.warn("❌ Invalid or expired token, clearing cookies");
-            clearAllCookies(request, response);
+            log.warn("❌ Invalid or expired token");
             filterChain.doFilter(request, response);
             return;
         }
@@ -88,7 +79,6 @@ public class OAuth2AuthenticationFilter extends OncePerRequestFilter {
             log.debug("🔐 Loading user details for: {}", userEmail);
             UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
 
-            // Check if token is still valid (not revoked, not expired)
             boolean isTokenValid = !unifiedToken.isRevoked() &&
                     !unifiedToken.isExpired() &&
                     unifiedToken.getExpirationDate() != null &&
@@ -108,65 +98,35 @@ public class OAuth2AuthenticationFilter extends OncePerRequestFilter {
                 log.info("✅ Authentication set in SecurityContext for user: {}", userEmail);
             } else {
                 log.warn("❌ Token validation failed for user: {}", userEmail);
-                // Token is invalid - clear cookies
-                clearAllCookies(request, response);
                 filterChain.doFilter(request, response);
                 return;
             }
-        } else if (userEmail == null) {
-            log.warn("❌ No userEmail associated with token");
-            clearAllCookies(request, response);
-            filterChain.doFilter(request, response);
-            return;
-        } else {
-            log.debug("⏭️ Authentication already exists in SecurityContext");
         }
 
         filterChain.doFilter(request, response);
     }
 
     /**
-     * Extracts OAuth2 token from the 'accessToken' cookie only.
+     * Extract token from Cookie OR Authorization header
      */
-    private String extractTokenFromCookie(HttpServletRequest request) {
+    private String extractToken(HttpServletRequest request) {
+        // First try Cookie
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("accessToken".equals(cookie.getName())) {
+                    log.debug("Token extracted from cookie");
                     return cookie.getValue();
                 }
             }
         }
+
+        // Then try Authorization header (Bearer token)
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            log.debug("Token extracted from Authorization header");
+            return authHeader.substring(7);
+        }
+
         return null;
-    }
-
-    /**
-     * Deletes all cookies from request by setting MaxAge to 0 and value to empty.
-     */
-    private void clearAllCookies(HttpServletRequest request, HttpServletResponse response) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) return;
-
-        for (Cookie cookie : cookies) {
-            Cookie clearedCookie = new Cookie(cookie.getName(), "");
-            clearedCookie.setMaxAge(0);
-            clearedCookie.setPath("/");
-            clearedCookie.setHttpOnly(true);
-            clearedCookie.setSecure(true);
-            response.addCookie(clearedCookie);
-            log.debug("Cleared cookie: {}", cookie.getName());
-        }
-
-        // Also clear specific auth cookies even if not in request
-        String[] authCookies = {"accessToken", "refreshToken", "JSESSIONID"};
-        for (String cookieName : authCookies) {
-            Cookie clearedCookie = new Cookie(cookieName, "");
-            clearedCookie.setMaxAge(0);
-            clearedCookie.setPath("/");
-            clearedCookie.setHttpOnly(true);
-            clearedCookie.setSecure(true);
-            response.addCookie(clearedCookie);
-        }
-
-        log.info("All authentication cookies cleared");
     }
 }

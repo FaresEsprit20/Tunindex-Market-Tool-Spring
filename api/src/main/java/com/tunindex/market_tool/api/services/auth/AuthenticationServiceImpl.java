@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tunindex.market_tool.api.config.security.config.IpUaExtractor;
 import com.tunindex.market_tool.api.config.security.oauth2.OAuth2TokenService;
 import com.tunindex.market_tool.common.dto.auth.AuthCheckResponse;
+import com.tunindex.market_tool.common.dto.auth.AuthenticationRequest;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationResponse;
 import com.tunindex.market_tool.api.entities.User;
 import com.tunindex.market_tool.api.entities.enums.TokenType;
@@ -17,10 +18,19 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -42,6 +52,61 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UnifiedTokenRepository unifiedTokenRepository;
     private final OAuth2TokenService oauth2TokenService;
     private final IpUaExtractor ipUaExtractor;
+    private final AuthenticationManager authenticationManager;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String googleClientId;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-secret}")
+    private String googleClientSecret;
+
+    @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
+    private String googleRedirectUri;
+
+    @Override
+    public AuthenticationResponse authenticate(AuthenticationRequest authRequest, HttpServletRequest request) {
+        log.info("🔐 Username/password authentication attempt for user: {}", authRequest.getLogin());
+
+        // Validate credentials
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        authRequest.getLogin(),
+                        authRequest.getPassword()
+                )
+        );
+
+        // Load user
+        User user = userRepository.findUserByEmail(authRequest.getLogin())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if (user.getLocked()) {
+            throw new RuntimeException("User account is locked");
+        }
+
+        // Generate opaque tokens
+        String accessToken = oauth2TokenService.generateAccessToken();
+        String refreshToken = oauth2TokenService.generateRefreshToken();
+
+        String ipHash = ipUaExtractor.hashIp(request);
+        String uaHash = ipUaExtractor.hashUserAgent(request);
+
+        revokeAllUserTokens(user);
+
+        oauth2TokenService.storeToken(accessToken, TokenType.OAUTH2_ACCESS,
+                user.getId(), user.getEmail(), request, 15);
+        oauth2TokenService.storeToken(refreshToken, TokenType.OAUTH2_REFRESH,
+                user.getId(), user.getEmail(), request, 10080);
+
+        setAuthCookies(request, accessToken, refreshToken);
+
+        log.info("✅ Username/password authentication successful for user: {}", user.getEmail());
+
+        return AuthenticationResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
+    }
 
     @Override
     public AuthenticationResponse authenticateWithOAuth2(OAuth2AuthenticationToken oauthToken, HttpServletRequest request) {
@@ -69,12 +134,21 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                             // Create new user
                             User newUser = new User();
                             newUser.setEmail(email);
-                            newUser.setFirstName(name != null ? name.split(" ")[0] : "");
-                            newUser.setLastName(name != null && name.split(" ").length > 1 ? name.split(" ")[1] : "");
+                            if (name != null) {
+                                String[] nameParts = name.split(" ", 2);
+                                newUser.setFirstName(nameParts[0]);
+                                if (nameParts.length > 1) {
+                                    newUser.setLastName(nameParts[1]);
+                                }
+                            } else {
+                                newUser.setFirstName(provider);
+                                newUser.setLastName("User");
+                            }
                             newUser.setProvider(provider);
                             newUser.setProviderId(providerId);
                             newUser.setLocked(false);
                             newUser.setNumTel("0000000000");
+                            newUser.setPassword(passwordEncoder.encode("OAUTH2_USER_" + System.currentTimeMillis()));
                             return userRepository.save(newUser);
                         })
                 );
@@ -146,6 +220,134 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
+    }
+
+    @Override
+    public AuthenticationResponse refreshAccessToken(String refreshToken, HttpServletRequest request) {
+        log.info("🔐 Refresh token authentication attempt");
+
+        Optional<String> newAccessTokenOpt = oauth2TokenService.refreshAccessToken(refreshToken, request);
+
+        if (newAccessTokenOpt.isEmpty()) {
+            throw new RuntimeException("Invalid refresh token");
+        }
+
+        String newAccessToken = newAccessTokenOpt.get();
+
+        // Get user info from old refresh token
+        var tokenOpt = oauth2TokenService.validateToken(refreshToken, request);
+        String email = tokenOpt.map(t -> t.getUserEmail()).orElse(null);
+
+        User user = null;
+        if (email != null) {
+            user = userRepository.findUserByEmail(email).orElse(null);
+        }
+
+        return AuthenticationResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshToken)
+                .build();
+    }
+
+    @Override
+    public AuthenticationResponse exchangeGoogleCode(String authorizationCode, HttpServletRequest request) {
+        log.info("Exchanging Google authorization code for tokens");
+
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            // Exchange code for tokens with Google
+            String tokenUrl = "https://oauth2.googleapis.com/token";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBasicAuth(googleClientId, googleClientSecret);
+            headers.set("Content-Type", "application/x-www-form-urlencoded");
+
+            String body = "code=" + authorizationCode +
+                    "&redirect_uri=" + googleRedirectUri +
+                    "&grant_type=authorization_code";
+
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<Map> response = restTemplate.exchange(tokenUrl, HttpMethod.POST, entity, Map.class);
+
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                throw new RuntimeException("Failed to exchange Google code: " + response.getStatusCode());
+            }
+
+            Map<String, Object> tokenResponse = response.getBody();
+            String googleAccessToken = (String) tokenResponse.get("access_token");
+
+            // Get user info from Google
+            String userInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo";
+            HttpHeaders userInfoHeaders = new HttpHeaders();
+            userInfoHeaders.setBearerAuth(googleAccessToken);
+            HttpEntity<?> userInfoEntity = new HttpEntity<>(userInfoHeaders);
+
+            ResponseEntity<Map> userInfoResponse = restTemplate.exchange(userInfoUrl, HttpMethod.GET, userInfoEntity, Map.class);
+            Map<String, Object> userInfo = userInfoResponse.getBody();
+
+            String email = (String) userInfo.get("email");
+            String name = (String) userInfo.get("name");
+            String providerId = (String) userInfo.get("sub");
+
+            log.info("Google user info - email: {}, name: {}", email, name);
+
+            // Find or create user
+            User user = userRepository.findByProviderAndProviderId("google", providerId)
+                    .orElseGet(() -> userRepository.findUserByEmail(email)
+                            .map(existingUser -> {
+                                existingUser.setProvider("google");
+                                existingUser.setProviderId(providerId);
+                                return userRepository.save(existingUser);
+                            })
+                            .orElseGet(() -> {
+                                User newUser = new User();
+                                newUser.setEmail(email);
+                                if (name != null) {
+                                    String[] nameParts = name.split(" ", 2);
+                                    newUser.setFirstName(nameParts[0]);
+                                    if (nameParts.length > 1) {
+                                        newUser.setLastName(nameParts[1]);
+                                    }
+                                } else {
+                                    newUser.setFirstName("Google");
+                                    newUser.setLastName("User");
+                                }
+                                newUser.setProvider("google");
+                                newUser.setProviderId(providerId);
+                                newUser.setLocked(false);
+                                newUser.setNumTel("0000000000");
+                                newUser.setPassword(passwordEncoder.encode("OAUTH2_USER_" + System.currentTimeMillis()));
+                                return userRepository.save(newUser);
+                            })
+                    );
+
+            // Generate your opaque tokens
+            String accessToken = oauth2TokenService.generateAccessToken();
+            String refreshToken = oauth2TokenService.generateRefreshToken();
+
+            String ipHash = ipUaExtractor.hashIp(request);
+            String uaHash = ipUaExtractor.hashUserAgent(request);
+
+            revokeAllUserTokens(user);
+
+            oauth2TokenService.storeToken(accessToken, TokenType.OAUTH2_ACCESS,
+                    user.getId(), user.getEmail(), request, 15);
+            oauth2TokenService.storeToken(refreshToken, TokenType.OAUTH2_REFRESH,
+                    user.getId(), user.getEmail(), request, 10080);
+
+            setAuthCookies(request, accessToken, refreshToken);
+
+            log.info("✅ Google code exchange successful for user: {}", user.getEmail());
+
+            return AuthenticationResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Google code exchange failed: {}", e.getMessage());
+            throw new RuntimeException("Google authentication failed: " + e.getMessage());
+        }
     }
 
     private void setAuthCookies(HttpServletRequest request, String accessToken, String refreshToken) {

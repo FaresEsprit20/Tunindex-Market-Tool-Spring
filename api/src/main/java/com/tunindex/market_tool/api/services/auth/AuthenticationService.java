@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.api.services.auth;
 
 import com.tunindex.market_tool.common.dto.auth.AuthCheckResponse;
+import com.tunindex.market_tool.common.dto.auth.AuthenticationRequest;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,17 +11,17 @@ import java.io.IOException;
 
 public interface AuthenticationService {
 
-    // OAuth2 login with Google
+    AuthenticationResponse authenticate(AuthenticationRequest request, HttpServletRequest httpRequest);
+
     AuthenticationResponse authenticateWithOAuth2(OAuth2AuthenticationToken oauthToken, HttpServletRequest request);
 
-    // Validate existing token and issue new one
     AuthenticationResponse authenticateWithToken(String token, HttpServletRequest request);
 
-    // Refresh token
+    AuthenticationResponse refreshAccessToken(String refreshToken, HttpServletRequest request);
+
+    AuthenticationResponse exchangeGoogleCode(String authorizationCode, HttpServletRequest request);
+
     void refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException;
 
-    // Check if user is authenticated
     AuthCheckResponse checkUserAuthentication(String email);
-
-
 }

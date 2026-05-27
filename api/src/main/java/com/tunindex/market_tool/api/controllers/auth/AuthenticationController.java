@@ -9,10 +9,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -24,63 +22,40 @@ public class AuthenticationController implements AuthenticationApi {
 
     private final AuthenticationService authenticationService;
 
-    @Value("${spring.security.oauth2.client.registration.google.client-id}")
-    private String googleClientId;
-
-    @Value("${spring.security.oauth2.client.registration.google.redirect-uri}")
-    private String googleRedirectUri;
-
     @Override
     public ResponseEntity<AuthenticationResponse> authenticate(
             @Valid @RequestBody AuthenticationRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse response) {
 
-        log.info("📝 Authentication attempt with login type: {}", request.getLogin());
+        log.info("📝 Authentication attempt - login: {}", request.getLogin());
 
         String login = request.getLogin();
         String credential = request.getPassword();
 
-        AuthenticationResponse authResponse;
-
-        // Route to correct service method based on login type
-        if ("google".equalsIgnoreCase(login)) {
-            // For Google OAuth2, we need to exchange the code
-            // This would typically be handled by OAuth2LoginSuccessHandler
-            // For direct REST API, you'd need to implement code exchange
-            authResponse = handleGoogleCodeExchange(credential, httpRequest);
-        } else if ("token".equalsIgnoreCase(login)) {
-            authResponse = authenticationService.authenticateWithToken(credential, httpRequest);
+        // Route based on login type
+        if ("token".equalsIgnoreCase(login)) {
+            AuthenticationResponse authResponse = authenticationService.authenticateWithToken(credential, httpRequest);
+            log.info("✅ Token authentication successful");
+            return ResponseEntity.ok(authResponse);
         } else if ("refresh".equalsIgnoreCase(login)) {
-            // Handle refresh token - call refresh endpoint instead
-            throw new RuntimeException("Use /refresh-token endpoint for token refresh");
+            AuthenticationResponse authResponse = authenticationService.refreshAccessToken(credential, httpRequest);
+            log.info("✅ Token refreshed successfully");
+            return ResponseEntity.ok(authResponse);
         } else {
-            throw new RuntimeException("Invalid login type. Use: 'google', 'token', or 'refresh'");
+            // Regular username/password login (keep this for backward compatibility)
+            AuthenticationResponse authResponse = authenticationService.authenticate(request, httpRequest);
+            log.info("✅ Username/password authentication successful");
+            return ResponseEntity.ok(authResponse);
         }
-
-        log.info("✅ Authentication successful for login: {}", request.getLogin());
-
-        return ResponseEntity.ok(authResponse);
-    }
-
-    private AuthenticationResponse handleGoogleCodeExchange(String authorizationCode, HttpServletRequest request) {
-        // This exchanges Google authorization code for your opaque tokens
-        // You need to implement this method or use OAuth2LoginSuccessHandler
-        throw new RuntimeException("Google code exchange not implemented. Use OAuth2 login flow through browser.");
     }
 
     @Override
-    public ResponseEntity<?> getGoogleLoginUrl() {
-        String loginUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
-                "client_id=" + googleClientId +
-                "&redirect_uri=" + googleRedirectUri +
-                "&response_type=code" +
-                "&scope=email%20profile" +
-                "&access_type=offline";
-
+    public ResponseEntity<Map<String, String>> getGoogleLoginUrl() {
+        // Just return the URL, not the code exchange method
         return ResponseEntity.ok(Map.of(
-                "login_url", loginUrl,
-                "message", "Open this URL in a browser, then use the authorization code with login='google'"
+                "login_url", "/oauth2/authorization/google",
+                "instruction", "Open this URL in your browser to login with Google"
         ));
     }
 
@@ -111,5 +86,4 @@ public class AuthenticationController implements AuthenticationApi {
             return ResponseEntity.status(401).build();
         }
     }
-
 }

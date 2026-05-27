@@ -35,16 +35,10 @@ public class OAuth2TokenService {
     // TOKEN GENERATION
     // ============================================================
 
-    /**
-     * Generate a new opaque access token
-     */
     public String generateAccessToken() {
         return "at_" + UUID.randomUUID().toString().replace("-", "");
     }
 
-    /**
-     * Generate a new opaque refresh token
-     */
     public String generateRefreshToken() {
         return "rt_" + UUID.randomUUID().toString().replace("-", "");
     }
@@ -53,9 +47,6 @@ public class OAuth2TokenService {
     // TOKEN STORAGE & BINDING
     // ============================================================
 
-    /**
-     * Store OAuth2 token with IP and User-Agent binding
-     */
     public UnifiedToken storeToken(String token, TokenType tokenType, Integer userId, String userEmail,
                                    HttpServletRequest request, int expirationMinutes) {
 
@@ -74,7 +65,6 @@ public class OAuth2TokenService {
                 .isUsed(false)
                 .build();
 
-        // Set user if userId provided
         if (userId != null) {
             User user = new User();
             user.setId(userId);
@@ -85,7 +75,7 @@ public class OAuth2TokenService {
     }
 
     /**
-     * Validate OAuth2 token and return it if valid
+     * Validate OAuth2 token - IP binding only (User-Agent validation removed for compatibility)
      */
     public Optional<UnifiedToken> validateToken(String token, HttpServletRequest request) {
         Optional<UnifiedToken> tokenOpt = tokenRepository.findOAuth2TokenByToken(token);
@@ -97,19 +87,17 @@ public class OAuth2TokenService {
 
         UnifiedToken unifiedToken = tokenOpt.get();
 
-        // Check if token is revoked or expired
         if (unifiedToken.isRevoked() || unifiedToken.isExpired()) {
             log.warn("Token is revoked or expired: {}", token);
             return Optional.empty();
         }
 
-        // Check expiration
         if (unifiedToken.getExpirationDate().isBefore(LocalDateTime.now())) {
             log.warn("Token expired: {}", token);
             return Optional.empty();
         }
 
-        // Validate IP binding
+        // Validate IP binding only (User-Agent validation removed)
         String currentIpHash = hashIp(getValidatedIp(request));
         if (!unifiedToken.getIpHash().equals(currentIpHash)) {
             log.warn("IP mismatch for token: {} (stored: {}, current: {})",
@@ -117,19 +105,16 @@ public class OAuth2TokenService {
             return Optional.empty();
         }
 
-        // Validate User-Agent binding
-        String currentUaHash = hashUserAgent(request);
-        if (!unifiedToken.getUserAgentHash().equals(currentUaHash)) {
-            log.warn("User-Agent mismatch for token: {}", token);
-            return Optional.empty();
-        }
+        // User-Agent validation is SKIPPED - makes it work across different clients
+        // String currentUaHash = hashUserAgent(request);
+        // if (!unifiedToken.getUserAgentHash().equals(currentUaHash)) {
+        //     log.warn("User-Agent mismatch for token: {}", token);
+        //     return Optional.empty();
+        // }
 
         return tokenOpt;
     }
 
-    /**
-     * Refresh access token using refresh token
-     */
     public Optional<String> refreshAccessToken(String refreshToken, HttpServletRequest request) {
         Optional<UnifiedToken> refreshTokenOpt = tokenRepository.findOAuth2TokenByToken(refreshToken);
 
@@ -140,24 +125,20 @@ public class OAuth2TokenService {
 
         UnifiedToken refreshTokenEntity = refreshTokenOpt.get();
 
-        // Check if refresh token is valid
         if (refreshTokenEntity.isRevoked() || refreshTokenEntity.isExpired() ||
                 refreshTokenEntity.getExpirationDate().isBefore(LocalDateTime.now())) {
             log.warn("Refresh token invalid or expired");
             return Optional.empty();
         }
 
-        // Validate IP binding
         String currentIpHash = hashIp(getValidatedIp(request));
         if (!refreshTokenEntity.getIpHash().equals(currentIpHash)) {
             log.warn("IP mismatch for refresh token");
             return Optional.empty();
         }
 
-        // Generate new access token
         String newAccessToken = generateAccessToken();
 
-        // Store new access token
         storeToken(newAccessToken, TokenType.OAUTH2_ACCESS,
                 refreshTokenEntity.getUser() != null ? refreshTokenEntity.getUser().getId() : null,
                 refreshTokenEntity.getUserEmail(), request, 15);
@@ -165,9 +146,6 @@ public class OAuth2TokenService {
         return Optional.of(newAccessToken);
     }
 
-    /**
-     * Revoke a token (logout)
-     */
     public boolean revokeToken(String token) {
         Optional<UnifiedToken> tokenOpt = tokenRepository.findOAuth2TokenByToken(token);
         if (tokenOpt.isEmpty()) {
@@ -183,16 +161,13 @@ public class OAuth2TokenService {
         return true;
     }
 
-    /**
-     * Revoke all tokens for a user (logout from all devices)
-     */
     public void revokeAllUserTokens(Integer userId) {
         tokenRepository.revokeAllOAuth2TokensByUser(userId);
         log.info("All tokens revoked for user: {}", userId);
     }
 
     // ============================================================
-    // IP & USER-AGENT METHODS (Moved from JwtService)
+    // IP & USER-AGENT METHODS
     // ============================================================
 
     public String hashIp(String ipAddress) {
@@ -241,7 +216,7 @@ public class OAuth2TokenService {
     }
 
     // ============================================================
-    // FAKE TOKEN GENERATOR (Decoy - Keep for security)
+    // FAKE TOKEN GENERATOR
     // ============================================================
 
     private static final String FAKE_PREFIX = "decoy_";

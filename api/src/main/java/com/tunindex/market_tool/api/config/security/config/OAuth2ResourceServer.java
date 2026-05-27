@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.core.OAuth2TokenIntrospectionClaimNam
 import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionAuthenticatedPrincipal;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ public class OAuth2ResourceServer implements OpaqueTokenIntrospector {
     private final CustomUserDetailsService userDetailsService;
 
     @Override
+    @Transactional
     public OAuth2AuthenticatedPrincipal introspect(String token) {
         log.debug("Resource Server validating token: {}", token.substring(0, Math.min(20, token.length())));
 
@@ -49,7 +51,7 @@ public class OAuth2ResourceServer implements OpaqueTokenIntrospector {
             throw new RuntimeException("Token expired or revoked");
         }
 
-        // Get user with roles from database
+        // Get user with roles from database - FETCH EAGERLY
         User user;
         if (unifiedToken.getUser() != null) {
             user = unifiedToken.getUser();
@@ -57,7 +59,7 @@ public class OAuth2ResourceServer implements OpaqueTokenIntrospector {
             user = (User) userDetailsService.loadUserByUsername(unifiedToken.getUserEmail());
         }
 
-        // Convert to Collection<GrantedAuthority> (explicit type)
+        // Force initialization of authorities while in transaction
         Collection<GrantedAuthority> authorities = new ArrayList<>(user.getAuthorities());
 
         // Build introspection claims with roles

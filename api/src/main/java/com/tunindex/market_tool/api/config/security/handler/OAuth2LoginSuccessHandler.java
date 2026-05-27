@@ -68,14 +68,17 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
         // Store refresh token (7 days expiry)
         tokenService.storeToken(refreshToken, TokenType.OAUTH2_REFRESH,
-                user.getId(), user.getEmail(), request, 10080); // 7 days = 10080 minutes
+                user.getId(), user.getEmail(), request, 10080);
 
         log.info("OAuth2 tokens stored for user: {}", user.getEmail());
 
-        // Set cookies
+        // Set cookies (for Postman to auto-capture)
         setAuthCookies(response, accessToken, refreshToken);
 
-        // Redirect to API success endpoint with tokens as query params
+        // Also set a session cookie (Spring Security does this automatically)
+        // The JSESSIONID cookie is already created by Spring Security
+
+        // Redirect with tokens in URL for Angular to capture
         String targetUrl = UriComponentsBuilder.fromUriString(successUrl)
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
@@ -102,7 +105,6 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private String extractEmail(String provider, Map<String, Object> attributes) {
         String email = (String) attributes.get("email");
         if (email == null || email.isEmpty()) {
-            // Generate fake email if provider doesn't provide one
             String providerId = extractProviderId(provider, attributes);
             return providerId + "@" + provider + ".com";
         }
@@ -112,7 +114,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private String extractName(String provider, Map<String, Object> attributes) {
         String name = (String) attributes.get("name");
         if (name == null || name.isEmpty()) {
-            name = (String) attributes.get("login"); // GitHub
+            name = (String) attributes.get("login");
         }
         if (name == null || name.isEmpty()) {
             name = provider + "_user";
@@ -141,6 +143,8 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+        // JSESSIONID cookie is automatically created by Spring Security
 
         log.info("OAuth2 cookies set successfully");
     }

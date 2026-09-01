@@ -1,1148 +1,369 @@
-create a readme md that have everything we did tests + modules and architecture
-Market Tool - Stock Market Data Collection & Analysis Platform
-https://img.shields.io/badge/Java-17-blue.svg
-https://img.shields.io/badge/Spring%2520Boot-3.5.13-brightgreen.svg
-https://img.shields.io/badge/Spring%2520Cloud-2025.0.0-brightgreen.svg
-https://img.shields.io/badge/License-MIT-yellow.svg
+# Market Tool — Tunisian Stock Market Data Platform
 
-📋 Overview
-Market Tool is a comprehensive microservices-based platform for collecting, processing, and analyzing Tunisian stock market data. It features automated web scraping, Graham value calculations, REST APIs with advanced filtering, and service discovery.
-
-Key Features
-🚀 Automated Data Collection - Scheduled scraping from StockAnalysis.com
-
-📊 Graham Value Analysis - Calculate intrinsic value and margin of safety
-
-🔍 Advanced Filtering - Filter stocks by 30+ criteria using JPA Specifications
-
-📈 REST API - Full-featured API with pagination and Swagger documentation
-
-🛡️ Service Discovery - Netflix Eureka for dynamic service registration
-
-⚖️ Load Balancing - Client-side (Spring Cloud) + Server-side (Nginx)
-
-🧪 Comprehensive Testing - Unit tests, integration tests, repository tests
-
-🏗️ Architecture
-Microservices Architecture
-text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              EXTERNAL CLIENTS                                │
-│                          (Browser, Mobile App, API)                          │
-└─────────────────────────────────────┬───────────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              NGINX (Port 80)                                 │
-│                         SERVER-SIDE LOAD BALANCER                            │
-└─────────────────────────────────────┬────────────────────────────────────
-what the hell , put it in text box
-Market Tool - Stock Market Data Collection & Analysis Platform
-Overview
-Market Tool is a comprehensive microservices-based platform for collecting, processing, and analyzing Tunisian stock market data. It features automated web scraping, Graham value calculations, REST APIs with advanced filtering, service discovery, and load balancing.
-
-Key Features
-Automated Data Collection - Scheduled scraping from StockAnalysis.com
-
-Graham Value Analysis - Calculate intrinsic value and margin of safety
-
-Advanced Filtering - Filter stocks by 30+ criteria using JPA Specifications
-
-REST API - Full-featured API with pagination and Swagger documentation
-
-Service Discovery - Netflix Eureka for dynamic service registration
-
-Load Balancing - Client-side (Spring Cloud) + Server-side (Nginx)
-
-Comprehensive Testing - Unit tests, integration tests, repository tests
-
-Technology Stack
-Technology	Version	Purpose
-Java	17	Core language
-Spring Boot	3.5.13	Application framework
-Spring Cloud	2025.0.0	Microservices (Eureka, LoadBalancer)
-PostgreSQL	18.3	Database
-H2	Latest	Testing database
-JPA/Hibernate	6.6.45	ORM
-Maven	3.x	Build tool
-JUnit 5	5.12.2	Unit testing
-Mockito	5.17.0	Mocking framework
-AssertJ	3.27.7	Fluent assertions
-JSoup	1.17.2	HTML parsing
-Selenium	4.31.0	Web scraping
-Swagger/OpenAPI	2.1.0	API documentation
-Nginx	Latest	Server-side load balancing
-Architecture
-Microservices Diagram
-text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              EXTERNAL CLIENTS                                │
-│                          (Browser, Mobile App, API)                          │
-└─────────────────────────────────────┬───────────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              NGINX (Port 80)                                 │
-│                         SERVER-SIDE LOAD BALANCER                            │
-│                      (Round Robin / Least Connections)                       │
-└─────────────────────────────────────┬───────────────────────────────────────┘
-│
-┌───────────────────────┼───────────────────────┐
-│                       │                       │
-▼                       ▼                       ▼
-┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
-│   API INSTANCE 1    │   │   API INSTANCE 2    │   │   API INSTANCE 3    │
-│     Port 8080       │   │     Port 8084       │   │     Port 8085       │
-│                     │   │                     │   │                     │
-│  - REST Endpoints   │   │  - REST Endpoints   │   │  - REST Endpoints   │
-│  - Swagger UI       │   │  - Swagger UI       │   │  - Swagger UI       │
-│  - StockService     │   │  - StockService     │   │  - StockService     │
-└─────────┬───────────┘   └─────────┬───────────┘   └─────────┬───────────┘
-│                         │                         │
-│              ┌──────────┴──────────┐              │
-│              │                     │              │
-└──────────────┼─────────────────────┼──────────────┘
-│                     │
-▼                     ▼
-┌─────────────────────────────────────────────────────┐
-│                   EUREKA SERVER                      │
-│                     Port 8761                        │
-│                                                      │
-│  Service Registry:                                   │
-│  - API-SERVICE (3 instances)                         │
-│  - COLLECTOR-SERVICE (3 instances)                   │
-└─────────────────────────────────────────────────────┘
-│                     │
-┌──────────────┼─────────────────────┼──────────────┐
-│              │                     │              │
-▼              ▼                     ▼              ▼
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│  COLLECTOR-8081 │ │  COLLECTOR-8082 │ │  COLLECTOR-8083 │
-│                 │ │                 │ │                 │
-│ - Fetcher       │ │ - Fetcher       │ │ - Fetcher       │
-│ - Parser        │ │ - Parser        │ │ - Parser        │
-│ - Enricher      │ │ - Enricher      │ │ - Enricher      │
-│ - Scheduler     │ │ - Scheduler     │ │ - Scheduler     │
-└────────┬────────┘ └────────┬────────┘ └────────┬────────┘
-│                    │                    │
-└────────────────────┼────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────┐
-│                   POSTGRESQL                         │
-│                    Port 5432                         │
-│                                                      │
-│  Tables: stocks (with embedded objects)              │
-└─────────────────────────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────┐
-│                STOCKANALYSIS.COM                     │
-│              (External Data Source)                  │
-└─────────────────────────────────────────────────────┘
-Project Structure
-text
-market-tool/
-├── pom.xml (Parent)
-├── common/                         # Shared library
-│   ├── entities/                   # JPA entities
-│   │   ├── Stock.java
-│   │   ├── embedded/              # PriceData, VolumeData, etc.
-│   │   └── enums/                 # SectorType, OwnershipType
-│   ├── dto/                       # Data Transfer Objects
-│   │   └── providers/investingcom/
-│   │       ├── StockDto.java
-│   │       ├── EnrichedStockData.java
-│   │       └── NormalizedStockData.java
-│   ├── repository/jpa/            # Repository interfaces
-│   │   └── StockRepository.java
-│   ├── exception/                 # Custom exceptions
-│   ├── specification/             # JPA Specifications
-│   │   └── StockSpecification.java
-│   └── utils/                     # Utilities
-│       ├── constants/
-│       └── pagination/
-├── api/                           # API Service (Port 8080)
-│   ├── ApiApplication.java
-│   ├── controllers/stock/
-│   │   ├── StockApi.java
-│   │   └── StockController.java
-│   ├── services/
-│   │   └── StockServiceImpl.java
-│   ├── config/
-│   │   ├── swagger/SwaggerConfig.java
-│   │   └── WebClientConfig.java
-│   └── handlers/
-│       └── RestExceptionHandler.java
-├── collector/                     # Collector Service (Port 8081-8083)
-│   ├── CollectorApplication.java
-│   ├── orchestrator/
-│   │   └── DataOrchestratorImpl.java
-│   ├── providers/stockanalysis/
-│   │   └── StockAnalysisProvider.java
-│   ├── services/
-│   │   ├── fetcher/
-│   │   ├── parser/
-│   │   ├── enricher/
-│   │   ├── normalizer/
-│   │   ├── calculator/
-│   │   └── async/
-│   ├── config/webclient/
-│   │   └── WebClientConfig.java
-│   └── webscraping/              # Stealth scraping utilities
-└── discovery-server/              # Eureka Server (Port 8761)
-├── DiscoveryServerApplication.java
-└── application.properties
-Module Details
-Common Module
-Shared library used by both API and Collector services.
-
-Contents:
-
-JPA Entities (Stock with embedded objects)
-
-DTOs (StockDto, EnrichedStockData, NormalizedStockData)
-
-Repository interfaces (StockRepository)
-
-Custom exceptions (EntityNotFoundException, InvalidEntityException)
-
-JPA Specifications for dynamic filtering
-
-Pagination utilities
-
-Constants and configuration
-
-Why separate? Avoids code duplication across services.
-
-API Service
-REST API service that serves stock data to clients.
-
-Port: 8080 (multiple instances: 8080, 8084, 8085)
-
-Endpoints:
-
-Method	Endpoint	Description
-GET	/api/v1/stocks/symbol/{symbol}	Find by symbol
-GET	/api/v1/stocks/symbol/{symbol}/exchange/{exchange}	Find by symbol and exchange
-POST	/api/v1/stocks/filter	Advanced filtering with pagination
-GET	/api/v1/stocks/statistics/by-sector	Sector distribution
-GET	/api/v1/stocks/statistics/by-ownership	Ownership distribution
-PUT	/api/v1/stocks/refresh/{symbol}	Trigger data refresh
-Filtering capabilities:
-
-Basic: symbol, name, exchange, sector, ownershipType
-
-Price: minPrice, maxPrice
-
-52-week range: near52WeekLow, near52WeekHigh
-
-Profitability: minProfitMargin, maxProfitMargin, profitable
-
-Margin of Safety: minMarginOfSafety, maxMarginOfSafety, undervalued, overvalued
-
-Graham Value: minGrahamFairValue, maxGrahamFairValue, priceBelowGrahamValue
-
-Debt: minDebtToEquity, maxDebtToEquity, lowDebt, highDebt
-
-EPS/BVPS: minEps, maxEps, minBvps, maxBvps
-
-PE Ratio: minPeRatio, maxPeRatio, lowPeRatio
-
-Dividend: minDividendYield, maxDividendYield, highDividend
-
-Presets: valueInvestorFavorites, growthInvestorFavorites, grahamCriteria
-
-Collector Service
-Background worker that fetches, parses, and enriches stock data.
-
-Port: 8081 (multiple instances: 8081, 8082, 8083)
-
-Components:
-
-Fetcher - Retrieves HTML from StockAnalysis.com using WebClient with stealth headers
-
-Parser - Extracts metrics from HTML/DOM using JSoup
-
-Normalizer - Cleans numeric values (converts "1.5B" to 1500000000)
-
-Enricher - Calculates Graham fair value and margin of safety
-
-Scheduler - Runs every 30 minutes during market hours
-
-WebScraping - Anti-detection utilities (UserAgent rotation, fingerprints)
-
-Graham Formula:
-
-text
-Graham Fair Value = EPS × (8.5 + 2 × Growth Rate)
-Margin of Safety = (Fair Value - Current Price) / Fair Value × 100%
-Discovery Server (Eureka)
-Service registry for all microservices.
-
-Port: 8761
-
-Dashboard: http://localhost:8761
-
-Registered services:
-
-API-SERVICE (3 instances)
-
-COLLECTOR-SERVICE (3 instances)
-
-Nginx (Optional Server-Side Load Balancer)
-Port: 80
-
-Configuration:
-
-nginx
-upstream market_tool_api {
-server localhost:8080;
-server localhost:8084;
-server localhost:8085;
-}
-
-server {
-listen 80;
-location /api/ {
-proxy_pass http://market_tool_api;
-}
-}
-Testing
-Test Structure
-text
-common/src/test/
-├── java/com/tunindex/market_tool/common/
-│   ├── repository/jpa/
-│   │   └── StockRepositoryTest.java
-│   └── services/
-│       └── StockServiceImplTest.java
-└── resources/
-└── application-test.properties
-Repository Tests (DataJpaTest)
-Location: StockRepositoryTest.java
-
-Tests:
-
-findBySymbol (exists, not exists, case sensitivity)
-
-findBySymbolAndExchange (both match, exchange mismatch)
-
-existsBySymbol / existsBySymbolAndExchange
-
-countStocksBySector / countStocksByOwnership
-
-updateLastUpdateTime
-
-CRUD operations (save, delete, findAll)
-
-Embedded object validation (PriceData, FundamentalData, CalculatedValues)
-
-How to run:
-
-bash
-cd common
-mvn test -Dtest=StockRepositoryTest
-Service Unit Tests (Mockito)
-Location: StockServiceImplTest.java
-
-Tests:
-
-Find by symbol (success, null, empty, not found)
-
-Find by symbol and exchange
-
-Filter stocks with pagination
-
-Pagination parameter validation
-
-Count by sector / ownership
-
-Refresh stock data (success, non-existent)
-
-Filter applications (sector, price, margin of safety)
-
-Preset filters (undervalued, grahamCriteria)
-
-DTO conversion
-
-How to run:
-
-bash
-cd common
-mvn test -Dtest=StockServiceImplTest
-Test Configuration
-application-test.properties:
-
-properties
-spring.datasource.url=jdbc:h2:mem:testdb;MODE=PostgreSQL
-spring.datasource.driver-class-name=org.h2.Driver
-spring.jpa.hibernate.ddl-auto=create-drop
-spring.jpa.show-sql=true
-Running All Tests
-bash
-cd common
-mvn clean test
-Installation & Setup
-Prerequisites
-Java 17
-
-Maven 3.8+
-
-PostgreSQL 15+ (or Docker)
-
-Git
-
-Step 1: Clone Repository
-bash
-git clone https://github.com/yourusername/market-tool.git
-cd market-tool
-Step 2: Build Project
-bash
-mvn clean install
-Step 3: Configure Database
-Create PostgreSQL database:
-
-sql
-CREATE DATABASE tunindex;
-CREATE USER postgres WITH PASSWORD 'root';
-GRANT ALL PRIVILEGES ON DATABASE tunindex TO postgres;
-Or use Docker:
-
-bash
-docker run -d \
---name postgres \
--e POSTGRES_DB=tunindex \
--e POSTGRES_USER=postgres \
--e POSTGRES_PASSWORD=root \
--p 5432:5432 \
-postgres:15
-Step 4: Start Services
-Order matters - start in this sequence:
-
-bash
-# Terminal 1 - Eureka Server
-cd discovery-server
-mvn spring-boot:run
-
-# Terminal 2 - PostgreSQL (if not using Docker)
-# Already running
-
-# Terminal 3 - API Service
-cd api
-mvn spring-boot:run
-
-# Terminal 4 - Collector Instance 1 (default port)
-cd collector
-mvn spring-boot:run
-
-# Terminal 5 - Collector Instance 2 (optional - for load balancing)
-cd collector
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8082
-
-# Terminal 6 - Collector Instance 3 (optional - for load balancing)
-cd collector
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8083
-Step 5: Verify Services
-Open browser:
-
-Eureka Dashboard: http://localhost:8761
-
-API Swagger UI: http://localhost:8080/swagger-ui.html
-
-API Health: http://localhost:8080/actuator/health
-
-API Usage Examples
-Get Stock by Symbol
-bash
-curl http://localhost:8080/api/v1/stocks/symbol/BH
-Filter Stocks
-bash
-curl -X POST http://localhost:8080/api/v1/stocks/filter \
--H "Content-Type: application/json" \
--d '{
-"page": 1,
-"size": 10,
-"filters": {
-"sector": "FINANCIALS",
-"minMarginOfSafety": "20",
-"undervalued": "true"
-}
-}'
-Trigger Data Refresh
-bash
-curl -X PUT http://localhost:8080/api/v1/stocks/refresh/BH
-Get Statistics
-bash
-# Count by sector
-curl http://localhost:8080/api/v1/stocks/statistics/by-sector
-
-# Count by ownership
-curl http://localhost:8080/api/v1/stocks/statistics/by-ownership
-Load Balancing
-Client-Side Load Balancing
-API service uses Spring Cloud LoadBalancer to call Collector service:
-
-java
-@Bean
-@LoadBalanced
-public WebClient.Builder loadBalancedWebClientBuilder() {
-return WebClient.builder();
-}
-
-// Usage - uses service name instead of hardcoded URL
-webClientBuilder.build()
-.post()
-.uri("http://COLLECTOR-SERVICE/internal/collector/stock/BH")
-Server-Side Load Balancing (Nginx)
-For external clients, Nginx distributes requests across multiple API instances:
-
-nginx
-upstream market_tool_api {
-server localhost:8080;
-server localhost:8084;
-server localhost:8085;
-}
-Testing Load Balancing
-bash
-# Run multiple requests - should see different ports
-for i in 1 2 3 4 5 6; do
-curl http://localhost:8080/api/test/load-balance-test
-echo ""
-sleep 1
-done
-Deployment
-Docker Compose
-Create docker-compose.yml:
-
-yaml
-version: '3.8'
-services:
-postgres:
-image: postgres:15
-environment:
-POSTGRES_DB: tunindex
-POSTGRES_USER: postgres
-POSTGRES_PASSWORD: root
-ports:
-- "5432:5432"
-
-discovery-server:
-build: ./discovery-server
-ports:
-- "8761:8761"
-
-api:
-build: ./api
-ports:
-- "8080:8080"
-depends_on:
-- postgres
-- discovery-server
-
-collector:
-build: ./collector
-ports:
-- "8081:8081"
-depends_on:
-- postgres
-- discovery-server
-
-nginx:
-image: nginx:alpine
-ports:
-- "80:80"
-volumes:
-- ./nginx.conf:/etc/nginx/nginx.conf
-depends_on:
-- api
-Production Considerations
-Use environment variables for sensitive data
-
-Enable HTTPS with SSL certificates
-
-Set up monitoring (Prometheus + Grafana)
-
-Configure log aggregation (ELK stack)
-
-Implement circuit breakers (Resilience4j)
-
-Add distributed tracing (Zipkin)
-
-Troubleshooting
-Common Issues
-Issue	Solution
-Eureka connection refused	Start discovery-server first
-StockRepository null	Add @EnableJpaRepositories with correct package
-Port already in use	Change server.port in application.properties
-WebClient load balancing not working	Add @LoadBalanced to WebClient.Builder bean
-NULL values in filter results	Add isNotNull checks in StockSpecification
-Debugging
-Enable SQL logging:
-
-properties
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.format_sql=true
-logging.level.org.hibernate.SQL=DEBUG
-Future Enhancements
-Add API Gateway (Spring Cloud Gateway)
-
-Add Circuit Breakers (Resilience4j)
-
-Add Distributed Tracing (Zipkin)
-
-Add Metrics Monitoring (Prometheus + Grafana)
-
-Add More Data Providers (Investing.com, Yahoo Finance)
-
-Add Historical Data Storage
-
-Add Email Notifications
-
-Add User Authentication (Spring Security + JWT)
-
-Add React Frontend Dashboard
-
-License
-MIT License
-
-Contributors
-Your Name
-
-Support
-For issues or questions, please open a GitHub issue.
-
-Okay now create the readme.md file so i download it
-README.md
-markdown
-# Market Tool - Stock Market Data Collection & Analysis Platform
-
-[![Java Version](https://img.shields.io/badge/Java-17-blue.svg)](https://openjdk.org/projects/jdk/17/)
-[![Spring Boot](https://img.shields.io/badge/Spring%
-my name is Fares Ben Slama
-README.md
-markdown
-# Market Tool - Stock Market Data Collection & Analysis Platform
-
-[![Java Version](https://img.shields.io/badge/Java-17-blue.svg)](https://openjdk.org/projects/jdk/17/)
+[![Java](https://img.shields.io/badge/Java-17-blue.svg)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.13-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2025.0.0-brightgreen.svg)](https://spring.io/projects/spring-cloud)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-## 📋 Overview
-
-Market Tool is a comprehensive microservices-based platform for collecting, processing, and analyzing Tunisian stock market data. It features automated web scraping, Graham value calculations, REST APIs with advanced filtering, service discovery, and load balancing.
+[![Angular](https://img.shields.io/badge/Angular-22-red.svg)](https://angular.dev)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 
 **Author:** Fares Ben Slama
 
-### Key Features
+## Overview
 
-- 🚀 **Automated Data Collection** - Scheduled scraping from StockAnalysis.com
-- 📊 **Graham Value Analysis** - Calculate intrinsic value and margin of safety
-- 🔍 **Advanced Filtering** - Filter stocks by 30+ criteria using JPA Specifications
-- 📈 **REST API** - Full-featured API with pagination and Swagger documentation
-- 🛡️ **Service Discovery** - Netflix Eureka for dynamic service registration
-- ⚖️ **Load Balancing** - Client-side (Spring Cloud) + Server-side (Nginx)
-- 🧪 **Comprehensive Testing** - Unit tests, integration tests, repository tests
+Market Tool is a microservices platform that scrapes, enriches, and serves Tunisian Stock Exchange (BVMT) data, wrapped in a full SaaS shell — authentication, user accounts, billing/subscriptions, and notifications (email/SMS). It is built as 10 independent Spring Boot services registered with a Netflix Eureka discovery server, plus an Angular frontend that is currently scaffolded but not yet implemented.
 
-## 🏗️ Architecture
+> This document reflects the actual state of the codebase as inspected, not just the original plan. It calls out work-in-progress and known issues explicitly (see [Known Issues](#known-issues--architectural-debt)) rather than presenting the system as finished.
 
-### Microservices Diagram
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ EXTERNAL CLIENTS │
-│ (Browser, Mobile App, API) │
-└─────────────────────────────────────┬───────────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ NGINX (Port 80) │
-│ SERVER-SIDE LOAD BALANCER │
-└─────────────────────────────────────┬───────────────────────────────────────┘
-│
-┌───────────────────────┼───────────────────────┐
-│ │ │
-▼ ▼ ▼
-┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────┐
-│ API INSTANCE 1 │ │ API INSTANCE 2 │ │ API INSTANCE 3 │
-│ Port 8080 │ │ Port 8084 │ │ Port 8085 │
-└─────────┬───────────┘ └─────────┬───────────┘ └─────────┬───────────┘
-│ │ │
-└─────────────────────────┼─────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────┐
-│ EUREKA SERVER │
-│ Port 8761 │
-│ │
-│ Service Registry: │
-│ - API-SERVICE (3 instances) │
-│ - COLLECTOR-SERVICE (3 instances) │
-└─────────────────────────────────────────────────────┘
-│
-┌─────────────────────────┼─────────────────────────┐
-│ │ │
-▼ ▼ ▼
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│ COLLECTOR-8081 │ │ COLLECTOR-8082 │ │ COLLECTOR-8083 │
-└────────┬────────┘ └────────┬────────┘ └────────┬────────┘
-│ │ │
-└──────────────────────┼──────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────┐
-│ POSTGRESQL │
-│ Port 5432 │
-└─────────────────────────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────┐
-│ STOCKANALYSIS.COM │
-│ (External Data Source) │
-└─────────────────────────────────────────────────────┘
+## Table of Contents
 
-text
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Backend Modules](#backend-modules)
+- [Inter-Service Communication](#inter-service-communication)
+- [Frontend](#frontend-angular)
+- [Testing](#testing)
+- [Setup & Installation](#setup--installation)
+- [API Usage Examples](#api-usage-examples)
+- [Known Issues / Architectural Debt](#known-issues--architectural-debt)
+- [Roadmap](#roadmap)
+- [License](#license)
 
-### Project Structure
+## Architecture
+
+```
+┌───────────────────────────────┐
+│   Angular Frontend (scaffold  │
+│   only, not implemented)      │
+│   tunindex-market-tool :4200  │
+└───────────────┬────────────────┘
+                 │ HTTP (planned — no calls wired up yet)
+                 ▼
+┌──────────────────────────────────────────────────────┐
+│                     api  — :8082                       │
+│  Security gateway: Google OAuth2 login + opaque token   │
+│  resource server, user/account management,              │
+│  stock-data proxy to collector                          │
+└───────┬────────────────────────────────────────────────┘
+        │ load-balanced WebClient (Eureka service names)
+        │ + shared "X-API-Key" header on every internal call
+        │
+        ├──► collector :8081 ─────────────► stockanalysis.com (scraping)
+        ├──► mailing-service :8085 ───────► Gmail SMTP
+        ├──► sms-service :8086 ───────────► Twilio API
+        ├──► recaptcha-service :8087 ─────► Google reCAPTCHA v3
+        ├──► payment-service :8088* ──────► Konnect payment gateway (Tunisia)
+        ├──► billing-service :8088* ──────► Konnect + invoicing/subscriptions
+        └──► user-subscription-service :8089 (incomplete, see Known Issues)
+
+  * payment-service and billing-service both hardcode server.port=8088 —
+    they cannot run at the same time with the checked-in config.
+
+              ┌───────────────────────────────┐
+              │   discovery-server (Eureka)    │
+              │            :8761                │
+              │  All 9 business services         │
+              │  register here                   │
+              └───────────────────────────────┘
+
+Each business service owns its own PostgreSQL database (localhost:5432,
+ddl-auto=update, no Flyway/Liquibase):
+tunindex-api · tunindex-collector · tunindex-mailing · tunindex-sms ·
+tunindex-recaptcha · tunindex-payment (shared by payment- & billing-service)
+· tunindex-user-subscription
+```
+
+`common` is a shared library jar (no port, no controllers) that every service depends on.
+
+## Tech Stack
+
+| Layer | Technology | Version |
+|---|---|---|
+| Language | Java | 17 |
+| Framework | Spring Boot | 3.5.13 |
+| Microservices | Spring Cloud (Eureka, LoadBalancer) | 2025.0.0 |
+| Database | PostgreSQL | localhost, one DB per service |
+| ORM | JPA / Hibernate | via Spring Boot parent |
+| Build | Maven | multi-module reactor |
+| Testing | JUnit 5, Mockito, AssertJ | via Spring Boot parent |
+| HTML parsing | JSoup | 1.17.2 |
+| Browser automation | Selenium + WebDriverManager | 4.31.0 / 5.9.2 |
+| API docs | springdoc-openapi (Swagger UI) | 2.1.0 |
+| Auth | Spring Security, Google OAuth2, custom opaque tokens | — |
+| Bot protection | Google reCAPTCHA v3 | — |
+| Email | Jakarta Mail via Gmail SMTP | — |
+| SMS | Twilio SDK + libphonenumber | 10.7.2 / 8.12.38 |
+| Payments | Konnect (Tunisian payment gateway) | — |
+| PDF/CSV export | iText, OpenCSV | 5.5.13.3 / 5.7.1 |
+| Frontend framework | Angular (standalone components) | 22.1 |
+| Frontend testing | Vitest | 4.0.8 |
+
+## Project Structure
+
+```
 market-tool/
-├── pom.xml (Parent)
-├── common/ # Shared library
-│ ├── entities/ # JPA entities
-│ │ ├── Stock.java
-│ │ ├── embedded/ # PriceData, VolumeData, etc.
-│ │ └── enums/ # SectorType, OwnershipType
-│ ├── dto/ # Data Transfer Objects
-│ │ └── providers/investingcom/
-│ │ ├── StockDto.java
-│ │ ├── EnrichedStockData.java
-│ │ └── NormalizedStockData.java
-│ ├── repository/jpa/ # Repository interfaces
-│ │ └── StockRepository.java
-│ ├── exception/ # Custom exceptions
-│ ├── specification/ # JPA Specifications
-│ │ └── StockSpecification.java
-│ └── utils/ # Utilities
-│ ├── constants/
-│ └── pagination/
-├── api/ # API Service (Port 8080)
-│ ├── ApiApplication.java
-│ ├── controllers/stock/
-│ │ ├── StockApi.java
-│ │ └── StockController.java
-│ ├── services/
-│ │ └── StockServiceImpl.java
-│ ├── config/
-│ │ ├── swagger/SwaggerConfig.java
-│ │ └── WebClientConfig.java
-│ └── handlers/
-│ └── RestExceptionHandler.java
-├── collector/ # Collector Service (Port 8081-8083)
-│ ├── CollectorApplication.java
-│ ├── orchestrator/
-│ │ └── DataOrchestratorImpl.java
-│ ├── providers/stockanalysis/
-│ │ └── StockAnalysisProvider.java
-│ ├── services/
-│ │ ├── fetcher/
-│ │ ├── parser/
-│ │ ├── enricher/
-│ │ ├── normalizer/
-│ │ ├── calculator/
-│ │ └── async/
-│ ├── config/webclient/
-│ │ └── WebClientConfig.java
-│ └── webscraping/ # Stealth scraping utilities
-└── discovery-server/ # Eureka Server (Port 8761)
-├── DiscoveryServerApplication.java
-└── application.properties
+├── backend/
+│   ├── pom.xml                      # Maven reactor parent, 10 modules
+│   ├── common/                      # Shared library (entities, DTOs, exceptions, pagination)
+│   ├── discovery-server/            # Eureka registry :8761
+│   ├── collector/                   # Scraper + Graham valuation :8081
+│   ├── api/                         # Security gateway / BFF :8082
+│   ├── mailing-service/             # Transactional + newsletter email :8085
+│   ├── sms-service/                 # Twilio SMS :8086
+│   ├── recaptcha-service/           # reCAPTCHA v3 verification :8087
+│   ├── payment-service/             # Konnect payments :8088
+│   ├── billing-service/             # Payments + invoices + subscriptions :8088
+│   ├── user-subscription-service/   # Subscriptions split-out (WIP) :8089
+│   └── original-backup/             # Old snapshot of the backend — not live code
+└── frontend/
+    └── tunindex-market-tool/        # Angular 22 app — scaffold only, unimplemented
+        └── src/app/
+            ├── core/                # guards, interceptors, models, services (all stubs)
+            ├── features/            # auth, dashboard, stocks, users, watchlist, analysis,
+            │                        # account-management, market (all stub components)
+            └── shared/components/   # navbar, sidebar, data-table, pagination, etc. (stubs)
+```
 
-text
+## Backend Modules
 
-## 📦 Module Details
+### common (shared library)
 
-### Common Module
+No `@SpringBootApplication`, no controllers — pulled in as a dependency by every other module.
 
-Shared library used by both API and Collector services.
+- **Base entities**: `AbstractEntity` (id, audit dates), `BaseUser` (used by `api`'s `User`)
+- **Embedded value objects**: `PriceData`, `VolumeData`, `FundamentalData`, `RatiosData`, `TechnicalData`, `AnalystData`, `CalculatedValues`, `Address` (used by `collector`'s `Stock`)
+- **Pagination framework**: `PaginationAndFilteringDto` (the standard request body for every `/filter` endpoint system-wide) and `PagedResponse<T>` (the standard response wrapper)
+- **Constants**: API route roots, and a hardcoded reference table of all **73 BVMT-listed tickers** (symbol, company name, stockanalysis.com URL, ownership type, industry) that `collector` iterates over
+- **Exceptions**: a shared hierarchy (`EntityNotFoundException`, `InvalidEntityException`, `DataFetchException`, `ParseException`, `RecaptchaException`, `SmsServiceException`, …) plus a centralized `ErrorCodes` enum spanning market-data, payment, subscription, and auth error codes
 
-**Contents:**
-- JPA Entities (Stock with embedded objects)
-- DTOs (StockDto, EnrichedStockData, NormalizedStockData)
-- Repository interfaces (StockRepository)
-- Custom exceptions (EntityNotFoundException, InvalidEntityException)
-- JPA Specifications for dynamic filtering
-- Pagination utilities
-- Constants and configuration
+### collector — port 8081
 
-### API Service
+Scrapes stockanalysis.com for the 73 BVMT tickers, parses/normalizes/enriches the data, computes Graham valuation metrics, and persists to `tunindex-collector`. No user-facing endpoints — internal only.
 
-REST API service that serves stock data to clients.
+- **Pipeline**: `DataOrchestratorImpl` runs fetch → parse → normalize → enrich → upsert, parallelized 10-wide via Reactor. Triggered on startup and re-run every `market-tool.scheduler.interval-minutes` (default 30) by a self-managed background thread (not `@Scheduled`).
+- **Provider**: `StockAnalysisProvider` fetches 3 pages per symbol from stockanalysis.com and parses them with JSoup.
+- **Graham calculation**: `GrahamCalculatorImpl` computes fair value as `√(22.5 × EPS × BVPS)` and the resulting margin-of-safety percentage.
+- **Anti-detection layer**: a bespoke stealth-scraping package (`webscraping/`) with rotating user-agents/fingerprints, rate limiting, retry backoff, a TTL cache, and an optional Selenium/Chrome path.
+- **Endpoints** (`/internal/stock-data/**`, API-key gated): find by symbol / symbol+exchange, `POST /filter` (paginated), sector/ownership statistics, `PUT /refresh/{symbol}`.
+- **Tests**: `StockControllerIntegrationTest`, `StockRepositoryTest`, `StockServiceImplTest`.
 
-**Port:** 8080 (multiple instances: 8080, 8084, 8085)
+### api — port 8082 (largest module, 93 files)
 
-**Endpoints:**
+The user-facing gateway: authentication, user/account management, and a thin proxy to `collector` for stock data. Owns `tunindex-api`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /api/v1/stocks/symbol/{symbol} | Find by symbol |
-| GET | /api/v1/stocks/symbol/{symbol}/exchange/{exchange} | Find by symbol and exchange |
-| POST | /api/v1/stocks/filter | Advanced filtering with pagination |
-| GET | /api/v1/stocks/statistics/by-sector | Sector distribution |
-| GET | /api/v1/stocks/statistics/by-ownership | Ownership distribution |
-| PUT | /api/v1/stocks/refresh/{symbol} | Trigger data refresh |
+- **Security**: full Spring Security chain — Google OAuth2 login *and* a custom opaque-token resource server (own `UnifiedToken` table covering OAuth2 access/refresh, password-reset, and 2FA tokens with IP/user-agent hash binding). Custom filter chain: input sanitizer → rate limiter → OAuth2 filter, plus reCAPTCHA and IP-hash utilities.
+- **Endpoints**: `/auth/authenticate` (password, token-check, and refresh all multiplexed through one endpoint), `/auth/google/login-url`, `/users/**` (profile, password change, lookup, paginated listing), `/accounts/management/**` (admin/user creation, account lock toggle, deletion), `/api/v1/stocks/**` (proxied from collector).
+- **Internal endpoints** consumed by other services: mailing/SMS recipient lookups, payment user-info lookup, 2FA generate/verify/resend, password reset.
+- **Tests**: none present.
 
-**Filtering capabilities:**
-- Basic: symbol, name, exchange, sector, ownershipType
-- Price: minPrice, maxPrice
-- 52-week range: near52WeekLow, near52WeekHigh
-- Profitability: minProfitMargin, maxProfitMargin, profitable
-- Margin of Safety: minMarginOfSafety, maxMarginOfSafety, undervalued, overvalued
-- Graham Value: minGrahamFairValue, maxGrahamFairValue, priceBelowGrahamValue
-- Debt: minDebtToEquity, maxDebtToEquity, lowDebt, highDebt
-- EPS/BVPS: minEps, maxEps, minBvps, maxBvps
-- PE Ratio: minPeRatio, maxPeRatio, lowPeRatio
-- Dividend: minDividendYield, maxDividendYield, highDividend
-- Presets: valueInvestorFavorites, growthInvestorFavorites, grahamCriteria
+### mailing-service — port 8085
 
-### Collector Service
+Centralized transactional + newsletter email via Gmail SMTP. Owns `tunindex-mailing`.
 
-Background worker that fetches, parses, and enriches stock data.
+- **Endpoints**: `/internal/email/**` (send-2fa, send-html, send-simple, newsletter fan-out) is what other services actually call; `/api/newsletter/**` mirrors this for direct use.
+- `NewsletterServiceImpl` pulls recipient lists from `api`'s internal endpoints before bulk-sending.
+- **Tests**: the best-covered service — `EmailNewsletterControllerTest`, `InternalEmailControllerTest`, `EmailLogRepositoryTest`, `EmailServiceTest`, `NewsletterServiceTest`.
 
-**Port:** 8081 (multiple instances: 8081, 8082, 8083)
+### sms-service — port 8086
 
-**Components:**
-- **Fetcher** - Retrieves HTML from StockAnalysis.com using WebClient with stealth headers
-- **Parser** - Extracts metrics from HTML/DOM using JSoup
-- **Normalizer** - Cleans numeric values (converts "1.5B" to 1500000000)
-- **Enricher** - Calculates Graham fair value and margin of safety
-- **Scheduler** - Runs every 30 minutes during market hours
-- **WebScraping** - Anti-detection utilities (UserAgent rotation, fingerprints)
+SMS via Twilio, phone validation via `libphonenumber`. Owns `tunindex-sms`.
 
-**Graham Formula:**
-Graham Fair Value = EPS × (8.5 + 2 × Growth Rate)
-Margin of Safety = (Fair Value - Current Price) / Fair Value × 100%
+- **Endpoints**: `/internal/sms/**` (send, newsletter fan-out by role/user/email).
+- ⚠️ `PhoneNumberUtil` region defaults to `"US"` — likely wrong for Tunisian `+216` numbers (see [Known Issues](#known-issues--architectural-debt)).
+- **Tests**: none present.
 
-text
+### recaptcha-service — port 8087 (smallest, 9 files)
 
-### Discovery Server (Eureka)
+Centralizes Google reCAPTCHA v3 server-side verification so other services don't duplicate the Google API call. Owns `tunindex-recaptcha` (configured, effectively unused — no entities).
 
-Service registry for all microservices.
+- **Endpoint**: `POST /internal/recaptcha/validate` — checks score (≥0.7 default), action match, and hostname allowlist.
+- Validation is **skipped entirely** when the active Spring profile is `dev` or `test`.
+- **Tests**: none present.
 
-**Port:** 8761
-**Dashboard:** http://localhost:8761
+### payment-service — port 8088
 
-**Registered services:**
-- API-SERVICE (3 instances)
-- COLLECTOR-SERVICE (3 instances)
+Konnect (Tunisian payment gateway) integration: create payments, check status, webhooks, refunds. Owns `tunindex-payment`.
 
-## 🧪 Testing
+- `KonnectPaymentGateway` builds Konnect API requests, verifies webhook signatures via HMAC-SHA256, maps Konnect statuses to an internal `PaymentStatus` enum, and calls `mailing-service` directly to send receipt emails.
+- **Endpoints**: `/api/payments/**` (create, status, refund, initiate, filter, statistics), `/internal/payments/webhook/konnect`, `/internal/refund/**`.
+- **Tests**: `PaymentTransactionRepositoryTest`, `RefundRepositoryTest`, `KonnectPaymentGatewayTest`, `PaymentTransactionServiceImplTest`, `RefundServiceImplTest`.
 
-### Test Structure
-common/src/test/
-├── java/com/tunindex/market_tool/common/
-│ ├── repository/jpa/
-│ │ └── StockRepositoryTest.java
-│ └── services/
-│ └── StockServiceImplTest.java
-└── resources/
-└── application-test.properties
+### billing-service — port 8088 (largest of the payment family, 106 files)
 
-text
+A **superset of payment-service**: duplicates its entire payment/refund code and adds Invoicing, Promo Codes, Subscription Plans, User Subscriptions, and Auto-Renewal. See [Known Issues](#known-issues--architectural-debt) — this looks like an in-progress split that duplicated rather than replaced `payment-service`.
 
-### Repository Tests (DataJpaTest)
+- **Additional entities**: `Invoice`, `PromoCode`, `SubscriptionPlan`, `UserSubscription`.
+- **Additional endpoints**: `/api/invoices/**` (including PDF/CSV export via iText/OpenCSV), `/api/subscription-plans/**`, `/api/user-subscriptions/**`, `/api/auto-renewal/**`, plus a public `/api/refunds/**` that payment-service lacks.
+- **Auto-renewal**: `KonnectAutoRenewalServiceImpl` is the only real `@Scheduled` job in the whole payment family — runs daily at 1 AM, renews subscriptions expiring within 1 day, retries up to 3 times before expiring the subscription. The actual re-charge step is a placeholder (`paymentSuccess = true // Replace with actual payment call`) — auto-renewal doesn't really charge the card yet.
+- **Tests**: none present.
 
-**Location:** `StockRepositoryTest.java`
+### user-subscription-service — port 8089 (28 files)
 
-**Tests Covered:**
-- findBySymbol (exists, not exists, case sensitivity)
-- findBySymbolAndExchange (both match, exchange mismatch)
-- existsBySymbol / existsBySymbolAndExchange
-- countStocksBySector / countStocksByOwnership
-- updateLastUpdateTime
-- CRUD operations (save, delete, findAll)
-- Embedded object validation (PriceData, FundamentalData, CalculatedValues)
+A further, apparently incomplete split-out of just the subscription-plan/user-subscription slice of `billing-service` — entities, controllers, and DTOs are near-identical copies with a different package name.
 
-**Run tests:**
+- ⚠️ `AutoRenewalController` injects an `AutoRenewalService`, but **no implementation of that interface exists in this module** — as configured, this service fails to start (`NoSuchBeanDefinitionException`).
+- `spring.application.name` has a typo: `user-susbscription-service`.
+- **Tests**: none present.
+
+### discovery-server — port 8761 (1 file)
+
+Plain Netflix Eureka registry. `register-with-eureka=false`, `fetch-registry=false` (it only serves the registry), self-preservation disabled, fast eviction — tuned for single-node dev use, not HA. No tests.
+
+## Inter-Service Communication
+
+- **Discovery**: every business service is `@EnableDiscoveryClient` against Eureka at `discovery-server:8761`.
+- **Calls**: all internal service-to-service calls use a Spring Cloud `@LoadBalanced` `WebClient.Builder`, addressing peers by Eureka service name (e.g. `http://collector-service`). No Feign, no plain `RestTemplate` for internal calls.
+- **Internal auth**: a static shared secret sent as an `X-API-Key` header, checked manually in every internal controller. No mTLS or OAuth2 between services.
+- **User-facing auth**: only `api` has Spring Security + OAuth2; every other service trusts the shared API key alone.
+
+## Frontend (Angular)
+
+`frontend/tunindex-market-tool` is an Angular 22 app generated with the CLI and **not yet implemented**. The folder layout (`core/{guards,interceptors,models,services}`, `features/{auth,dashboard,stocks,users,watchlist,analysis,account-management,market}`, `shared/components/*`) mirrors the backend's domains and gives a clear sense of the planned feature set, but as of this writing:
+
+- `app.routes.ts` is an empty `Routes` array.
+- Every model file in `core/models/` is empty.
+- Every service/guard/interceptor/component is a bare stub (e.g. `export class Auth {}`), including one that uses a non-existent `@Service()` decorator instead of `@Injectable()`.
+- `app.html` is still the default `ng new` welcome page.
+
+In short: the scaffolding (component boundaries, routing structure, test files) is in place; none of the actual UI or API integration has been written yet.
+
+## Testing
+
+| Module | Test coverage |
+|---|---|
+| common | `TestConfig` only (pure library) |
+| collector | Controller integration test, repository test, service unit test |
+| api | **None** |
+| mailing-service | Controller, repository, and service tests (best-covered service) |
+| sms-service | **None** |
+| recaptcha-service | **None** |
+| payment-service | Repository, gateway, and service tests |
+| billing-service | **None** |
+| user-subscription-service | **None** |
+| discovery-server | **None** (nothing to test) |
+| frontend | Every component/service has a `.spec.ts`, but they're the default Angular CLI "should create" stubs — no real assertions yet |
+
+Run backend tests per module:
+
 ```bash
-cd common
-mvn test -Dtest=StockRepositoryTest
-Service Unit Tests (Mockito)
-Location: StockServiceImplTest.java
+cd backend/collector
+mvn test
 
-Tests Covered:
+cd backend/mailing-service
+mvn test
 
-Find by symbol (success, null, empty, not found)
+cd backend/payment-service
+mvn test
+```
 
-Find by symbol and exchange
+Run the whole reactor:
 
-Filter stocks with pagination
-
-Pagination parameter validation
-
-Count by sector / ownership
-
-Refresh stock data (success, non-existent)
-
-Filter applications (sector, price, margin of safety)
-
-Preset filters (undervalued, grahamCriteria)
-
-DTO conversion
-
-Run tests:
-
-bash
-cd common
-mvn test -Dtest=StockServiceImplTest
-Test Configuration
-properties
-# application-test.properties
-spring.datasource.url=jdbc:h2:mem:testdb;MODE=PostgreSQL
-spring.datasource.driver-class-name=org.h2.Driver
-spring.jpa.hibernate.ddl-auto=create-drop
-spring.jpa.show-sql=true
-Run All Tests
-bash
-cd common
+```bash
+cd backend
 mvn clean test
-🚀 Installation & Setup
-Prerequisites
-Java 17
+```
 
-Maven 3.8+
+## Setup & Installation
 
-PostgreSQL 15+ (or Docker)
+### Prerequisites
 
-Git
+- Java 17, Maven 3.8+
+- PostgreSQL (one database per service, see below)
+- Node.js + npm (for the frontend)
+- A `backend/.env` with the OAuth2/security values `ApiApplication` expects (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `IP_SALT`, `TRUSTED_PROXIES`) — see `backend/.env` (gitignored, not committed)
 
-Step 1: Clone Repository
-bash
-git clone https://github.com/faresbenslama/market-tool.git
-cd market-tool
-Step 2: Build Project
-bash
-mvn clean install
-Step 3: Configure Database
-Option A: PostgreSQL locally
+### Databases
 
-sql
-CREATE DATABASE tunindex;
-CREATE USER postgres WITH PASSWORD 'root';
-GRANT ALL PRIVILEGES ON DATABASE tunindex TO postgres;
-Option B: Docker
+Create one Postgres database per service that needs one (all on `localhost:5432`, `ddl-auto=update` will create the schema on first boot):
 
-bash
-docker run -d \
-  --name postgres \
-  -e POSTGRES_DB=tunindex \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=root \
-  -p 5432:5432 \
-  postgres:15
-Step 4: Start Services
-Start in this order:
+```sql
+CREATE DATABASE "tunindex-api";
+CREATE DATABASE "tunindex-collector";
+CREATE DATABASE "tunindex-mailing";
+CREATE DATABASE "tunindex-sms";
+CREATE DATABASE "tunindex-recaptcha";
+CREATE DATABASE "tunindex-payment";           -- shared by payment-service & billing-service
+CREATE DATABASE "tunindex-user-subscription";
+```
 
-bash
-# Terminal 1 - Eureka Server
-cd discovery-server
+### Start order
+
+```bash
+# 1. Eureka — everything else registers here
+cd backend/discovery-server
 mvn spring-boot:run
 
-# Terminal 2 - API Service
-cd api
-mvn spring-boot:run
+# 2. Core services
+cd backend/collector  && mvn spring-boot:run
+cd backend/api        && mvn spring-boot:run
 
-# Terminal 3 - Collector Service (Instance 1)
-cd collector
-mvn spring-boot:run
+# 3. Supporting services
+cd backend/mailing-service    && mvn spring-boot:run
+cd backend/sms-service        && mvn spring-boot:run
+cd backend/recaptcha-service  && mvn spring-boot:run
 
-# Terminal 4 - Collector Service (Instance 2 - optional)
-cd collector
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8082
+# 4. Billing — pick ONE, both hardcode port 8088
+cd backend/payment-service && mvn spring-boot:run
+# or
+cd backend/billing-service && mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8090
 
-# Terminal 5 - Collector Service (Instance 3 - optional)
-cd collector
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8083
-Step 5: Verify Services
-Open browser:
+# 5. user-subscription-service currently fails to start as-is
+#    (missing AutoRenewalService bean) — needs a fix before running.
+```
 
-Eureka Dashboard: http://localhost:8761
+Verify: Eureka dashboard at http://localhost:8761, Swagger UI on each documented service at `http://localhost:<port>/swagger-ui.html`.
 
-API Swagger UI: http://localhost:8080/swagger-ui.html
+### Frontend (scaffold only)
 
-API Health: http://localhost:8080/actuator/health
+```bash
+cd frontend/tunindex-market-tool
+npm install
+npm start   # ng serve — shows the default Angular welcome page, no app functionality yet
+```
 
-📖 API Usage Examples
-Get Stock by Symbol
-bash
-curl http://localhost:8080/api/v1/stocks/symbol/BH
-Filter Stocks
-bash
-curl -X POST http://localhost:8080/api/v1/stocks/filter \
+## API Usage Examples
+
+```bash
+# Get a stock by symbol (via the api gateway, proxied to collector)
+curl http://localhost:8082/api/v1/stocks/symbol/BH
+
+# Filter stocks
+curl -X POST http://localhost:8082/api/v1/stocks/filter \
   -H "Content-Type: application/json" \
   -d '{
     "page": 1,
     "size": 10,
-    "filters": {
-      "sector": "FINANCIALS",
-      "minMarginOfSafety": "20",
-      "undervalued": "true"
-    }
+    "filters": { "sector": "FINANCIALS", "undervalued": "true" }
   }'
-Trigger Data Refresh
-bash
-curl -X PUT http://localhost:8080/api/v1/stocks/refresh/BH
-Get Statistics
-bash
-# Count by sector
-curl http://localhost:8080/api/v1/stocks/statistics/by-sector
 
-# Count by ownership
-curl http://localhost:8080/api/v1/stocks/statistics/by-ownership
-⚖️ Load Balancing
-Client-Side Load Balancing
-API service uses Spring Cloud LoadBalancer to call Collector service:
+# Trigger a data refresh for one symbol
+curl -X PUT http://localhost:8082/api/v1/stocks/refresh/BH
+```
 
-java
-@Bean
-@LoadBalanced
-public WebClient.Builder loadBalancedWebClientBuilder() {
-    return WebClient.builder();
-}
+## Known Issues / Architectural Debt
 
-// Usage - uses service name instead of hardcoded URL
-webClientBuilder.build()
-    .post()
-    .uri("http://COLLECTOR-SERVICE/internal/collector/stock/BH")
-Server-Side Load Balancing (Nginx)
-nginx
-upstream market_tool_api {
-    server localhost:8080;
-    server localhost:8084;
-    server localhost:8085;
-}
+These were found while mapping the codebase and are worth fixing before relying on this system in production:
 
-server {
-    listen 80;
-    location /api/ {
-        proxy_pass http://market_tool_api;
-    }
-}
-Test Load Balancing
-bash
-for i in 1 2 3 4 5 6; do
-  curl http://localhost:8080/api/test/load-balance-test
-  echo ""
-  sleep 1
-done
-🐳 Docker Deployment
-Docker Compose
-yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: tunindex
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+1. **payment-service vs billing-service duplication** — both declare the same package (`com.tunindex.market_tool.payment`), duplicate entities/DTOs/validators, and both hardcode `server.port=8088`, so they cannot run simultaneously as configured. This looks like an in-progress split of a monolithic payment service that was never finished or cleaned up.
+2. **user-subscription-service is not startable** — `AutoRenewalController` depends on an `AutoRenewalService` bean that has no implementation in this module.
+3. **Auto-renewal doesn't actually charge the card** — `KonnectAutoRenewalServiceImpl.processSingleRenewal` has a placeholder `paymentSuccess = true` instead of a real payment call.
+4. **Secrets are committed in plaintext** in several `application.properties` files (Gmail SMTP app password, Twilio credentials, reCAPTCHA secret key, and a shared internal `X-API-Key` value used by every service). These should move to environment variables or a secrets manager and be rotated.
+5. **No schema migration tool** — every service uses `ddl-auto=update`; there's no Flyway/Liquibase, so schema drift between environments isn't tracked.
+6. **sms-service phone validation defaults to region "US"**, which will likely mis-validate Tunisian `+216` numbers.
+7. **Frontend is unimplemented** — the Angular app is CLI scaffolding only; no routes, models, or API integration exist yet.
+8. **Test coverage is uneven** — only `collector`, `mailing-service`, and `payment-service` have real tests; `api`, `sms-service`, `recaptcha-service`, `billing-service`, and `user-subscription-service` have none.
 
-  discovery-server:
-    build: ./discovery-server
-    ports:
-      - "8761:8761"
-    depends_on:
-      - postgres
+## Roadmap
 
-  api:
-    build: ./api
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
-      - discovery-server
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex
+- Resolve the payment-service / billing-service / user-subscription-service split (pick one and retire the others)
+- Wire up real payment re-charging in auto-renewal
+- Externalize all secrets to environment variables
+- Add Flyway/Liquibase migrations
+- Implement the Angular frontend against the `api` gateway
+- Add an API Gateway (Spring Cloud Gateway) in front of `api`
+- Add circuit breakers (Resilience4j) and distributed tracing (Zipkin)
+- Add metrics monitoring (Prometheus + Grafana)
 
-  collector:
-    build: ./collector
-    ports:
-      - "8081:8081"
-    depends_on:
-      - postgres
-      - discovery-server
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex
+## License
 
-volumes:
-  postgres_data:
-Build and Run
-bash
-docker-compose up -d
-🔧 Troubleshooting
-Issue	Solution
-Eureka connection refused	Start discovery-server first
-StockRepository null	Add @EnableJpaRepositories("com.tunindex.market_tool.common.repository")
-Port already in use	Change server.port in application.properties
-WebClient load balancing not working	Add @LoadBalanced to WebClient.Builder bean
-NULL values in filter results	Add isNotNull checks in StockSpecification
-Enable SQL Logging for Debugging
-properties
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.format_sql=true
-logging.level.org.hibernate.SQL=DEBUG
-logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
-📋 Future Enhancements
-Add API Gateway (Spring Cloud Gateway)
-
-Add Circuit Breakers (Resilience4j)
-
-Add Distributed Tracing (Zipkin)
-
-Add Metrics Monitoring (Prometheus + Grafana)
-
-Add More Data Providers (Investing.com, Yahoo Finance)
-
-Add Historical Data Storage
-
-Add Email Notifications
-
-Add User Authentication (Spring Security + JWT)
-
-Add React Frontend Dashboard
-
-📄 License
-MIT License
-
-Copyright (c) 2025 Fares Ben Slama
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-🙏 Acknowledgments
-Spring Cloud team for microservices tools
-
-StockAnalysis.com for data source
-
-Graham for value investing principles
-
-📧 Contact
-Fares Ben Slama
-
-GitHub: @faresesprit20
+MIT License — Copyright (c) 2026 Fares Ben Slama

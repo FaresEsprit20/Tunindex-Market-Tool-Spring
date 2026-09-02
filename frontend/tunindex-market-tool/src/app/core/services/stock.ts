@@ -7,6 +7,8 @@ import { PagedResponse, PaginationAndFilteringRequest } from '../models/paginati
 import { StockDto } from '../models/stock.model';
 import { PriceHistoryPoint } from '../models/price-history.model';
 import { FundamentalAnalysis, TechnicalAnalysis } from '../models/analysis.model';
+import { StockNews } from '../models/stock-news.model';
+import { NewsImpact } from '../models/news-impact.model';
 
 /**
  * Keys accepted by the backend's filters map (collector's StockServiceImpl
@@ -112,5 +114,26 @@ export class Stock {
 
   getFundamentalAnalysis(symbol: string): Observable<FundamentalAnalysis> {
     return this.http.get<FundamentalAnalysis>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/fundamental`);
+  }
+
+  /**
+   * Real headlines scraped from ilboursa.com's per-stock news feed — see
+   * IlBoursaNewsProvider on the collector.
+   */
+  getNews(symbol: string, limit = 20): Observable<StockNews[]> {
+    return this.http.get<StockNews[]>(`${API_BASE_URL}/news/${encodeURIComponent(symbol)}`, {
+      params: { limit },
+    });
+  }
+
+  /**
+   * Each headline paired with a rule-based sentiment tag and the real price
+   * move over the following tradingDaysAfter trading days — see
+   * NewsSentimentClassifier / NewsImpactServiceImpl on the collector.
+   */
+  getNewsImpact(symbol: string, limit = 10, tradingDaysAfter = 3): Observable<NewsImpact[]> {
+    return this.http.get<NewsImpact[]>(`${API_BASE_URL}/news/${encodeURIComponent(symbol)}/impact`, {
+      params: { limit, tradingDaysAfter },
+    });
   }
 }

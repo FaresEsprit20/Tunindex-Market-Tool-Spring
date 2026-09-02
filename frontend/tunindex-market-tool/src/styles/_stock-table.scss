@@ -3,7 +3,15 @@
 // lazy chunk, same reasoning as _panels.scss / _auth-form.scss.
 
 .table-scroll {
-  overflow-x: auto;
+  // Scrolls in both axes and is height-bounded on purpose: sticky column
+  // headers resolve against their nearest scrolling ancestor, so without a
+  // bounded box here they would pin to a container that itself scrolls out
+  // of view (the shell content area) and disappear anyway. The max-height
+  // only caps — a short table still renders at its natural height with no
+  // scrollbar at all.
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+  min-height: 220px;
 }
 
 .stock-table {
@@ -20,9 +28,64 @@
     padding: 11px 16px;
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
+    // Column labels stay put while a long list scrolls past. The scroll
+    // container is the shell's content area, so this pins them just under
+    // the ticker instead of letting them run off the top.
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--color-panel);
 
     &.num {
       text-align: right;
+    }
+
+    &.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.12s ease, background-color 0.12s ease;
+
+      &:hover {
+        color: var(--color-text-secondary);
+        background: var(--color-panel-alt);
+      }
+
+      &.sorted {
+        color: var(--color-brand);
+      }
+    }
+  }
+
+  // Right-aligned numeric columns put the caret on the left of the label so
+  // the figures underneath stay flush to the column edge.
+  th.num .th-inner {
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+  }
+
+  .th-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sort-caret {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s ease, transform 0.16s ease;
+  }
+
+  th.sortable:hover .sort-caret {
+    opacity: 0.45;
+  }
+
+  th.sorted .sort-caret {
+    opacity: 1;
+
+    &.desc {
+      transform: rotate(180deg);
     }
   }
 
@@ -79,10 +142,13 @@
 
 .stock-row {
   cursor: pointer;
-  transition: background-color 0.1s ease;
+  transition: background-color 0.1s ease, box-shadow 0.1s ease;
 
   &:hover {
     background: var(--color-panel-alt);
+    // An inset left rule marks the hovered row without shifting any cell —
+    // a border would change the row's box and nudge every column.
+    box-shadow: inset 2px 0 0 var(--color-brand);
   }
 
   &:last-child td {

@@ -1,6 +1,6 @@
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Stock } from '../../../core/services/stock';
+import { AnimatedNumber } from '../../../shared/components/animated-number/animated-number';
 
 interface PulseStats {
   avgChangePct: number;
@@ -19,7 +19,7 @@ interface PulseStats {
  */
 @Component({
   selector: 'app-market-pulse',
-  imports: [DecimalPipe],
+  imports: [AnimatedNumber],
   templateUrl: './market-pulse.html',
   styleUrl: './market-pulse.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

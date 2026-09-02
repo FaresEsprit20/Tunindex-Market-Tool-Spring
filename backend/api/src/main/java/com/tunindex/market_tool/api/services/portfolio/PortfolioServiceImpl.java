@@ -18,6 +18,7 @@ import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -249,9 +250,27 @@ public class PortfolioServiceImpl implements PortfolioService {
         return getPortfolio(authentication);
     }
 
+    /**
+     * Race-safe account lookup. The portfolio page issues its summary and
+     * transactions requests concurrently, so on a user's very first visit
+     * both can miss the account and both try to insert one — the second
+     * then dies on the unique constraint over user_id and the page half
+     * fails to load. saveAndFlush surfaces that conflict here (rather than
+     * at commit, where it could not be handled) so the loser of the race
+     * can simply read the row the winner just created.
+     */
     private PortfolioAccount getOrCreateAccount(User user) {
         return portfolioAccountRepository.findByUserId(user.getId())
-                .orElseGet(() -> portfolioAccountRepository.save(PortfolioAccount.builder().user(user).build()));
+                .orElseGet(() -> createAccount(user));
+    }
+
+    private PortfolioAccount createAccount(User user) {
+        try {
+            return portfolioAccountRepository.saveAndFlush(PortfolioAccount.builder().user(user).build());
+        } catch (DataIntegrityViolationException ex) {
+            return portfolioAccountRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> ex);
+        }
     }
 
     private StockResponseDto fetchStock(String symbol) {

@@ -19,19 +19,26 @@
   <div class="stat-tile-grid section">
     <app-stat-tile
       label="Cash balance"
-      [value]="(s.cashBalance | number: '1.2-2') + ' TND'"
+      [numericValue]="s.cashBalance"
+      [decimals]="2"
+      suffix=" TND"
       icon="M3 6h18v12H3zM3 10h18M7 15h3"
       accent="brand"
     />
     <app-stat-tile
       label="Portfolio value"
-      [value]="(s.totalPortfolioValue | number: '1.2-2') + ' TND'"
+      [numericValue]="s.totalPortfolioValue"
+      [decimals]="2"
+      suffix=" TND"
       icon="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
       accent="brand"
     />
     <app-stat-tile
       label="Unrealized P&amp;L"
-      [value]="(s.totalUnrealizedPnl >= 0 ? '+' : '') + (s.totalUnrealizedPnl | number: '1.2-2') + ' TND'"
+      [numericValue]="s.totalUnrealizedPnl"
+      [decimals]="2"
+      [signed]="true"
+      suffix=" TND"
       [trend]="s.totalUnrealizedPnl >= 0 ? 'up' : 'down'"
       [trendLabel]="(s.totalUnrealizedPnlPct >= 0 ? '+' : '') + (s.totalUnrealizedPnlPct | number: '1.1-1') + '%'"
       icon="M3 17l6-6 4 4 8-8"
@@ -39,7 +46,10 @@
     />
     <app-stat-tile
       label="Total return"
-      [value]="(s.totalReturnPct >= 0 ? '+' : '') + (s.totalReturnPct | number: '1.2-2') + '%'"
+      [numericValue]="s.totalReturnPct"
+      [decimals]="2"
+      [signed]="true"
+      suffix="%"
       icon="M4 19h16M7 15l3-4 3 2 4-6"
       [accent]="s.totalReturnPct >= 0 ? 'positive' : 'negative'"
     />

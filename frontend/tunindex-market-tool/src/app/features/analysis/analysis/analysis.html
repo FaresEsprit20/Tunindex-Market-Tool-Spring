@@ -38,6 +38,13 @@
     <span class="price-tag mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }} {{ s.currency }}</span>
   </div>
 
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">Price history</p></div>
+    <div class="panel-body">
+      <app-candlestick-chart [points]="history()" [loading]="historyLoading()" />
+    </div>
+  </div>
+
   <div class="two-col-grid section">
     <!-- Technical Analysis -->
     <div class="panel-card">
@@ -99,6 +106,42 @@
             <div class="indicator-row">
               <span class="indicator-label">Annualized volatility</span>
               <span class="indicator-value mono">{{ t.volatilityAnnualizedPct !== null ? (t.volatilityAnnualizedPct | number: '1.1-1') + '%' : '—' }}</span>
+            </div>
+
+            <div class="indicator-block">
+              <div class="indicator-row">
+                <span class="indicator-label">Stochastic (14,3)</span>
+                <span class="indicator-value mono">
+                  %K {{ t.stochasticK !== null ? (t.stochasticK | number: '1.1-1') : '—' }}
+                  &middot; %D {{ t.stochasticD !== null ? (t.stochasticD | number: '1.1-1') : '—' }}
+                </span>
+                <span class="signal-badge sm" [class]="trendClass(t.stochasticSignal === 'OVERSOLD' ? 'BULLISH' : t.stochasticSignal === 'OVERBOUGHT' ? 'BEARISH' : 'NEUTRAL')">{{ t.stochasticSignal }}</span>
+              </div>
+              @if (t.stochasticK !== null) {
+                <app-range-bar [min]="0" [max]="100" [current]="t.stochasticK" [compact]="true" />
+              }
+            </div>
+
+            <div class="indicator-block">
+              <div class="indicator-row">
+                <span class="indicator-label">Williams %R (14)</span>
+                <span class="indicator-value mono">{{ t.williamsR !== null ? (t.williamsR | number: '1.1-1') : '—' }}</span>
+                <span class="signal-badge sm" [class]="trendClass(t.williamsRSignal === 'OVERSOLD' ? 'BULLISH' : t.williamsRSignal === 'OVERBOUGHT' ? 'BEARISH' : 'NEUTRAL')">{{ t.williamsRSignal }}</span>
+              </div>
+              @if (t.williamsR !== null) {
+                <app-range-bar [min]="-100" [max]="0" [current]="t.williamsR" [compact]="true" />
+              }
+            </div>
+
+            <div class="indicator-row">
+              <span class="indicator-label">ATR (14)</span>
+              <span class="indicator-value mono">{{ t.atr14 !== null ? (t.atr14 | number: '1.2-2') : '—' }}</span>
+            </div>
+
+            <div class="indicator-row">
+              <span class="indicator-label">ADX (14) &mdash; trend strength</span>
+              <span class="indicator-value mono">{{ t.adx14 !== null ? (t.adx14 | number: '1.1-1') : '—' }}</span>
+              <span class="signal-badge sm" [class]="adxClass(t.adxSignal)">{{ t.adxSignal.replace('_', ' ') }}</span>
             </div>
 
             <p class="footnote">Based on {{ t.dataPointsUsed }} real trading days of price history.</p>
@@ -179,6 +222,13 @@
           </div>
         }
       </div>
+    </div>
+  </div>
+
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">News</p></div>
+    <div class="panel-body">
+      <app-news-list [symbol]="s.symbol" />
     </div>
   </div>
 }

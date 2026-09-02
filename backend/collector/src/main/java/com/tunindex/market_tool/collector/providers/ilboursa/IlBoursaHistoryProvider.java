@@ -10,6 +10,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
@@ -18,9 +19,12 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * ilboursa.com's per-symbol "Télécharger les cotations" form is a genuine
@@ -48,7 +52,50 @@ public class IlBoursaHistoryProvider {
                               BigDecimal close, Long volume) {
     }
 
+    // The site's own form (see the GET page's plain-text notice) caps each
+    // download at "une période maximale de 3 mois" — a range wider than
+    // that isn't rejected with an error, it silently re-renders the same
+    // form instead of returning a CSV (confirmed by hand: a 6-month
+    // request came back as the HTML page again, a <=3-month request came
+    // back as real text/csv). 85 days keeps a safe margin under that cap.
+    private static final int MAX_WINDOW_DAYS = 85;
+
     public Mono<List<PricePoint>> fetchHistory(String symbol, LocalDate from, LocalDate to) {
+        List<LocalDate[]> windows = splitIntoWindows(from, to);
+
+        return Flux.fromIterable(windows)
+                .concatMap(window -> fetchWindow(symbol, window[0], window[1])
+                        // One failed window shouldn't blank out the others.
+                        .onErrorResume(e -> Mono.just(List.<PricePoint>of())))
+                .collectList()
+                .map(lists -> lists.stream()
+                        .flatMap(List::stream)
+                        // De-dupe by tradeDate: adjacent windows are built
+                        // from inclusive boundaries, so the two calendar
+                        // days at a window seam can each appear once per
+                        // side in pathological cases — keep one.
+                        .collect(Collectors.toMap(PricePoint::tradeDate, p -> p, (a, b) -> a, LinkedHashMap::new))
+                        .values()
+                        .stream()
+                        .sorted(Comparator.comparing(PricePoint::tradeDate))
+                        .toList());
+    }
+
+    private List<LocalDate[]> splitIntoWindows(LocalDate from, LocalDate to) {
+        List<LocalDate[]> windows = new ArrayList<>();
+        LocalDate windowStart = from;
+        while (!windowStart.isAfter(to)) {
+            LocalDate windowEnd = windowStart.plusDays(MAX_WINDOW_DAYS - 1);
+            if (windowEnd.isAfter(to)) {
+                windowEnd = to;
+            }
+            windows.add(new LocalDate[]{windowStart, windowEnd});
+            windowStart = windowEnd.plusDays(1);
+        }
+        return windows;
+    }
+
+    private Mono<List<PricePoint>> fetchWindow(String symbol, LocalDate from, LocalDate to) {
         String url = BASE_URL + symbol;
 
         return webClient.get()
@@ -75,6 +122,13 @@ public class IlBoursaHistoryProvider {
                                 "Could not obtain antiforgery token/cookie for " + symbol));
                     }
 
+                    // The dtFrom/dtTo fields are <input type="date">, whose
+                    // value attribute is always ISO yyyy-MM-dd per the HTML5
+                    // spec regardless of the page's own French display
+                    // locale (confirmed against the GET page's own
+                    // server-rendered value="2026-09-01" attribute) — do
+                    // NOT switch this to dd/MM/yyyy, that was tried and
+                    // silently fails the same way an out-of-range window does.
                     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
                     form.add("dtFrom", from.toString());
                     form.add("dtTo", to.toString());
@@ -94,7 +148,8 @@ public class IlBoursaHistoryProvider {
                 .retryWhen(Retry.backoff(2, Duration.ofSeconds(2)))
                 .doOnError(e -> {
                     Throwable root = e.getCause() != null ? e.getCause() : e;
-                    log.warn("⚠️ ilboursa history fetch failed for {}: {} ({})", symbol, root.getMessage(), root.getClass().getSimpleName());
+                    log.warn("⚠️ ilboursa history fetch failed for {} [{} .. {}]: {} ({})",
+                            symbol, from, to, root.getMessage(), root.getClass().getSimpleName());
                 })
                 .onErrorReturn(List.of());
     }

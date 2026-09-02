@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OWNERSHIP_LABELS, SECTOR_LABELS, StockDto } from '../../../core/models/stock.model';
@@ -9,12 +9,13 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { StatTile } from '../../../shared/components/stat-tile/stat-tile';
 import { RangeBar } from '../../../shared/components/range-bar/range-bar';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
-import { PriceChart } from '../../../shared/components/price-chart/price-chart';
+import { CandlestickChart } from '../../../shared/components/candlestick-chart/candlestick-chart';
 import { PriceHistoryPoint } from '../../../core/models/price-history.model';
+import { NewsList } from '../../../shared/components/news-list/news-list';
 
 @Component({
   selector: 'app-stock-detail',
-  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, PriceChart],
+  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, CandlestickChart, NewsList],
   templateUrl: './stock-detail.html',
   styleUrl: './stock-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,7 +48,15 @@ export class StockDetail {
   });
 
   constructor() {
-    this.load();
+    // Angular reuses this component instance when navigating between two
+    // /app/stocks/:symbol URLs (same route config, different param) — a
+    // constructor-only fetch would leave the previous symbol's data on
+    // screen until a full page reload. Track symbol() explicitly so every
+    // navigation, not just the first mount, triggers a reload.
+    effect(() => {
+      this.symbol();
+      this.load();
+    });
   }
 
   private load(): void {

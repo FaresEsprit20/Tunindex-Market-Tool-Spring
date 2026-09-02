@@ -4,8 +4,10 @@
 export type SectorType =
   | 'FINANCIALS'
   | 'BANKING'
+  | 'INSURANCE'
   | 'TECHNOLOGY'
   | 'INDUSTRIALS'
+  | 'MATERIALS'
   | 'CONSUMER_GOODS'
   | 'TELECOM'
   | 'ENERGY'
@@ -19,8 +21,10 @@ export type OwnershipType = 'PRIVATE' | 'GOVERNMENT';
 export const SECTOR_LABELS: Record<SectorType, string> = {
   FINANCIALS: 'Financials',
   BANKING: 'Banking Services',
+  INSURANCE: 'Insurance',
   TECHNOLOGY: 'Technology',
   INDUSTRIALS: 'Industrials',
+  MATERIALS: 'Materials',
   CONSUMER_GOODS: 'Consumer Goods',
   TELECOM: 'Telecommunications',
   ENERGY: 'Energy',

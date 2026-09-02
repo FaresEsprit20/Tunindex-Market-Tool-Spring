@@ -1,17 +1,20 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Stock } from '../../../core/services/stock';
 import { StockDto } from '../../../core/models/stock.model';
 import { TechnicalAnalysis, FundamentalAnalysis } from '../../../core/models/analysis.model';
+import { PriceHistoryPoint } from '../../../core/models/price-history.model';
 import { RangeBar } from '../../../shared/components/range-bar/range-bar';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { NewsList } from '../../../shared/components/news-list/news-list';
+import { CandlestickChart } from '../../../shared/components/candlestick-chart/candlestick-chart';
 
 @Component({
   selector: 'app-analysis',
-  imports: [DecimalPipe, RangeBar, SkeletonBlock, EmptyState],
+  imports: [DecimalPipe, RangeBar, SkeletonBlock, EmptyState, NewsList, CandlestickChart],
   templateUrl: './analysis.html',
   styleUrl: './analysis.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,9 +34,17 @@ export class Analysis {
   protected readonly stock = signal<StockDto | null>(null);
   protected readonly technical = signal<TechnicalAnalysis | null>(null);
   protected readonly fundamental = signal<FundamentalAnalysis | null>(null);
+  protected readonly history = signal<PriceHistoryPoint[]>([]);
+  protected readonly historyLoading = signal(true);
 
   constructor() {
-    this.load();
+    // Same route config (analysis/:symbol) is reused across searches, so a
+    // constructor-only fetch would strand the previous symbol's data on
+    // screen after a new search — track symbol() so every change reloads.
+    effect(() => {
+      this.symbol();
+      this.load();
+    });
   }
 
   private load(): void {
@@ -47,10 +58,20 @@ export class Analysis {
     this.stock.set(null);
     this.technical.set(null);
     this.fundamental.set(null);
+    this.history.set([]);
+    this.historyLoading.set(true);
 
     this.stockService.findBySymbol(symbol).subscribe({
       next: (res) => this.stock.set(res),
       error: () => this.error.set(true),
+    });
+
+    this.stockService.getHistory(symbol).subscribe({
+      next: (res) => {
+        this.history.set(res);
+        this.historyLoading.set(false);
+      },
+      error: () => this.historyLoading.set(false),
     });
 
     this.stockService.getTechnicalAnalysis(symbol).subscribe({
@@ -91,6 +112,12 @@ export class Analysis {
   protected trendClass(signal: string): string {
     if (signal === 'BULLISH') return 'positive';
     if (signal === 'BEARISH') return 'negative';
+    return 'neutral';
+  }
+
+  protected adxClass(signal: string): string {
+    if (signal === 'STRONG_TREND') return 'positive';
+    if (signal === 'WEAK_TREND') return 'warning';
     return 'neutral';
   }
 }

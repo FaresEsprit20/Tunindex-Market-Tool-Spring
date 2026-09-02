@@ -110,14 +110,28 @@
       <thead>
         <tr>
           <th class="star-col"></th>
-          <th>Symbol</th>
-          <th>Name</th>
-          <th>Sector</th>
-          <th class="num">Price</th>
-          <th class="num">Change</th>
-          <th>52W range</th>
-          <th class="num">P/E</th>
-          <th class="num">Margin of safety</th>
+          @for (col of tableColumns; track col.label) {
+            @if (col.field === null) {
+              <!-- Change is derived client-side from lastPrice vs prevClose,
+                   so there is no server-side column to sort it by. -->
+              <th [class.num]="col.numeric">{{ col.label }}</th>
+            } @else {
+              <th
+                [class.num]="col.numeric"
+                class="sortable"
+                [class.sorted]="sortField() === col.field"
+                [attr.aria-sort]="sortField() === col.field ? (sortDirection() === 'ASC' ? 'ascending' : 'descending') : 'none'"
+                (click)="toggleSort(col.field)"
+              >
+                <span class="th-inner">
+                  {{ col.label }}
+                  <svg class="sort-caret" [class.desc]="sortField() === col.field && sortDirection() === 'DESC'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 15l6-6 6 6"></path>
+                  </svg>
+                </span>
+              </th>
+            }
+          }
         </tr>
       </thead>
       <tbody>

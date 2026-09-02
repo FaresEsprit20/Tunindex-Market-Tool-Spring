@@ -6,8 +6,10 @@ import lombok.Getter;
 public enum SectorType {
     FINANCIALS("Financials"),
     BANKING("Banking Services"),
+    INSURANCE("Insurance"),
     TECHNOLOGY("Technology"),
     INDUSTRIALS("Industrials"),
+    MATERIALS("Materials"),
     CONSUMER_GOODS("Consumer Goods"),
     TELECOM("Telecommunications"),
     ENERGY("Energy"),

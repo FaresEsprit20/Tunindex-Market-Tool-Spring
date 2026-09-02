@@ -146,12 +146,24 @@ public class DataNormalizerServiceImpl implements DataNormalizerService {
 
         String sectorLower = sector.toLowerCase();
 
-        if (sectorLower.contains("financial") || sectorLower.contains("bank")) {
-            return SectorType.FINANCIALS;
+        // FIX: "banking" was checked AFTER a "bank" substring match, but
+        // "banking".contains("bank") is true — so that branch could never
+        // be reached; the more specific check must come first.
+        // FIX: "utility" is not a substring of "utilities" (different
+        // suffix), so the plural form silently fell through to OTHER.
+        // FIX: added Insurance/Materials — both real, sizeable BVMT
+        // industry clusters that previously had nowhere to map to and fell
+        // into OTHER.
+        if (sectorLower.contains("insurance")) {
+            return SectorType.INSURANCE;
         } else if (sectorLower.contains("banking")) {
             return SectorType.BANKING;
+        } else if (sectorLower.contains("financial") || sectorLower.contains("bank")) {
+            return SectorType.FINANCIALS;
         } else if (sectorLower.contains("technology")) {
             return SectorType.TECHNOLOGY;
+        } else if (sectorLower.contains("material")) {
+            return SectorType.MATERIALS;
         } else if (sectorLower.contains("industrial")) {
             return SectorType.INDUSTRIALS;
         } else if (sectorLower.contains("consumer")) {
@@ -164,7 +176,7 @@ public class DataNormalizerServiceImpl implements DataNormalizerService {
             return SectorType.HEALTHCARE;
         } else if (sectorLower.contains("real estate")) {
             return SectorType.REAL_ESTATE;
-        } else if (sectorLower.contains("utility")) {
+        } else if (sectorLower.contains("util")) {
             return SectorType.UTILITIES;
         } else {
             return SectorType.OTHER;

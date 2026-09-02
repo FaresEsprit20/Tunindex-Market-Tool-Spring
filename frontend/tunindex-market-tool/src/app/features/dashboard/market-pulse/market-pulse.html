@@ -28,7 +28,7 @@
     @if (pulse(); as p) {
       <div class="pulse-headline">
         <span class="pulse-big" [class.negative]="p.avgChangePct < 0">
-          {{ p.avgChangePct > 0 ? '+' : '' }}{{ p.avgChangePct | number: '1.2-2' }}%
+          <app-animated-number [value]="p.avgChangePct" [decimals]="2" [signed]="true" />%
         </span>
         <span class="pulse-sub">avg. move across tracked stocks today</span>
       </div>
@@ -36,21 +36,21 @@
       <div class="pulse-breakdown">
         <div class="breakdown-item">
           <span class="breakdown-dot advancing"></span>
-          <span class="breakdown-count">{{ p.advancing }}</span>
+          <span class="breakdown-count"><app-animated-number [value]="p.advancing" /></span>
           <span class="breakdown-label">Advancing</span>
         </div>
         <div class="breakdown-item">
           <span class="breakdown-dot declining"></span>
-          <span class="breakdown-count">{{ p.declining }}</span>
+          <span class="breakdown-count"><app-animated-number [value]="p.declining" /></span>
           <span class="breakdown-label">Declining</span>
         </div>
         <div class="breakdown-item">
           <span class="breakdown-dot unchanged"></span>
-          <span class="breakdown-count">{{ p.unchanged }}</span>
+          <span class="breakdown-count"><app-animated-number [value]="p.unchanged" /></span>
           <span class="breakdown-label">Unchanged</span>
         </div>
         <div class="breakdown-item cap">
-          <span class="breakdown-count">{{ p.totalMarketCap | number: '1.0-0' }}</span>
+          <span class="breakdown-count"><app-animated-number [value]="p.totalMarketCap" [durationMs]="1100" /></span>
           <span class="breakdown-label">Total market cap (TND)</span>
         </div>
       </div>

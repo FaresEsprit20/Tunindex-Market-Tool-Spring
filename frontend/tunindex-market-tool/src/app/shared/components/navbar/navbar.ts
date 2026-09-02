@@ -9,6 +9,7 @@ import { StockDto } from '../../../core/models/stock.model';
 import { PulseDot } from '../pulse-dot/pulse-dot';
 
 const RESULT_LIMIT = 6;
+const FRESHNESS_REFRESH_INTERVAL_MS = 60_000;
 
 @Component({
   selector: 'app-navbar',
@@ -23,6 +24,9 @@ export class Navbar {
   private readonly stockService = inject(Stock);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
   private readonly destroyRef = inject(DestroyRef);
+
+  // Mac reports "MacIntel"/"Mac" in platform; everything else gets Ctrl.
+  protected readonly shortcutHint = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
   protected readonly searchQuery = signal('');
   protected readonly results = signal<StockDto[]>([]);
@@ -54,16 +58,14 @@ export class Navbar {
   constructor() {
     // Real freshness, not a permanently-on "live" label: the most recent
     // lastUpdate timestamp across every tracked stock, from the same
-    // backend field the collector stamps on every save.
-    this.stockService
-      .filter({ page: 1, size: 1, sortField: 'lastUpdate', sortDirection: 'DESC' })
-      .subscribe({
-        next: (res) => {
-          const latest = res.content[0]?.lastUpdate;
-          this.lastUpdateAt.set(latest ? new Date(latest) : null);
-        },
-        error: () => this.lastUpdateAt.set(null),
-      });
+    // backend field the collector stamps on every save. The navbar stays
+    // mounted for the whole session, so this is re-fetched on an interval
+    // rather than once — otherwise "Updated Xm ago" would freeze at
+    // whatever it read at login and drift further wrong the longer the
+    // user stays on the page.
+    this.loadFreshness();
+    const freshnessIntervalId = setInterval(() => this.loadFreshness(), FRESHNESS_REFRESH_INTERVAL_MS);
+    this.destroyRef.onDestroy(() => clearInterval(freshnessIntervalId));
 
     this.queryChanges
       .pipe(
@@ -103,6 +105,18 @@ export class Navbar {
     this.destroyRef.onDestroy(() => document.removeEventListener('click', this.onDocumentClick, { capture: true }));
   }
 
+  private loadFreshness(): void {
+    this.stockService
+      .filter({ page: 1, size: 1, sortField: 'lastUpdate', sortDirection: 'DESC' })
+      .subscribe({
+        next: (res) => {
+          const latest = res.content[0]?.lastUpdate;
+          this.lastUpdateAt.set(latest ? new Date(latest) : null);
+        },
+        error: () => this.lastUpdateAt.set(null),
+      });
+  }
+
   private readonly onDocumentClick = (event: MouseEvent): void => {
     if (!this.elementRef.nativeElement.contains(event.target as Node)) {
       this.dropdownOpen.set(false);
@@ -134,5 +148,9 @@ export class Navbar {
     this.dropdownOpen.set(false);
     this.searchQuery.set('');
     void this.router.navigate(['/app/stocks', symbol]);
+  }
+
+  protected onThemeToggle(event: MouseEvent): void {
+    this.theme.toggle({ x: event.clientX, y: event.clientY });
   }
 }

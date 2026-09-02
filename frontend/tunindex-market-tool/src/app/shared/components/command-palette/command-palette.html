@@ -1,0 +1,80 @@
+@if (open()) {
+  <div class="palette-backdrop" (click)="close()">
+    <div class="palette-panel" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div class="palette-search">
+        <svg class="palette-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+        <input
+          #searchInput
+          class="palette-input"
+          type="text"
+          placeholder="Jump to a page, a stock, or run a command…"
+          autocomplete="off"
+          spellcheck="false"
+          [value]="query()"
+          (input)="onQueryInput($any($event.target).value)"
+        />
+        @if (searching()) {
+          <span class="palette-spinner" aria-hidden="true"></span>
+        }
+        <kbd class="palette-esc">esc</kbd>
+      </div>
+
+      <div class="palette-results">
+        @if (allRows().length === 0) {
+          <p class="palette-empty">No matches for "{{ query() }}"</p>
+        } @else {
+          @if (pageRows().length > 0) {
+            <p class="palette-section">Navigate</p>
+            @for (row of pageRows(); track row.id; let i = $index) {
+              <button
+                type="button"
+                class="palette-row"
+                [class.active]="activeIndex() === i"
+                (mouseenter)="activeIndex.set(i)"
+                (click)="runRow(row)"
+              >
+                <svg class="palette-row-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path [attr.d]="row.icon"></path>
+                </svg>
+                <span class="palette-row-label">{{ row.label }}</span>
+                @if (row.hint) {
+                  <span class="palette-row-hint">{{ row.hint }}</span>
+                }
+                <span class="palette-row-enter">↵</span>
+              </button>
+            }
+          }
+
+          @if (stockRows().length > 0) {
+            <p class="palette-section">Stocks</p>
+            @for (row of stockRows(); track row.id; let i = $index) {
+              <button
+                type="button"
+                class="palette-row"
+                [class.active]="activeIndex() === pageRows().length + i"
+                (mouseenter)="activeIndex.set(pageRows().length + i)"
+                (click)="runRow(row)"
+              >
+                <svg class="palette-row-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path [attr.d]="row.icon"></path>
+                </svg>
+                <span class="palette-row-label mono">{{ row.label }}</span>
+                <span class="palette-row-hint">{{ row.hint }}</span>
+                <span class="palette-row-enter">↵</span>
+              </button>
+            }
+          }
+        }
+      </div>
+
+      <div class="palette-footer">
+        <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+        <span><kbd>↵</kbd> open</span>
+        <span><kbd>esc</kbd> close</span>
+      </div>
+    </div>
+  </div>
+}

@@ -92,20 +92,72 @@ public class StockAnalysisParserImpl implements DataParserService {
             normalizedData.setCurrency("TND");
         }
 
-        if (normalizedData.getIndustry() != null) {
-            String industry = normalizedData.getIndustry().toLowerCase();
-            if (industry.contains("bank") || industry.contains("financial")) {
-                normalizedData.setSector("Financials");
-            } else if (industry.contains("tech") || industry.contains("software")) {
-                normalizedData.setSector("Technology");
-            } else if (industry.contains("industrial") || industry.contains("manufacturing")) {
-                normalizedData.setSector("Industrials");
-            } else {
-                normalizedData.setSector("Other");
-            }
-        } else {
-            normalizedData.setSector("Other");
+        normalizedData.setSector(classifySector(normalizedData.getIndustry()));
+    }
+
+    /**
+     * Maps the real, specific SIC-style industry string BVMT stocks actually
+     * carry (e.g. "Poultry Slaughtering and Processing", "Insurance
+     * Carriers", "Miscellaneous business Credit Institutions") onto our
+     * coarser SectorType buckets. The previous version only recognized
+     * bank/tech/industrial keywords and dumped everything else into
+     * "Other" — since real BVMT industry strings rarely contain those exact
+     * words, that was ~77% of tracked stocks (confirmed against live data:
+     * 53 of 69). Checked most-specific first so e.g. "insurance" is never
+     * shadowed by a broader "financial" match.
+     */
+    private String classifySector(String industry) {
+        if (industry == null || industry.isBlank()) {
+            return "Other";
         }
+        String s = industry.toLowerCase();
+
+        if (s.contains("insurance")) {
+            return "Insurance";
+        }
+        // Checked before the plain "bank" match below: "Mortgage Bankers and
+        // Loan Correspondents" contains "bank" too, but is a mortgage
+        // lender, not a commercial bank — must not fall into Banking.
+        if (s.contains("credit institution") || s.contains("mortgage")
+                || s.contains("loan correspondent") || s.contains("investment trust")) {
+            return "Financials";
+        }
+        if (s.contains("bank")) {
+            return "Banking";
+        }
+        if (s.contains("real estate") || s.contains("land subdivid")) {
+            return "Real Estate";
+        }
+        if (s.contains("computer") || s.contains("software") || s.contains("programming") || s.contains("electronic")) {
+            return "Technology";
+        }
+        if (s.contains("communication")) {
+            return "Telecommunications";
+        }
+        if (s.contains("water")) {
+            return "Utilities";
+        }
+        if (s.contains("pipeline") || s.contains("petroleum") || s.contains("oil and gas")) {
+            return "Energy";
+        }
+        if (s.contains("pharmaceutical") || s.contains("orthopedic") || s.contains("medical")) {
+            return "Healthcare";
+        }
+        if (s.contains("dairy") || s.contains("beverage") || s.contains("poultry") || s.contains("grocer")
+                || s.contains("textile") || s.contains("apparel") || s.contains("department store")
+                || s.contains("general merchandise") || s.contains("automotive dealer")) {
+            return "Consumer Goods";
+        }
+        if (s.contains("chemical") || s.contains("cement") || s.contains("clay") || s.contains("paperboard")
+                || s.contains("paper") || s.contains("glass") || s.contains("wood") || s.contains("lumber")
+                || s.contains("metal door") || s.contains("nonferrous") || s.contains("plastic")
+                || s.contains("tire") || s.contains("furniture") || s.contains("manufacturing industries")) {
+            return "Materials";
+        }
+        if (s.contains("industrial") || s.contains("manufacturing") || s.contains("machinery") || s.contains("motorcycle")) {
+            return "Industrials";
+        }
+        return "Other";
     }
 
     /**

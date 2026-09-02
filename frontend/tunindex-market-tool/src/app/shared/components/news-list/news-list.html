@@ -1,0 +1,47 @@
+@if (loading()) {
+  <div class="news-skeleton-list">
+    <app-skeleton-block height="16px" width="85%" />
+    <app-skeleton-block height="16px" width="70%" />
+    <app-skeleton-block height="16px" width="90%" />
+    <app-skeleton-block height="16px" width="60%" />
+  </div>
+} @else if (error()) {
+  <p class="empty-msg">Couldn't load news for {{ symbol() }}.</p>
+} @else if (items().length === 0) {
+  <app-empty-state title="No recent news" message="No news articles found for this stock yet." />
+} @else {
+  <ul class="news-items">
+    @for (item of items(); track item.url) {
+      <li class="news-item">
+        <div class="news-item-head">
+          <a [href]="item.url" target="_blank" rel="noopener noreferrer" class="news-headline">{{ item.headline }}</a>
+          <span class="news-date">{{ item.publishedAt | date: 'MMM d, y, HH:mm' }}</span>
+        </div>
+        <div class="news-impact-row">
+          <span class="sentiment-badge" [class]="sentimentClass(item.sentiment)">{{ item.sentiment }}</span>
+          @if (item.matchedKeywords.length > 0) {
+            <span class="matched-keywords">matched: {{ item.matchedKeywords.join(', ') }}</span>
+          }
+          @if (item.priceChangePct !== null) {
+            <span
+              class="price-impact"
+              [class.positive]="item.priceChangePct > 0"
+              [class.negative]="item.priceChangePct < 0"
+            >
+              {{ item.priceChangePct >= 0 ? '+' : '' }}{{ item.priceChangePct | number: '1.2-2' }}% over 3 trading days
+              @if (item.priceMoveMatchesSentiment !== null) {
+                <span class="match-tag" [class.match]="item.priceMoveMatchesSentiment" [class.mismatch]="!item.priceMoveMatchesSentiment">
+                  {{ item.priceMoveMatchesSentiment ? 'matched sentiment' : "didn't match sentiment" }}
+                </span>
+              }
+            </span>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+  <p class="footnote">
+    Sentiment is a fixed keyword rule (not a model) applied to the real headline text; the price move is the real
+    close-to-close change over the 3 real trading days following publication.
+  </p>
+}

@@ -38,4 +38,16 @@ public class TechnicalAnalysisDto {
     private BigDecimal bollingerLower;
 
     private BigDecimal volatilityAnnualizedPct;
+
+    private BigDecimal stochasticK;
+    private BigDecimal stochasticD;
+    private String stochasticSignal; // OVERBOUGHT | OVERSOLD | NEUTRAL
+
+    private BigDecimal williamsR;
+    private String williamsRSignal; // OVERBOUGHT | OVERSOLD | NEUTRAL
+
+    private BigDecimal atr14;
+
+    private BigDecimal adx14;
+    private String adxSignal; // STRONG_TREND | WEAK_TREND | NO_TREND
 }

@@ -1,0 +1,14 @@
+<div class="chart-toolbar">
+  <div class="style-toggle">
+    <button type="button" class="style-btn" [class.active]="style() === 'candles'" (click)="setStyle('candles')">Candles</button>
+    <button type="button" class="style-btn" [class.active]="style() === 'line'" (click)="setStyle('line')">Line</button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="chart-placeholder">Loading chart…</div>
+} @else if (!hasData()) {
+  <div class="chart-placeholder">Not enough price history yet for a chart.</div>
+} @else {
+  <div #chartContainer class="chart-container"></div>
+}

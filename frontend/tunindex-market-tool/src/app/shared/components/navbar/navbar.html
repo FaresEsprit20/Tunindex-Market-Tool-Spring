@@ -10,6 +10,12 @@
     (keydown.enter)="onSearchSubmit()"
     (keydown.escape)="dropdownOpen.set(false)"
   />
+  <!-- Discoverability affordance for the global command palette (⌘K), which
+       is a superset of this inline search. Hidden while typing so it never
+       sits on top of the query text. -->
+  @if (searchQuery().length === 0) {
+    <kbd class="search-kbd">{{ shortcutHint }}</kbd>
+  }
   @if (dropdownOpen()) {
     <div class="search-dropdown">
       @if (searching()) {
@@ -51,7 +57,7 @@
   <button
     type="button"
     class="theme-toggle"
-    (click)="theme.toggle()"
+    (click)="onThemeToggle($event)"
     [attr.aria-label]="theme.mode() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
   >
     @if (theme.mode() === 'dark') {

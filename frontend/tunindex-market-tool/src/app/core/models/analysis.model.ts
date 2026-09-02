@@ -7,6 +7,7 @@ export type TrendSignal = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 export type RsiSignal = 'OVERBOUGHT' | 'OVERSOLD' | 'NEUTRAL';
 export type MacdCrossSignal = 'BULLISH_CROSS' | 'BEARISH_CROSS' | 'NONE';
 export type OverallRating = 'STRONG' | 'MODERATE' | 'WEAK';
+export type AdxSignal = 'STRONG_TREND' | 'WEAK_TREND' | 'NO_TREND';
 
 export interface TechnicalAnalysis {
   dataPointsUsed: number;
@@ -29,6 +30,18 @@ export interface TechnicalAnalysis {
   bollingerLower: number | null;
 
   volatilityAnnualizedPct: number | null;
+
+  stochasticK: number | null;
+  stochasticD: number | null;
+  stochasticSignal: RsiSignal;
+
+  williamsR: number | null;
+  williamsRSignal: RsiSignal;
+
+  atr14: number | null;
+
+  adx14: number | null;
+  adxSignal: AdxSignal;
 }
 
 export interface FundamentalAnalysis {

@@ -20,14 +20,14 @@ public class StockSpecification {
     public static Specification<Stock> symbolContains(String symbol) {
         return (root, query, cb) -> {
             if (symbol == null || symbol.isEmpty()) return cb.conjunction();
-            return cb.equal(cb.upper(root.get("symbol")), symbol.toUpperCase());
+            return cb.like(cb.upper(root.get("symbol")), "%" + symbol.toUpperCase() + "%");
         };
     }
 
-    public static Specification<Stock> symbolContainsPartial(String symbol) {
+    public static Specification<Stock> symbolEquals(String symbol) {
         return (root, query, cb) -> {
             if (symbol == null || symbol.isEmpty()) return cb.conjunction();
-            return cb.like(cb.upper(root.get("symbol")), "%" + symbol.toUpperCase() + "%");
+            return cb.equal(cb.upper(root.get("symbol")), symbol.toUpperCase());
         };
     }
 
@@ -506,8 +506,13 @@ public class StockSpecification {
             predicates.add(cb.greaterThan(root.get("fundamentalData").get("eps"), BigDecimal.ZERO));
 
             // FIX: added missing isNotNull guard for marketCap (was missing the parent null check re-assertion)
+            // FIX: 1 billion TND was calibrated for a market far larger than BVMT — only 11 of 69
+            // tracked stocks clear it at all, and none of those happen to also be near their
+            // 52-week low, so this AND'd with near52WeekLow always returned zero rows. 300M TND
+            // is the top third of this exchange by market cap (verified against live data) —
+            // "large for BVMT", not large in some other market's terms — and is actually reachable.
             predicates.add(cb.isNotNull(root.get("fundamentalData").get("marketCap")));
-            predicates.add(cb.greaterThan(root.get("fundamentalData").get("marketCap"), new BigDecimal("1000000000")));
+            predicates.add(cb.greaterThan(root.get("fundamentalData").get("marketCap"), new BigDecimal("300000000")));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

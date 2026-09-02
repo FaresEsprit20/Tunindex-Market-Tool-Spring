@@ -88,7 +88,7 @@
   <div class="panel-card section">
     <div class="panel-head"><p class="panel-title">Price history</p></div>
     <div class="panel-body">
-      <app-price-chart [points]="history()" [loading]="historyLoading()" />
+      <app-candlestick-chart [points]="history()" [loading]="historyLoading()" />
     </div>
   </div>
 
@@ -182,6 +182,13 @@
         <span class="kv-label">Beta</span>
         <span class="kv-value mono">{{ s.beta !== null ? (s.beta | number: '1.2-2') : '—' }}</span>
       </div>
+    </div>
+  </div>
+
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">News</p></div>
+    <div class="panel-body">
+      <app-news-list [symbol]="s.symbol" />
     </div>
   </div>
 }

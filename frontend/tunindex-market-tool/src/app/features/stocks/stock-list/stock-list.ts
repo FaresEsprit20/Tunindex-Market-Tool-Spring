@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SECTOR_LABELS, SectorType, StockDto } from '../../../core/models/stock.model';
@@ -13,8 +13,10 @@ const PAGE_SIZE = 20;
 const SECTOR_OPTIONS: SectorType[] = [
   'FINANCIALS',
   'BANKING',
+  'INSURANCE',
   'TECHNOLOGY',
   'INDUSTRIALS',
+  'MATERIALS',
   'CONSUMER_GOODS',
   'TELECOM',
   'ENERGY',
@@ -67,6 +69,38 @@ interface RangeFilter {
   max: string;
 }
 
+/**
+ * Only fields the backend can actually order by — each one is a case in
+ * StockServiceImpl.mapSortField, which resolves it to the real embedded
+ * entity path (e.g. lastPrice -> priceData.lastPrice). "Change" is absent
+ * on purpose: it's derived client-side from lastPrice vs prevClose and has
+ * no column to sort on.
+ */
+type SortField = 'symbol' | 'name' | 'sector' | 'lastPrice' | 'closeTo52weekslowPct' | 'peRatio' | 'marginOfSafety';
+
+interface TableColumn {
+  /** null = not sortable server-side; the header renders as plain text. */
+  field: SortField | null;
+  label: string;
+  numeric: boolean;
+}
+
+/**
+ * Declared in the exact left-to-right order the body cells are rendered in
+ * (stock-list.html) — the header row is generated from this list, so the
+ * two stay aligned by construction.
+ */
+const TABLE_COLUMNS: TableColumn[] = [
+  { field: 'symbol', label: 'Symbol', numeric: false },
+  { field: 'name', label: 'Name', numeric: false },
+  { field: 'sector', label: 'Sector', numeric: false },
+  { field: 'lastPrice', label: 'Price', numeric: true },
+  { field: null, label: 'Change', numeric: true },
+  { field: 'closeTo52weekslowPct', label: '52W range', numeric: false },
+  { field: 'peRatio', label: 'P/E', numeric: true },
+  { field: 'marginOfSafety', label: 'Margin of safety', numeric: true },
+];
+
 @Component({
   selector: 'app-stock-list',
   imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar],
@@ -92,6 +126,10 @@ export class StockList {
   protected readonly totalPages = signal(1);
   protected readonly totalElements = signal(0);
 
+  protected readonly tableColumns = TABLE_COLUMNS;
+  protected readonly sortField = signal<SortField>('symbol');
+  protected readonly sortDirection = signal<'ASC' | 'DESC'>('ASC');
+
   protected readonly searchInput = signal('');
   protected readonly sector = signal<SectorType | ''>('');
   protected readonly preset = signal<PresetKey | null>(null);
@@ -103,16 +141,32 @@ export class StockList {
   protected readonly debtToEquityRange = signal<RangeFilter>({ min: '', max: '' });
   protected readonly marginOfSafetyRange = signal<RangeFilter>({ min: '', max: '' });
 
-  private readonly initialQuery = toSignal(this.route.queryParamMap, {
+  private readonly queryParam = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
   });
 
   constructor() {
-    const q = this.initialQuery().get('q');
-    if (q) {
-      this.searchInput.set(q);
-    }
-    this.load();
+    // Angular reuses this component instance for repeat navigations to
+    // /app/stocks (e.g. a navbar search while already on this page), so a
+    // constructor-only fetch would leave stale results on screen. Track
+    // queryParam() so a new external ?q= reloads too, not just first mount.
+    let firstRun = true;
+    effect(() => {
+      const q = this.queryParam().get('q') ?? '';
+      if (firstRun) {
+        firstRun = false;
+        if (q) {
+          this.searchInput.set(q);
+        }
+        this.load();
+        return;
+      }
+      if (q !== this.searchInput()) {
+        this.searchInput.set(q);
+        this.page.set(1);
+        this.load();
+      }
+    });
   }
 
   protected onSearchSubmit(): void {
@@ -156,6 +210,22 @@ export class StockList {
     this.load();
   }
 
+  /**
+   * Clicking the active column flips its direction; clicking a new one
+   * sorts it ascending first. Sorting is server-side over the whole result
+   * set, not just the current page, so it resets back to page 1.
+   */
+  protected toggleSort(field: SortField): void {
+    if (this.sortField() === field) {
+      this.sortDirection.update((direction) => (direction === 'ASC' ? 'DESC' : 'ASC'));
+    } else {
+      this.sortField.set(field);
+      this.sortDirection.set('ASC');
+    }
+    this.page.set(1);
+    this.load();
+  }
+
   protected activeAdvancedCount(): number {
     return [this.priceRange(), this.peRange(), this.dividendYieldRange(), this.debtToEquityRange(), this.marginOfSafetyRange()]
       .filter((r) => r.min.trim() || r.max.trim()).length;
@@ -168,7 +238,17 @@ export class StockList {
     const filters: StockFilters = {};
     const search = this.searchInput().trim();
     if (search) {
-      filters.name = search;
+      // Every real symbol in this dataset is a single unspaced token (BIAT,
+      // SFBT, AETEC, …) while every company name contains at least one
+      // space — cheap enough to tell apart without a second round-trip.
+      // Matters because this box is also the landing spot for the navbar's
+      // "search everywhere" box, whose queries are just as often a symbol
+      // as a name.
+      if (/^\S+$/.test(search)) {
+        filters.symbol = search;
+      } else {
+        filters.name = search;
+      }
     }
     if (this.sector()) {
       filters.sector = this.sector();
@@ -184,7 +264,13 @@ export class StockList {
     this.applyRange(filters, this.marginOfSafetyRange(), 'minMarginOfSafety', 'maxMarginOfSafety');
 
     this.stockService
-      .filter({ page: this.page(), size: PAGE_SIZE, sortField: 'symbol', sortDirection: 'ASC', filters })
+      .filter({
+        page: this.page(),
+        size: PAGE_SIZE,
+        sortField: this.sortField(),
+        sortDirection: this.sortDirection(),
+        filters,
+      })
       .subscribe({
         next: (res) => {
           this.rows.set(res.content);

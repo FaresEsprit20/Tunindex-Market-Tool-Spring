@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.collector.services.impl;
 
+import com.tunindex.market_tool.collector.providers.ilboursa.IlBoursaQuoteProvider;
 import com.tunindex.market_tool.collector.providers.stockanalysis.StockAnalysisProvider;
 import com.tunindex.market_tool.collector.services.status.PipelineStatusService;
 import com.tunindex.market_tool.common.dto.pipeline.PipelinePhase;
@@ -25,6 +26,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
     private final StockRepository stockRepository;
     private final StockAnalysisProvider stockAnalysisProvider;
+    private final IlBoursaQuoteProvider ilBoursaQuoteProvider;
     private final PipelineStatusService pipelineStatus;
 
     @Override
@@ -80,6 +82,38 @@ public class DataOrchestratorImpl implements DataOrchestrator {
     @Override
     public String getActiveProviderName() {
             return Constants.PROVIDER_STOCKANALYSIS;
+    }
+
+    /**
+     * stockanalysis.com's "current" price/volume was found to lag a full
+     * trading day for this market (confirmed by comparing it against
+     * ilboursa.com's live quote and our own scraped history for the same
+     * date). ilboursa's plain quote page has no such lag, so it overrides
+     * lastPrice/prevClose/dayHigh/dayLow/volume here — everything else
+     * (fundamentals, 52-week range, ratios) still comes from
+     * stockanalysis.com. A failed or empty ilboursa fetch leaves the
+     * original stockanalysis.com values untouched rather than blocking the
+     * save.
+     */
+    private Mono<Stock> applyLiveQuote(Stock stock) {
+        return ilBoursaQuoteProvider.fetchQuote(stock.getSymbol())
+                .doOnNext(quote -> {
+                    if (quote.lastPrice() == null) {
+                        return;
+                    }
+                    if (stock.getPriceData() != null) {
+                        stock.getPriceData().setLastPrice(quote.lastPrice());
+                        if (quote.prevClose() != null) stock.getPriceData().setPrevClose(quote.prevClose());
+                        if (quote.dayHigh() != null) stock.getPriceData().setDayHigh(quote.dayHigh());
+                        if (quote.dayLow() != null) stock.getPriceData().setDayLow(quote.dayLow());
+                    }
+                    if (stock.getVolumeData() != null && quote.volume() != null) {
+                        stock.getVolumeData().setVolume(quote.volume());
+                    }
+                    log.debug("📡 Applied live ilboursa quote for {}: price={}", stock.getSymbol(), quote.lastPrice());
+                })
+                .thenReturn(stock)
+                .defaultIfEmpty(stock);
     }
 
     /**
@@ -173,7 +207,8 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
                         pipelineStatus.workerStarted(threadName, symbol, PipelinePhase.SAVING);
 
-                        return saveOrUpdateStock(stock)
+                        return applyLiveQuote(stock)
+                                .flatMap(this::saveOrUpdateStock)
                                 .doOnSuccess(saved -> pipelineStatus.workerFinished(threadName, symbol, PipelinePhase.SAVING, true))
                                 .onErrorResume(e -> {
                                     log.error("Failed to save stock {}: {}", symbol, e.getMessage());

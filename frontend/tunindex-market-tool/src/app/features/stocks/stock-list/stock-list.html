@@ -26,13 +26,85 @@
   </select>
 
   <div class="preset-chips">
-    <button type="button" class="chip" [class.active]="preset() === 'undervalued'" (click)="togglePreset('undervalued')">Undervalued</button>
-    <button type="button" class="chip" [class.active]="preset() === 'profitable'" (click)="togglePreset('profitable')">Profitable</button>
-    <button type="button" class="chip" [class.active]="preset() === 'grahamCriteria'" (click)="togglePreset('grahamCriteria')">Graham criteria</button>
+    @for (key of primaryPresets; track key) {
+      <button type="button" class="chip" [class.active]="preset() === key" (click)="togglePreset(key)">{{ presetLabels[key] }}</button>
+    }
   </div>
+
+  <button type="button" class="chip more-toggle" [class.active]="showAdvanced()" (click)="toggleAdvanced()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>
+    More filters
+    @if (activeAdvancedCount() > 0) {
+      <span class="filter-count">{{ activeAdvancedCount() }}</span>
+    }
+  </button>
 </div>
 
-<div class="panel-card">
+@if (showAdvanced()) {
+  <div class="panel-card advanced-panel">
+    <div class="panel-body">
+      <div class="advanced-presets">
+        @for (key of morePresets; track key) {
+          <button type="button" class="chip" [class.active]="preset() === key" (click)="togglePreset(key)">{{ presetLabels[key] }}</button>
+        }
+      </div>
+
+      <div class="range-grid">
+        <div class="range-field">
+          <span class="range-field-label">Price (TND)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="priceRange().min" (input)="priceRange.set({ min: $any($event.target).value, max: priceRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="priceRange().max" (input)="priceRange.set({ min: priceRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">P/E ratio</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="peRange().min" (input)="peRange.set({ min: $any($event.target).value, max: peRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="peRange().max" (input)="peRange.set({ min: peRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Dividend yield (%)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="dividendYieldRange().min" (input)="dividendYieldRange.set({ min: $any($event.target).value, max: dividendYieldRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="dividendYieldRange().max" (input)="dividendYieldRange.set({ min: dividendYieldRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Debt / equity</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="debtToEquityRange().min" (input)="debtToEquityRange.set({ min: $any($event.target).value, max: debtToEquityRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="debtToEquityRange().max" (input)="debtToEquityRange.set({ min: debtToEquityRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Margin of safety (%)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="marginOfSafetyRange().min" (input)="marginOfSafetyRange.set({ min: $any($event.target).value, max: marginOfSafetyRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="marginOfSafetyRange().max" (input)="marginOfSafetyRange.set({ min: marginOfSafetyRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+      </div>
+
+      <div class="advanced-actions">
+        <button type="button" class="btn btn-secondary" (click)="clearAdvancedFilters()">Clear</button>
+        <button type="button" class="btn btn-primary" (click)="applyAdvancedFilters()">Apply filters</button>
+      </div>
+    </div>
+  </div>
+}
+
+<div class="panel-card section">
   <div class="table-scroll">
     <table class="stock-table">
       <thead>

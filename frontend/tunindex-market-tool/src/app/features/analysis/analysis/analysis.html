@@ -1,8 +1,184 @@
 <div class="page-head">
   <div>
     <p class="page-title">Analysis</p>
-    <p class="page-sub">Technical charts and deeper valuation tools.</p>
+    <p class="page-sub">Technical &amp; fundamental analysis, computed server-side from real scraped data.</p>
   </div>
 </div>
 
-<app-empty-state title="Analysis tools are coming soon" message="Price charts and technical indicators will land here next." />
+<div class="filter-bar">
+  <div class="search-wrap">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Enter a symbol, e.g. BIAT…"
+      [value]="searchInput()"
+      (input)="searchInput.set($any($event.target).value)"
+      (keydown.enter)="onSearchSubmit()"
+    />
+  </div>
+  <button type="button" class="btn btn-primary" (click)="onSearchSubmit()">Analyze</button>
+</div>
+
+@if (!symbol()) {
+  <app-empty-state title="Pick a stock to analyze" message="Enter a symbol above to see its full technical and fundamental breakdown." />
+} @else if (loading()) {
+  <div class="two-col-grid section">
+    <app-skeleton-block height="360px" radius="12px" />
+    <app-skeleton-block height="360px" radius="12px" />
+  </div>
+} @else if (error() || !stock()) {
+  <div class="panel-card error-card section">
+    <p class="empty-msg">Couldn't load analysis for "{{ symbol() }}".</p>
+  </div>
+} @else if (stock(); as s) {
+  <div class="analysis-head section">
+    <h1 class="symbol-title">{{ s.symbol }}</h1>
+    <p class="company-name">{{ s.name }}</p>
+    <span class="price-tag mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }} {{ s.currency }}</span>
+  </div>
+
+  <div class="two-col-grid section">
+    <!-- Technical Analysis -->
+    <div class="panel-card">
+      <div class="panel-head">
+        <p class="panel-title">Technical analysis</p>
+        @if (technical(); as t) {
+          <span class="signal-badge" [class]="trendClass(t.trendSignal)">{{ t.trendSignal }}</span>
+        }
+      </div>
+      <div class="panel-body">
+        @if (technical(); as t) {
+          @if (t.dataPointsUsed < 20) {
+            <p class="empty-msg">Not enough price history yet ({{ t.dataPointsUsed }} days) for reliable indicators.</p>
+          } @else {
+            <div class="indicator-row">
+              <span class="indicator-label">Moving averages</span>
+              <span class="indicator-value mono">
+                SMA20 {{ t.sma20 !== null ? (t.sma20 | number: '1.2-2') : '—' }}
+                &middot; SMA50 {{ t.sma50 !== null ? (t.sma50 | number: '1.2-2') : '—' }}
+              </span>
+            </div>
+
+            <div class="indicator-block">
+              <div class="indicator-row">
+                <span class="indicator-label">RSI (14)</span>
+                <span class="indicator-value mono">{{ t.rsi14 !== null ? (t.rsi14 | number: '1.1-1') : '—' }}</span>
+                <span class="signal-badge sm" [class]="trendClass(t.rsiSignal === 'OVERSOLD' ? 'BULLISH' : t.rsiSignal === 'OVERBOUGHT' ? 'BEARISH' : 'NEUTRAL')">{{ t.rsiSignal }}</span>
+              </div>
+              @if (t.rsi14 !== null) {
+                <app-range-bar [min]="0" [max]="100" [current]="t.rsi14" [compact]="true" />
+              }
+            </div>
+
+            <div class="indicator-row">
+              <span class="indicator-label">MACD</span>
+              <span class="indicator-value mono">
+                {{ t.macdLine !== null ? (t.macdLine | number: '1.2-2') : '—' }} / {{ t.macdSignal !== null ? (t.macdSignal | number: '1.2-2') : '—' }}
+              </span>
+              @if (t.macdCrossSignal !== 'NONE') {
+                <span class="signal-badge sm" [class]="trendClass(t.macdCrossSignal === 'BULLISH_CROSS' ? 'BULLISH' : 'BEARISH')">{{ t.macdCrossSignal === 'BULLISH_CROSS' ? 'Bullish cross' : 'Bearish cross' }}</span>
+              }
+            </div>
+
+            <div class="indicator-block">
+              <div class="indicator-row">
+                <span class="indicator-label">Bollinger Bands (20, 2σ)</span>
+              </div>
+              @if (t.bollingerUpper !== null && t.bollingerLower !== null && t.lastClose !== null) {
+                <app-range-bar
+                  [min]="t.bollingerLower"
+                  [max]="t.bollingerUpper"
+                  [current]="t.lastClose"
+                  [minLabel]="(t.bollingerLower | number: '1.2-2') ?? '—'"
+                  [maxLabel]="(t.bollingerUpper | number: '1.2-2') ?? '—'"
+                />
+              }
+            </div>
+
+            <div class="indicator-row">
+              <span class="indicator-label">Annualized volatility</span>
+              <span class="indicator-value mono">{{ t.volatilityAnnualizedPct !== null ? (t.volatilityAnnualizedPct | number: '1.1-1') + '%' : '—' }}</span>
+            </div>
+
+            <p class="footnote">Based on {{ t.dataPointsUsed }} real trading days of price history.</p>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Fundamental Analysis -->
+    <div class="panel-card">
+      <div class="panel-head">
+        <p class="panel-title">Fundamental analysis</p>
+        @if (fundamental(); as f) {
+          <span class="signal-badge" [class]="ratingClass(f.overallRating)">{{ f.overallRating }}</span>
+        }
+      </div>
+      <div class="panel-body">
+        @if (fundamental(); as f) {
+          <div class="overall-score">
+            <span class="overall-score-value mono">{{ f.overallScore }}</span>
+            <span class="overall-score-max">/100</span>
+          </div>
+
+          <div class="score-bars">
+            <div class="score-bar-row">
+              <span class="score-bar-label">Valuation</span>
+              <div class="score-bar-track"><div class="score-bar-fill" [style.width.%]="f.valuationScore"></div></div>
+              <span class="score-bar-value mono">{{ f.valuationScore }}</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">Profitability</span>
+              <div class="score-bar-track"><div class="score-bar-fill" [style.width.%]="f.profitabilityScore"></div></div>
+              <span class="score-bar-value mono">{{ f.profitabilityScore }}</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">Financial health</span>
+              <div class="score-bar-track"><div class="score-bar-fill" [style.width.%]="f.financialHealthScore"></div></div>
+              <span class="score-bar-value mono">{{ f.financialHealthScore }}</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">Income</span>
+              <div class="score-bar-track"><div class="score-bar-fill" [style.width.%]="f.incomeScore"></div></div>
+              <span class="score-bar-value mono">{{ f.incomeScore }}</span>
+            </div>
+          </div>
+
+          <div class="sector-compare">
+            <div class="sector-compare-head">
+              <span>Metric</span>
+              <span>{{ s.symbol }}</span>
+              <span>Sector avg ({{ f.sectorPeerCount }})</span>
+            </div>
+            <div class="sector-compare-row">
+              <span>P/E ratio</span>
+              <span class="mono">{{ f.peRatio !== null ? (f.peRatio | number: '1.1-1') : '—' }}</span>
+              <span class="mono muted">{{ f.sectorAvgPeRatio !== null ? (f.sectorAvgPeRatio | number: '1.1-1') : '—' }}</span>
+            </div>
+            <div class="sector-compare-row">
+              <span>Dividend yield</span>
+              <span class="mono">{{ f.dividendYield !== null ? (f.dividendYield | number: '1.1-1') + '%' : '—' }}</span>
+              <span class="mono muted">{{ f.sectorAvgDividendYield !== null ? (f.sectorAvgDividendYield | number: '1.1-1') + '%' : '—' }}</span>
+            </div>
+            <div class="sector-compare-row">
+              <span>Debt / equity</span>
+              <span class="mono">{{ f.debtToEquity !== null ? (f.debtToEquity | number: '1.2-2') : '—' }}</span>
+              <span class="mono muted">{{ f.sectorAvgDebtToEquity !== null ? (f.sectorAvgDebtToEquity | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="sector-compare-row">
+              <span>Profit margin</span>
+              <span class="mono">{{ f.profitMargin !== null ? (f.profitMargin | number: '1.1-1') + '%' : '—' }}</span>
+              <span class="mono muted">{{ f.sectorAvgProfitMargin !== null ? (f.sectorAvgProfitMargin | number: '1.1-1') + '%' : '—' }}</span>
+            </div>
+            <div class="sector-compare-row">
+              <span>Price / book</span>
+              <span class="mono">{{ f.priceToBook !== null ? (f.priceToBook | number: '1.2-2') : '—' }}</span>
+              <span class="mono muted">{{ f.sectorAvgPriceToBook !== null ? (f.sectorAvgPriceToBook | number: '1.2-2') : '—' }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

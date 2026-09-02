@@ -56,6 +56,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/analysis/analysis/analysis').then((m) => m.Analysis),
       },
       {
+        path: 'analysis/:symbol',
+        loadComponent: () => import('./features/analysis/analysis/analysis').then((m) => m.Analysis),
+      },
+      {
         path: 'pipeline',
         loadComponent: () =>
           import('./features/pipeline/pipeline-monitor/pipeline-monitor').then((m) => m.PipelineMonitor),

@@ -67,9 +67,28 @@
   margin: 6px 0 0;
 }
 
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .refresh-btn {
   width: auto;
   padding: 9px 16px;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+.detail-actions .btn {
+  width: auto;
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 
   svg {
     width: 15px;

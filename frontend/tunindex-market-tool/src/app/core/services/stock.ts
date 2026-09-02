@@ -6,6 +6,7 @@ import { OwnershipStatEntry, SectorStatEntry } from '../models/market-statistics
 import { PagedResponse, PaginationAndFilteringRequest } from '../models/pagination.model';
 import { StockDto } from '../models/stock.model';
 import { PriceHistoryPoint } from '../models/price-history.model';
+import { FundamentalAnalysis, TechnicalAnalysis } from '../models/analysis.model';
 
 /**
  * Keys accepted by the backend's filters map (collector's StockServiceImpl
@@ -101,5 +102,15 @@ export class Stock {
     return this.http.get<PriceHistoryPoint[]>(`${API_BASE_URL}/history/${encodeURIComponent(symbol)}`, {
       params: { days },
     });
+  }
+
+  getTechnicalAnalysis(symbol: string, days = 180): Observable<TechnicalAnalysis> {
+    return this.http.get<TechnicalAnalysis>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/technical`, {
+      params: { days },
+    });
+  }
+
+  getFundamentalAnalysis(symbol: string): Observable<FundamentalAnalysis> {
+    return this.http.get<FundamentalAnalysis>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/fundamental`);
   }
 }

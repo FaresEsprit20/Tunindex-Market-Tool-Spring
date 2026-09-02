@@ -54,6 +54,18 @@ public interface StockRepository extends JpaRepository<Stock, Long>, JpaSpecific
     @Query("SELECT s.ownershipType, COUNT(s) FROM Stock s GROUP BY s.ownershipType")
     List<Object[]> countStocksByOwnership();
 
+    /**
+     * Average P/E, dividend yield, debt/equity, profit margin and
+     * price/book for every stock in the given sector — the real,
+     * currently-stored values, used as the comparison baseline for
+     * sector-relative fundamental scoring. Nulls are excluded from each
+     * average automatically (AVG ignores nulls).
+     */
+    @Query("SELECT AVG(s.fundamentalData.peRatio), AVG(s.fundamentalData.dividendYield), " +
+            "AVG(s.ratiosData.debtToEquity), AVG(s.ratiosData.profitMargin), AVG(s.ratiosData.priceToBook), COUNT(s) " +
+            "FROM Stock s WHERE s.sector = :sector")
+    List<Object[]> averageFundamentalsBySector(@Param("sector") com.tunindex.market_tool.common.entities.enums.SectorType sector);
+
     // ========== MAINTENANCE OPERATIONS ==========
 
     /**

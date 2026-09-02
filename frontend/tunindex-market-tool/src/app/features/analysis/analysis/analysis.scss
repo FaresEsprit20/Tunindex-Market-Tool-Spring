@@ -1,0 +1,259 @@
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.search-wrap {
+  position: relative;
+  width: 320px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 8px 12px 8px 34px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  &:focus {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px var(--color-brand-dim);
+  }
+}
+
+.error-card {
+  padding: 32px;
+  text-align: center;
+}
+
+.analysis-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.symbol-title {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.company-name {
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.price-tag {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-left: auto;
+}
+
+.signal-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+
+  &.sm {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  &.positive {
+    background: var(--color-positive-dim);
+    color: var(--color-positive);
+  }
+
+  &.negative {
+    background: var(--color-negative-dim);
+    color: var(--color-negative);
+  }
+
+  &.warning {
+    background: var(--color-warning-dim);
+    color: var(--color-warning);
+  }
+
+  &.neutral {
+    background: var(--color-panel-alt);
+    color: var(--color-text-tertiary);
+  }
+}
+
+.indicator-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.indicator-block {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .indicator-row {
+    padding: 0;
+    border-bottom: none;
+  }
+}
+
+.indicator-label {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.indicator-value {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.footnote {
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  margin: 10px 0 0;
+}
+
+.overall-score {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  margin-bottom: 20px;
+}
+
+.overall-score-value {
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.overall-score-max {
+  font-size: 16px;
+  color: var(--color-text-tertiary);
+}
+
+.score-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.score-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.score-bar-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.score-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-panel-alt);
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  background: var(--color-brand);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.score-bar-value {
+  font-size: 12px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sector-compare {
+  display: flex;
+  flex-direction: column;
+}
+
+.sector-compare-head,
+.sector-compare-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1fr;
+  gap: 8px;
+  padding: 7px 0;
+}
+
+.sector-compare-head {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  border-bottom: 1px solid var(--color-border);
+
+  span:not(:first-child) {
+    text-align: right;
+  }
+}
+
+.sector-compare-row {
+  font-size: 12.5px;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+
+  span:not(:first-child) {
+    text-align: right;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.muted {
+  color: var(--color-text-tertiary);
+}

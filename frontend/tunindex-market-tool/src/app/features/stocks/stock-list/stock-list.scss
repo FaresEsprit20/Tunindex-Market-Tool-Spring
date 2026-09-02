@@ -79,3 +79,114 @@
     color: #ffffff;
   }
 }
+
+.more-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--color-brand);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.more-toggle.active .filter-count {
+  background: #ffffff;
+  color: var(--color-brand);
+}
+
+.advanced-panel {
+  margin-bottom: 16px;
+  animation: card-enter 0.18s ease-out;
+}
+
+.advanced-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.range-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.range-field-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  span {
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    background: var(--color-panel);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    padding: 7px 10px;
+    font-size: 12.5px;
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-brand);
+      box-shadow: 0 0 0 3px var(--color-brand-dim);
+    }
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+}
+
+.advanced-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+
+  .btn {
+    width: auto;
+    padding: 8px 18px;
+  }
+}

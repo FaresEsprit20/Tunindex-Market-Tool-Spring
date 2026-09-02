@@ -1,0 +1,20 @@
+<div class="ticker-track">
+  @for (group of [0, 1]; track group) {
+    <div class="ticker-group" aria-hidden="{{ group === 1 }}">
+      @for (item of items; track item.symbol) {
+        <span class="ticker-item">
+          <span class="ticker-symbol">{{ item.symbol }}</span>
+          <span class="ticker-price">{{ item.price }}</span>
+          <span class="ticker-change" [class.up]="item.changePct >= 0" [class.down]="item.changePct < 0">
+            @if (item.changePct >= 0) {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+            } @else {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
+            }
+            {{ item.changePct >= 0 ? '+' : '' }}{{ item.changePct }}%
+          </span>
+        </span>
+      }
+    </div>
+  }
+</div>

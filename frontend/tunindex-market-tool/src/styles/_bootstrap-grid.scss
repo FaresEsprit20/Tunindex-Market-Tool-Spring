@@ -1,0 +1,12 @@
+// Bootstrap 5 grid system ONLY — no component CSS, no utilities layer.
+// Legacy @import (never @use) is deliberate: Bootstrap's grid mixins rely on
+// global variable/mixin visibility that @use's namespacing would break.
+
+@import "../../node_modules/bootstrap/scss/functions";
+@import "../../node_modules/bootstrap/scss/variables";
+@import "../../node_modules/bootstrap/scss/variables-dark";
+@import "../../node_modules/bootstrap/scss/maps";
+@import "../../node_modules/bootstrap/scss/mixins";
+@import "../../node_modules/bootstrap/scss/root";
+@import "../../node_modules/bootstrap/scss/containers";
+@import "../../node_modules/bootstrap/scss/grid";

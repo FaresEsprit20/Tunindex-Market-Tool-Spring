@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* Manual dark-mode toggle (not OS-preference based): dark: utilities apply
+   when data-theme="dark" is set on <html> or an ancestor. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Design tokens — clean, light-first professional fintech palette
+ * (in the spirit of IBKR / Investing.com: dense data, blue primary,
+ * green/red for gains and losses, no HUD/cockpit chrome).
+ *
+ * These are the LIGHT (default) values. Tailwind generates utilities
+ * (bg-panel, text-text-secondary, border-border, ...) that reference the
+ * underlying CSS custom properties below by name — a plain CSS override
+ * further down (`:root[data-theme="dark"]`) redefines the same variable
+ * names for dark mode, so the same utility classes resolve correctly at
+ * runtime without needing dark: variants sprinkled everywhere.
+ */
+@theme {
+  --color-bg: #f6f8fb;
+  --color-panel: #ffffff;
+  --color-panel-alt: #f0f3f8;
+  --color-border: #e4e8ef;
+  --color-border-strong: #cbd2e0;
+
+  --color-text-primary: #10192e;
+  --color-text-secondary: #556080;
+  --color-text-tertiary: #8993ab;
+
+  --color-brand: #1656e8;
+  --color-brand-hover: #123fb8;
+  --color-brand-light: #eaf0ff;
+  --color-positive: #089981;
+  --color-negative: #f23645;
+  --color-warning: #b7791b;
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0b1220;
+  --color-panel: #121a2c;
+  --color-panel-alt: #182035;
+  --color-border: #232c44;
+  --color-border-strong: #303c5a;
+
+  --color-text-primary: #eef1f8;
+  --color-text-secondary: #9aa5c4;
+  --color-text-tertiary: #69739a;
+
+  --color-brand: #5b8dff;
+  --color-brand-hover: #7ea3ff;
+  --color-brand-light: #182347;
+  --color-positive: #26c9ab;
+  --color-negative: #ff5c68;
+  --color-warning: #f0b429;
+}

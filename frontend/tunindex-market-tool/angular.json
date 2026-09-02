@@ -23,6 +23,11 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
+            "stylePreprocessorOptions": {
+              "sass": {
+                "silenceDeprecations": ["import", "global-builtin", "color-functions", "if-function"]
+              }
+            },
             "assets": [
               {
                 "glob": "**/*",
@@ -30,6 +35,7 @@
               }
             ],
             "styles": [
+              "src/styles/tailwind.css",
               "src/styles.scss"
             ]
           },

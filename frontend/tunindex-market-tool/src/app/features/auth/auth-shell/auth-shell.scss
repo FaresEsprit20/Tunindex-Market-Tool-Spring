@@ -1,0 +1,77 @@
+:host {
+  position: relative;
+  display: block;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 520px at 15% -10%, var(--color-brand-light) 0%, transparent 60%),
+    var(--color-bg);
+}
+
+.ticker-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  position: absolute;
+  top: 68px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-mark-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--color-brand);
+}
+
+.brand-mark {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 62px;
+  right: 24px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  &:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.94);
+  }
+}
+
+.auth-card-slot {
+  min-height: calc(100vh - 41px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 20px 40px;
+}

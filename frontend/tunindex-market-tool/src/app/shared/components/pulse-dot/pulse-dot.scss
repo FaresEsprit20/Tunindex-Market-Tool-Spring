@@ -1,0 +1,30 @@
+:host {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+:host(.size-sm) {
+  width: 6px;
+  height: 6px;
+}
+
+.pulse-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.pulse-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid;
+  animation: pulse-ring 2.2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+
+:host(.size-sm) .pulse-ring {
+  inset: -3px;
+}

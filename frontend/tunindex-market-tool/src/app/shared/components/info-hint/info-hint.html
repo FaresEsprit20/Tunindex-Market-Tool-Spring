@@ -1,0 +1,16 @@
+<button
+  #trigger
+  type="button"
+  class="info-hint-trigger"
+  [attr.aria-label]="label()"
+  (mouseenter)="show()"
+  (mouseleave)="hide()"
+  (focus)="show()"
+  (blur)="hide()"
+>?</button>
+
+@if (open()) {
+  <div class="info-hint-tooltip" role="tooltip" [style.top.px]="pos().top" [style.left.px]="pos().left">
+    <ng-content />
+  </div>
+}

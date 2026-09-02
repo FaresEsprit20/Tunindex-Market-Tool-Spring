@@ -1,6 +1,8 @@
 package com.tunindex.market_tool.collector.services.impl;
 
 import com.tunindex.market_tool.collector.providers.stockanalysis.StockAnalysisProvider;
+import com.tunindex.market_tool.collector.services.status.PipelineStatusService;
+import com.tunindex.market_tool.common.dto.pipeline.PipelinePhase;
 import com.tunindex.market_tool.common.utils.constants.Constants;
 import com.tunindex.market_tool.collector.dto.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.collector.entities.Stock;
@@ -23,16 +25,24 @@ public class DataOrchestratorImpl implements DataOrchestrator {
 
     private final StockRepository stockRepository;
     private final StockAnalysisProvider stockAnalysisProvider;
+    private final PipelineStatusService pipelineStatus;
 
     @Override
     public Mono<Void> runPipeline() {
         log.info("🚀 Running pipeline with provider: {}", getActiveProviderName());
+        pipelineStatus.start(Constants.TUNISIAN_STOCKS_STOCK_ANALYSIS.size());
 
         return stockAnalysisProvider.fetchAllStocks()
                 .collectList()
                 .flatMap(this::saveAllToDatabase)
-                .doOnSuccess(v -> log.info("✅ Pipeline completed successfully"))
-                .doOnError(e -> log.error("❌ Pipeline failed: {}", e.getMessage()))
+                .doOnSuccess(v -> {
+                    log.info("✅ Pipeline completed successfully");
+                    pipelineStatus.finish(true);
+                })
+                .doOnError(e -> {
+                    log.error("❌ Pipeline failed: {}", e.getMessage());
+                    pipelineStatus.finish(false);
+                })
                 .then();
     }
 
@@ -150,17 +160,24 @@ public class DataOrchestratorImpl implements DataOrchestrator {
                 .flatMap(enrichedData -> {
                     if (enrichedData.getStock() != null) {
                         Stock stock = enrichedData.getStock();
+                        String symbol = stock.getSymbol();
+                        String threadName = Thread.currentThread().getName();
+
                         // Log before saving
                         if (stock.getCalculatedValues() != null) {
                             log.debug("📊 Stock: {} - Graham: {}, MOS: {}%",
-                                    stock.getSymbol(),
+                                    symbol,
                                     stock.getCalculatedValues().getGrahamFairValue(),
                                     stock.getCalculatedValues().getMarginOfSafety());
                         }
+
+                        pipelineStatus.workerStarted(threadName, symbol, PipelinePhase.SAVING);
+
                         return saveOrUpdateStock(stock)
+                                .doOnSuccess(saved -> pipelineStatus.workerFinished(threadName, symbol, PipelinePhase.SAVING, true))
                                 .onErrorResume(e -> {
-                                    log.error("Failed to save stock {}: {}",
-                                            stock.getSymbol(), e.getMessage());
+                                    log.error("Failed to save stock {}: {}", symbol, e.getMessage());
+                                    pipelineStatus.workerFinished(threadName, symbol, PipelinePhase.SAVING, false);
                                     return Mono.empty();
                                 });
                     }

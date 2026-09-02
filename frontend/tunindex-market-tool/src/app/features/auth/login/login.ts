@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Card } from '../../../shared/components/card/card';
 import { Auth } from '../../../core/services/auth';
@@ -18,6 +18,7 @@ export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(Auth);
   private readonly notification = inject(Notification);
+  private readonly router = inject(Router);
 
   protected readonly showPassword = signal(false);
   protected readonly submitting = signal(false);
@@ -51,6 +52,7 @@ export class Login {
       next: () => {
         this.submitting.set(false);
         this.notification.show('Signed in', `Welcome back, ${email}.`, 'success');
+        this.router.navigateByUrl('/app/dashboard');
       },
       error: (err: unknown) => {
         this.submitting.set(false);

@@ -44,7 +44,21 @@ public class IpUaExtractor {
         }
 
         if (clientIp == null) clientIp = request.getRemoteAddr();
-        return clientIp;
+        return normalizeLoopback(clientIp);
+    }
+
+    /**
+     * Windows/Chrome can resolve "localhost" to either 127.0.0.1 or the IPv6
+     * loopback (::1 / 0:0:0:0:0:0:0:1) depending on the request path — a
+     * plain XHR vs. a full-page navigation (as happens mid-OAuth2 redirect)
+     * can land on different loopback forms for the *same* machine. Without
+     * this, IP-bound tokens issued on one form fail validation on the other.
+     */
+    private String normalizeLoopback(String ip) {
+        if ("127.0.0.1".equals(ip) || "::1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip)) {
+            return "127.0.0.1";
+        }
+        return ip;
     }
 
     private boolean isTrustedProxy(String ip) {

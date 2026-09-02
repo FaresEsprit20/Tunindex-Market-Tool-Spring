@@ -1,0 +1,136 @@
+<div class="page-head">
+  <div>
+    <p class="page-title">Data Pipeline</p>
+    <p class="page-sub">Live view of the collector's scraping and save workers — real threads, real timing, nothing simulated.</p>
+  </div>
+  <button type="button" class="btn btn-primary" [disabled]="starting() || isRunning()" (click)="triggerStart()">
+    @if (starting()) {
+      Starting…
+    } @else if (isRunning()) {
+      Running…
+    } @else if (hasRunBefore()) {
+      Run update now
+    } @else {
+      Start pipeline
+    }
+  </button>
+</div>
+
+<div class="overview panel-card">
+  <div class="ring-wrap">
+    <svg class="ring" viewBox="0 0 120 120">
+      <circle class="ring-track" cx="60" cy="60" r="52" />
+      <circle
+        class="ring-progress"
+        [class.running]="isRunning()"
+        [class.failed]="state() === 'FAILED'"
+        cx="60" cy="60" r="52"
+        [style.stroke-dasharray]="326.7"
+        [style.stroke-dashoffset]="ringOffset()"
+      />
+    </svg>
+    <div class="ring-center">
+      <span class="ring-pct">{{ progressPct() }}%</span>
+      <span class="ring-state" [class]="'state-' + state().toLowerCase()">{{ state() }}</span>
+    </div>
+  </div>
+
+  <div class="overview-stats">
+    <div class="ov-stat">
+      <span class="ov-value">{{ completedCount() }}</span>
+      <span class="ov-label">Saved</span>
+    </div>
+    <div class="ov-stat">
+      <span class="ov-value" [class.negative]="failedCount() > 0">{{ failedCount() }}</span>
+      <span class="ov-label">Failed</span>
+    </div>
+    <div class="ov-stat">
+      <span class="ov-value">{{ total() }}</span>
+      <span class="ov-label">Total tracked</span>
+    </div>
+    <div class="ov-stat">
+      <span class="ov-value mono">{{ throughput().toFixed(1) }}/s</span>
+      <span class="ov-label">Throughput</span>
+    </div>
+    <div class="ov-stat">
+      <span class="ov-value mono">{{ elapsedLabel() }}</span>
+      <span class="ov-label">Elapsed</span>
+    </div>
+    <div class="ov-stat">
+      <span class="ov-value">
+        <span class="conn-dot" [class.live]="connected()"></span>
+        {{ connected() ? 'Live' : 'Reconnecting…' }}
+      </span>
+      <span class="ov-label">Stream</span>
+    </div>
+  </div>
+</div>
+
+<div class="worker-lanes">
+  <div class="lane panel-card">
+    <div class="lane-head">
+      <p class="panel-title">Fetching &amp; enriching</p>
+      <span class="lane-count">{{ fetchWorkers().length }} / {{ 5 }} workers</span>
+    </div>
+    <div class="lane-slots">
+      @for (w of fetchWorkers(); track w.symbol) {
+        <div class="worker-slot active">
+          <span class="pulse-dot"><span class="pulse-ring"></span></span>
+          <div class="worker-info">
+            <span class="worker-symbol">{{ w.symbol }}</span>
+            <span class="worker-thread mono">{{ w.threadName }}</span>
+          </div>
+          <span class="worker-elapsed mono">{{ w.elapsedMs }}ms</span>
+        </div>
+      }
+      @for (slot of idleFetchSlots(); track $index) {
+        <div class="worker-slot idle">Idle</div>
+      }
+    </div>
+  </div>
+
+  <div class="lane panel-card">
+    <div class="lane-head">
+      <p class="panel-title">Saving to database</p>
+      <span class="lane-count">{{ saveWorkers().length }} / {{ 10 }} workers</span>
+    </div>
+    <div class="lane-slots">
+      @for (w of saveWorkers(); track w.symbol) {
+        <div class="worker-slot active save">
+          <span class="pulse-dot save"><span class="pulse-ring"></span></span>
+          <div class="worker-info">
+            <span class="worker-symbol">{{ w.symbol }}</span>
+            <span class="worker-thread mono">{{ w.threadName }}</span>
+          </div>
+          <span class="worker-elapsed mono">{{ w.elapsedMs }}ms</span>
+        </div>
+      }
+      @for (slot of idleSaveSlots(); track $index) {
+        <div class="worker-slot idle">Idle</div>
+      }
+    </div>
+  </div>
+</div>
+
+<div class="panel-card">
+  <div class="panel-head"><p class="panel-title">Live activity</p></div>
+  <div class="ticker-list">
+    @for (event of recentEvents(); track event.symbol + event.phase + event.timestamp) {
+      <div class="ticker-row" [class.success]="event.success" [class.failed]="!event.success">
+        <span class="ticker-icon">
+          @if (event.success) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l6 6L20 6"></path></svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5M12 16h.01M12 3l9 16H3l9-16z"></path></svg>
+          }
+        </span>
+        <span class="ticker-symbol">{{ event.symbol }}</span>
+        <span class="ticker-phase">{{ phaseLabel(event.phase) }}</span>
+        <span class="ticker-duration mono">{{ event.durationMs }}ms</span>
+        <span class="ticker-time">{{ timeAgo(event.timestamp) }}</span>
+      </div>
+    } @empty {
+      <p class="empty-msg">No activity yet. Start the pipeline to watch workers process stocks in real time.</p>
+    }
+  </div>
+</div>

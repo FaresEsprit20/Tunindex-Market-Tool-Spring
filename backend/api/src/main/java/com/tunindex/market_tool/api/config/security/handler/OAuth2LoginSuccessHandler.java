@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -75,8 +76,19 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // Set cookies (for Postman to auto-capture)
         setAuthCookies(response, accessToken, refreshToken);
 
-        // Also set a session cookie (Spring Security does this automatically)
-        // The JSESSIONID cookie is already created by Spring Security
+        // Spring Security persisted the OAuth2AuthenticationToken it built during
+        // the handshake into the HttpSession (JSESSIONID), with the provider's
+        // raw subject id as its principal name — not this app's email. Every
+        // other endpoint authenticates purely via the opaque accessToken/
+        // refreshToken cookies (OAuth2AuthenticationFilter), which only sets a
+        // new Authentication when the context is empty. Left alone, that stale
+        // session-based principal would win on every later request in this
+        // browser session and get treated as if "email" == the provider id,
+        // breaking checkUserAuthentication() and anything else keyed by email.
+        // The cookies above are the real source of truth from here on, so drop
+        // the session entirely rather than let two auth mechanisms compete.
+        request.getSession().invalidate();
+        SecurityContextHolder.clearContext();
 
         // Redirect with tokens in URL for Angular to capture
         String targetUrl = UriComponentsBuilder.fromUriString(successUrl)

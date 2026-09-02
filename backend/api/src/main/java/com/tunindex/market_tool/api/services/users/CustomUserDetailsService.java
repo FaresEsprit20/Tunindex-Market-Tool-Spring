@@ -86,8 +86,11 @@ public class CustomUserDetailsService implements UserDetailsService {
             user.setLastName(provider);
         }
 
-        // Generate a temporary phone number (user can update later)
-        user.setNumTel("0000000000");
+        // Generate a placeholder phone number (user can update later). numTel
+        // is NOT NULL + UNIQUE app-wide, so this must be unique per user, not
+        // a shared literal — a second OAuth2 signup would otherwise collide
+        // on this exact constraint.
+        user.setNumTel("OA" + UUID.randomUUID().toString().replace("-", "").substring(0, 10));
 
         // Generate a random secure password (user won't use it for OAuth2 login)
         user.setPassword(UUID.randomUUID().toString());

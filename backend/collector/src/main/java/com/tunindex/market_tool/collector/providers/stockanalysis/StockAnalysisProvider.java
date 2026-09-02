@@ -5,6 +5,8 @@ import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.utils.constants.Constants;
 import com.tunindex.market_tool.collector.dto.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.collector.dto.investingcom.RawStockData;
+import com.tunindex.market_tool.collector.services.status.PipelineStatusService;
+import com.tunindex.market_tool.common.dto.pipeline.PipelinePhase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -35,6 +37,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private final DataNormalizerService normalizer;
     private final DataEnricherService enricher;
     private final WebClient webClient;
+    private final PipelineStatusService pipelineStatus;
 
     @Override
     public String getProviderName() {
@@ -84,11 +87,19 @@ public class StockAnalysisProvider implements MarketDataProvider {
         Map<String, Constants.StockInfo> stocks = Constants.TUNISIAN_STOCKS_STOCK_ANALYSIS;
 
         return Flux.fromIterable(stocks.entrySet())
-                .flatMap(entry -> fetchStockData(entry.getKey())
-                        .onErrorResume(error -> {
-                            log.error("❌ Failed to fetch {}: {}", entry.getKey(), error.getMessage());
-                            return Mono.empty();
-                        }), 5)
+                .flatMap(entry -> {
+                    String symbol = entry.getKey();
+                    String threadName = Thread.currentThread().getName();
+                    pipelineStatus.workerStarted(threadName, symbol, PipelinePhase.FETCHING);
+
+                    return fetchStockData(symbol)
+                            .doOnSuccess(data -> pipelineStatus.workerFinished(Thread.currentThread().getName(), symbol, PipelinePhase.FETCHING, data != null))
+                            .onErrorResume(error -> {
+                                log.error("❌ Failed to fetch {}: {}", symbol, error.getMessage());
+                                pipelineStatus.workerFinished(Thread.currentThread().getName(), symbol, PipelinePhase.FETCHING, false);
+                                return Mono.empty();
+                            });
+                }, 5)
                 .doOnComplete(() -> log.info("✅ Completed fetching all {} stocks from StockAnalysis", stocks.size()));
     }
 

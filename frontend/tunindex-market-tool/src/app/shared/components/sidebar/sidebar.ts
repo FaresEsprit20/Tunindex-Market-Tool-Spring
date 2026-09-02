@@ -14,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Stocks', route: '/app/stocks', icon: 'M3 3v18h18M7 14l4-4 3 3 5-6' },
   { label: 'Watchlist', route: '/app/watchlist', icon: 'M12 4.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 20.6l1-5.8-4.3-4.1 5.9-.9z' },
   { label: 'Analysis', route: '/app/analysis', icon: 'M4 19h16M7 15l3-4 3 2 4-6' },
+  { label: 'Data Pipeline', route: '/app/pipeline', icon: 'M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6M4.9 19.1l4.2-4.2M14.9 9.1l4.2-4.2' },
 ];
 
 @Component({

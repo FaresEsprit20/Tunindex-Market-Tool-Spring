@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Card } from '../../../shared/components/card/card';
 import { Auth } from '../../../core/services/auth';
@@ -25,6 +25,7 @@ type CallbackState = 'checking' | 'success' | 'error';
 export class OauthCallback {
   private readonly auth = inject(Auth);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly state = signal<CallbackState>('checking');
   protected readonly email = signal<string | null>(null);
@@ -36,6 +37,10 @@ export class OauthCallback {
       next: (res) => {
         this.email.set(res.email);
         this.state.set(res.authenticated ? 'success' : 'error');
+        if (res.authenticated) {
+          const timer = setTimeout(() => this.router.navigateByUrl('/app/dashboard'), 1200);
+          this.destroyRef.onDestroy(() => clearTimeout(timer));
+        }
       },
       error: () => this.state.set('error'),
     });

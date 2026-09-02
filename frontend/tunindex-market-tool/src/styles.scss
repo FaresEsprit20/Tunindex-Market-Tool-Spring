@@ -16,6 +16,21 @@
   --color-positive-dim: color-mix(in srgb, var(--color-positive) 12%, transparent);
   --color-negative-dim: color-mix(in srgb, var(--color-negative) 12%, transparent);
   --color-warning-dim: color-mix(in srgb, var(--color-warning) 12%, transparent);
+
+  // Elevation system — every surface reads as flat without this. Shadows
+  // need different weights per theme (dark panels barely show a black
+  // shadow), so this is a plain override, not a color-mix derivation.
+  --shadow-xs: 0 1px 2px rgba(16, 25, 46, 0.05);
+  --shadow-sm: 0 1px 3px rgba(16, 25, 46, 0.07), 0 1px 2px rgba(16, 25, 46, 0.04);
+  --shadow-md: 0 8px 20px rgba(16, 25, 46, 0.09), 0 2px 6px rgba(16, 25, 46, 0.05);
+  --shadow-lg: 0 16px 40px rgba(16, 25, 46, 0.14), 0 4px 10px rgba(16, 25, 46, 0.06);
+}
+
+:root[data-theme="dark"] {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52), 0 4px 12px rgba(0, 0, 0, 0.32);
 }
 
 html,

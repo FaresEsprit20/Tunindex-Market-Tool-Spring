@@ -17,6 +17,7 @@
           } @else {
             Your Google account is connected.
           }
+          Taking you to your dashboard…
         </p>
       }
       @case ('error') {
@@ -28,6 +29,12 @@
       }
     }
 
-    <p class="footnote"><a routerLink="/auth/login">Back to sign in</a></p>
+    <p class="footnote">
+      @if (state() === 'success') {
+        <a routerLink="/app/dashboard">Go to dashboard now</a>
+      } @else {
+        <a routerLink="/auth/login">Back to sign in</a>
+      }
+    </p>
   </div>
 </app-card>

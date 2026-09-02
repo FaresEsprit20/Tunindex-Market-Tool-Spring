@@ -1,0 +1,54 @@
+<app-card class="auth-card">
+  <div class="panel-head icon-head">
+    <div class="head-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>
+    </div>
+    <div>
+      <p class="panel-title">Verify it's you</p>
+      <p class="panel-sub">Enter the 6-digit code sent to your device.</p>
+    </div>
+  </div>
+
+  <div class="panel-body">
+    @if (errorMessage()) {
+      <p class="form-error">{{ errorMessage() }}</p>
+    }
+
+    <div class="otp-row" (paste)="onPaste($event)">
+      @for (digit of digits(); track $index) {
+        <input
+          #digitInput
+          class="otp-box"
+          [class.filled]="digit"
+          type="text"
+          inputmode="numeric"
+          maxlength="1"
+          autocomplete="one-time-code"
+          [value]="digit"
+          (input)="onDigitInput($index, $event)"
+          (keydown)="onDigitKeydown($index, $event)"
+        />
+      }
+    </div>
+
+    <div class="countdown-row">
+      <span class="countdown-label">Code expires in</span>
+      <span class="countdown-value">{{ expiryLabel() }}</span>
+    </div>
+
+    <button type="button" class="btn btn-primary" [disabled]="submitting() || !isComplete()" (click)="onSubmit()">
+      {{ submitting() ? 'Verifying…' : 'Verify code' }}
+    </button>
+
+    <div class="resend-row">
+      Didn't get a code?
+      @if (canResend()) {
+        <button type="button" class="resend-link" (click)="onResend()">Resend</button>
+      } @else {
+        <span class="resend-wait">Resend available in {{ resendCooldown() }}s</span>
+      }
+    </div>
+
+    <p class="footnote"><a routerLink="/auth/login">Use a different account</a></p>
+  </div>
+</app-card>

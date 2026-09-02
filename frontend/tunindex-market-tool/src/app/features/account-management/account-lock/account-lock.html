@@ -1,1 +1,37 @@
-<p>account-lock works!</p>
+<app-card class="auth-card">
+  <div class="panel-body centered">
+    <div class="icon-badge danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="11" width="14" height="9" rx="1.5"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path><path d="M12 14.5v2"></path><circle cx="12" cy="18.2" r="0.4" fill="currentColor"></circle></svg>
+    </div>
+
+    <p class="panel-title">Account locked</p>
+    <p class="panel-sub left">
+      Your account was locked after multiple failed sign-in attempts. This is an automatic safeguard —
+      request an unlock and support will verify your identity.
+    </p>
+
+    <div class="detail-block">
+      <div class="detail-row">
+        <span class="detail-label">Reason</span>
+        <span class="detail-value negative">5 failed attempts</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Reference</span>
+        <span class="detail-value">LK-88214A</span>
+      </div>
+    </div>
+
+    @if (!requested()) {
+      <button type="button" class="btn btn-danger" [disabled]="requesting()" (click)="requestUnlock()">
+        {{ requesting() ? 'Sending request…' : 'Request unlock' }}
+      </button>
+    } @else {
+      <p class="field-success centered-success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l6 6L20 6"></path></svg>
+        Unlock request sent
+      </p>
+    }
+
+    <p class="footnote"><a routerLink="/auth/login">Back to sign in</a></p>
+  </div>
+</app-card>

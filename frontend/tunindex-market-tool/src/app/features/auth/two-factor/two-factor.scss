@@ -1,0 +1,102 @@
+.icon-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.head-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+.otp-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.otp-box {
+  width: 46px;
+  height: 54px;
+  text-align: center;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease;
+
+  &:focus {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 4px var(--color-brand-dim);
+  }
+
+  &.filled {
+    border-color: var(--color-border-strong);
+  }
+}
+
+.countdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.countdown-label {
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+}
+
+.countdown-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.resend-row {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin-top: 16px;
+}
+
+.resend-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 4px;
+  color: var(--color-brand);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-brand-hover);
+    text-decoration: underline;
+  }
+}
+
+.resend-wait {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}

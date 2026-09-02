@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { AccountLock } from './account-lock';
+import { Register } from './register';
 
-describe('AccountLock', () => {
-  let component: AccountLock;
-  let fixture: ComponentFixture<AccountLock>;
+describe('Register', () => {
+  let component: Register;
+  let fixture: ComponentFixture<Register>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AccountLock],
+      imports: [Register],
       providers: [provideRouter([])],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(AccountLock);
+    fixture = TestBed.createComponent(Register);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Card } from '../../../shared/components/card/card';
 import { Auth } from '../../../core/services/auth';
 
@@ -7,9 +7,13 @@ type CallbackState = 'checking' | 'success' | 'error';
 
 /**
  * Lands here after the backend's server-side Google OAuth2 redirect chain
- * completes. By this point the accessToken/refreshToken cookies are
- * already set by OAuth2LoginSuccessHandler — this page just needs to
- * confirm that via GET /auth/check-auth, not parse anything from the URL.
+ * completes. OAuth2LoginSuccessHandler both sets the accessToken/
+ * refreshToken cookies AND appends them as query params (by design, per
+ * its own comment: "for Angular to capture"). We don't need the raw query
+ * values — confirming via GET /auth/check-auth (cookie-based) is enough —
+ * but we strip them from the URL bar immediately either way, since an
+ * access token sitting in the visible URL/history is bad hygiene even for
+ * the brief moment before the user navigates away.
  */
 @Component({
   selector: 'app-oauth-callback',
@@ -20,11 +24,14 @@ type CallbackState = 'checking' | 'success' | 'error';
 })
 export class OauthCallback {
   private readonly auth = inject(Auth);
+  private readonly router = inject(Router);
 
   protected readonly state = signal<CallbackState>('checking');
   protected readonly email = signal<string | null>(null);
 
   constructor() {
+    void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+
     this.auth.checkAuth().subscribe({
       next: (res) => {
         this.email.set(res.email);

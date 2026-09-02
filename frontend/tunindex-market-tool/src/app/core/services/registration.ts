@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface RegistrationRequest {
   firstName: string;
@@ -10,16 +11,53 @@ export interface RegistrationRequest {
   password: string;
 }
 
+interface AddressDto {
+  address1: string;
+  address2: string;
+  city: string;
+  zipCode: string;
+  country: string;
+}
+
+interface RegisterRequestPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  numTel: string;
+  password: string;
+  photo: string;
+  address: AddressDto;
+}
+
+interface UserDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  numTel: string;
+}
+
 /**
- * NOTE: mock implementation pending backend integration — see readme.md.
- * The real endpoint is POST /accounts/management/user/create (confirmed
- * public/anonymously reachable — see the backend contract audit). It
- * requires a non-null AddressDto (the backend NPEs on a missing one).
+ * POST /accounts/management/user/create — confirmed public/anonymously
+ * reachable (see the backend security audit) and confirmed to assign only
+ * the USER role. `address` must be a non-null object: the backend
+ * dereferences it unconditionally and NPEs on a missing one, so an empty
+ * placeholder is sent since this form doesn't collect a postal address.
  */
 @Injectable({ providedIn: 'root' })
 export class Registration {
-  create(request: RegistrationRequest): Observable<void> {
-    void request;
-    return of(undefined).pipe(delay(700));
+  private readonly http = inject(HttpClient);
+
+  create(request: RegistrationRequest): Observable<UserDto> {
+    const payload: RegisterRequestPayload = {
+      firstName: request.firstName,
+      lastName: request.lastName,
+      email: request.email,
+      numTel: request.phone,
+      password: request.password,
+      photo: '',
+      address: { address1: '', address2: '', city: '', zipCode: '', country: '' },
+    };
+
+    return this.http.post<UserDto>(`${API_BASE_URL}/accounts/management/user/create`, payload);
   }
 }

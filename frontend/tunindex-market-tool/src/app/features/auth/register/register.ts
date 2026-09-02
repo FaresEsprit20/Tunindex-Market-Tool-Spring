@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
@@ -92,9 +93,13 @@ export class Register {
         this.submitting.set(false);
         this.created.set(true);
       },
-      error: () => {
+      error: (err: unknown) => {
         this.submitting.set(false);
-        this.errorMessage.set('Could not create your account. That email may already be registered.');
+        const backendErrors = err instanceof HttpErrorResponse ? (err.error?.errors as string[] | undefined) : undefined;
+        const backendMessage = err instanceof HttpErrorResponse ? (err.error?.message as string | undefined) : undefined;
+        this.errorMessage.set(
+          backendErrors?.join(' ') ?? backendMessage ?? 'Could not create your account. That email may already be registered.',
+        );
       },
     });
   }

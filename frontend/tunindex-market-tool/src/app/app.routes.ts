@@ -55,6 +55,10 @@ export const routes: Routes = [
         path: 'analysis',
         loadComponent: () => import('./features/analysis/analysis/analysis').then((m) => m.Analysis),
       },
+      {
+        path: 'account',
+        loadComponent: () => import('./features/users/user-profile/user-profile').then((m) => m.UserProfile),
+      },
     ],
   },
 ];

@@ -1,1 +1,77 @@
-<p>user-profile works!</p>
+<div class="page-head">
+  <div>
+    <p class="page-title">Account</p>
+    <p class="page-sub">Manage your profile and password.</p>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="profile-skeleton">
+    <app-skeleton-block height="180px" radius="12px" />
+    <app-skeleton-block height="180px" radius="12px" />
+  </div>
+} @else if (user(); as u) {
+  <div class="two-col-grid">
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Profile</p></div>
+      <form class="panel-body form-body" [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
+        <div class="field-row-2">
+          <div class="field">
+            <div class="field-label-row"><span class="field-label">First name</span></div>
+            <input class="field-input" type="text" [value]="u.firstName" disabled readonly />
+          </div>
+          <div class="field">
+            <div class="field-label-row"><span class="field-label">Last name</span></div>
+            <input class="field-input" type="text" [value]="u.lastName" disabled readonly />
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row"><span class="field-label">Email</span></div>
+          <input class="field-input" type="email" [value]="u.email" disabled readonly />
+        </div>
+
+        <div class="field">
+          <div class="field-label-row"><label class="field-label" for="profile-phone">Phone number</label></div>
+          <input id="profile-phone" class="field-input" type="tel" formControlName="numTel" />
+        </div>
+
+        <div class="field-row-2">
+          <div class="field">
+            <div class="field-label-row"><label class="field-label" for="profile-address1">Address</label></div>
+            <input id="profile-address1" class="field-input" type="text" formControlName="address1" />
+          </div>
+          <div class="field">
+            <div class="field-label-row"><label class="field-label" for="profile-city">City</label></div>
+            <input id="profile-city" class="field-input" type="text" formControlName="city" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" [disabled]="savingProfile()">
+          {{ savingProfile() ? 'Saving…' : 'Save changes' }}
+        </button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Change password</p></div>
+      <form class="panel-body form-body" [formGroup]="passwordForm" (ngSubmit)="savePassword()" novalidate>
+        <div class="field">
+          <div class="field-label-row"><label class="field-label" for="new-password">New password</label></div>
+          <input id="new-password" class="field-input" type="password" formControlName="password" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <div class="field-label-row"><label class="field-label" for="confirm-password">Confirm new password</label></div>
+          <input id="confirm-password" class="field-input" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+          @if (passwordForm.errors?.['mismatch'] && passwordForm.controls.confirmPassword.touched) {
+            <p class="field-error">Passwords don't match.</p>
+          }
+        </div>
+
+        <button type="submit" class="btn btn-primary" [disabled]="savingPassword()">
+          {{ savingPassword() ? 'Updating…' : 'Update password' }}
+        </button>
+      </form>
+    </div>
+  </div>
+}

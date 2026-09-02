@@ -76,6 +76,14 @@
   gap: 9px;
   padding: 8px 8px;
   border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: background-color 0.12s ease;
+
+  &:hover,
+  &.active {
+    background: var(--color-panel-alt);
+    text-decoration: none;
+  }
 }
 
 .user-avatar {

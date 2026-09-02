@@ -1,0 +1,23 @@
+/* Shared field/button/panel styling lives globally
+   (src/styles/_auth-form.scss, src/styles/_panels.scss). */
+
+.profile-skeleton {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-body .btn {
+  width: auto;
+  padding: 10px 20px;
+  margin-top: 4px;
+}
+
+.field-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

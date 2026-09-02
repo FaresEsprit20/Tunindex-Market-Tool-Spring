@@ -11,6 +11,8 @@ describe('Pagination', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(Pagination);
+    fixture.componentRef.setInput('page', 1);
+    fixture.componentRef.setInput('totalPages', 1);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

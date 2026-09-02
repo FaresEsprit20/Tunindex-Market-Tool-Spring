@@ -25,6 +25,10 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/account-management/account-lock/account-lock').then((m) => m.AccountLock),
       },
+      {
+        path: 'oauth-callback',
+        loadComponent: () => import('./features/auth/oauth-callback/oauth-callback').then((m) => m.OauthCallback),
+      },
     ],
   },
 ];

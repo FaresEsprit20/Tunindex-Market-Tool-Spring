@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -51,14 +52,29 @@ export class Login {
         this.submitting.set(false);
         this.notification.show('Signed in', `Welcome back, ${email}.`, 'success');
       },
-      error: () => {
+      error: (err: unknown) => {
         this.submitting.set(false);
-        this.errorMessage.set('Invalid email or password.');
+        // The backend has a clean JSON error body for bad credentials, but
+        // a locked account throws an uncaught Spring Security exception
+        // with no reliable shape — fall back to a generic message rather
+        // than guess at a status code that isn't consistently produced.
+        const backendMessage = err instanceof HttpErrorResponse ? (err.error?.message as string | undefined) : undefined;
+        this.errorMessage.set(backendMessage ?? 'Invalid email or password.');
       },
     });
   }
 
   protected continueWithGoogle(): void {
-    this.notification.show('Google sign-in', 'Backend integration for OAuth2 is pending.', 'info');
+    // Full browser navigation, not fetch/XHR: the backend runs Google's
+    // real OAuth2 redirect chain server-side and expects the browser
+    // itself to follow it, not an API client to consume a JSON response.
+    this.auth.getGoogleLoginUrl().subscribe({
+      next: (res) => {
+        window.location.href = res.login_url;
+      },
+      error: () => {
+        this.notification.show('Google sign-in unavailable', 'Could not reach the sign-in service. Try again shortly.', 'error');
+      },
+    });
   }
 }

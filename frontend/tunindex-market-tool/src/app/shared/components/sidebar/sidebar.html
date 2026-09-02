@@ -1,1 +1,32 @@
-<p>sidebar works!</p>
+<div class="brand">
+  <span class="brand-mark-dot"></span>
+  <span class="brand-mark">Tunindex</span>
+</div>
+
+<nav class="nav-list">
+  @for (item of navItems; track item.route) {
+    <a
+      class="nav-item"
+      [routerLink]="item.route"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: false }"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path [attr.d]="item.icon"></path>
+      </svg>
+      <span>{{ item.label }}</span>
+    </a>
+  }
+</nav>
+
+<div class="sidebar-footer">
+  <div class="user-chip">
+    <div class="user-avatar">{{ (currentUser()?.email ?? '?').charAt(0).toUpperCase() }}</div>
+    <div class="user-info">
+      <span class="user-email">{{ currentUser()?.email ?? 'Not signed in' }}</span>
+    </div>
+    <button type="button" class="logout-btn" (click)="logout()" aria-label="Sign out">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
+    </button>
+  </div>
+</div>

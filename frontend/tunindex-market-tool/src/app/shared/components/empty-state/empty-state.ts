@@ -1,9 +1,13 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 @Component({
-  imports: [],
   selector: 'app-empty-state',
-  styleUrl: './empty-state.scss',
+  imports: [],
   templateUrl: './empty-state.html',
+  styleUrl: './empty-state.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EmptyState {}
+export class EmptyState {
+  readonly title = input.required<string>();
+  readonly message = input<string>('');
+}

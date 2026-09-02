@@ -1,0 +1,131 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px 14px;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 20px;
+}
+
+.brand-mark-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--color-brand);
+}
+
+.brand-mark {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background-color 0.12s ease, color 0.12s ease;
+
+  svg {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: var(--color-panel-alt);
+    color: var(--color-text-primary);
+    text-decoration: none;
+  }
+
+  &.active {
+    background: var(--color-brand-light);
+    color: var(--color-brand);
+    font-weight: 600;
+  }
+}
+
+.sidebar-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 8px;
+  border-radius: var(--radius-md);
+}
+
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-email {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logout-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover {
+    background: var(--color-negative-dim);
+    color: var(--color-negative);
+  }
+}

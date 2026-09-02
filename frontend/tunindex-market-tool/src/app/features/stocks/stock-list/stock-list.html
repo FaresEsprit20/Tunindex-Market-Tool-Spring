@@ -1,1 +1,86 @@
-<p>stock-list works!</p>
+<div class="page-head">
+  <div>
+    <p class="page-title">Stocks</p>
+    <p class="page-sub">Browse and filter all tracked BVMT-listed companies.</p>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="search-wrap">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Search by name…"
+      [value]="searchInput()"
+      (input)="searchInput.set($any($event.target).value)"
+      (keydown.enter)="onSearchSubmit()"
+    />
+  </div>
+
+  <select class="sector-select" [value]="sector()" (change)="onSectorChange($any($event.target).value)">
+    <option value="">All sectors</option>
+    @for (s of sectorOptions; track s) {
+      <option [value]="s">{{ sectorLabels[s] }}</option>
+    }
+  </select>
+
+  <div class="preset-chips">
+    <button type="button" class="chip" [class.active]="preset() === 'undervalued'" (click)="togglePreset('undervalued')">Undervalued</button>
+    <button type="button" class="chip" [class.active]="preset() === 'profitable'" (click)="togglePreset('profitable')">Profitable</button>
+    <button type="button" class="chip" [class.active]="preset() === 'grahamCriteria'" (click)="togglePreset('grahamCriteria')">Graham criteria</button>
+  </div>
+</div>
+
+<div class="panel-card">
+  <div class="table-scroll">
+    <table class="stock-table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Name</th>
+          <th>Sector</th>
+          <th class="num">Price</th>
+          <th class="num">P/E</th>
+          <th class="num">Margin of safety</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+            <tr class="skeleton-row">
+              <td colspan="6"><app-skeleton-block height="18px" /></td>
+            </tr>
+          }
+        } @else if (error()) {
+          <tr><td colspan="6" class="empty-cell">Couldn't load stocks. Try again shortly.</td></tr>
+        } @else if (rows().length === 0) {
+          <tr><td colspan="6" class="empty-cell">No stocks match these filters.</td></tr>
+        } @else {
+          @for (stock of rows(); track stock.id) {
+            <tr class="stock-row" (click)="openStock(stock.symbol)">
+              <td class="symbol-cell">{{ stock.symbol }}</td>
+              <td class="name-cell">{{ stock.name }}</td>
+              <td>
+                @if (stock.sector) {
+                  <span class="sector-tag">{{ sectorLabels[stock.sector] }}</span>
+                }
+              </td>
+              <td class="num mono">{{ stock.lastPrice !== null ? (stock.lastPrice | number: '1.2-2') + ' ' + (stock.currency ?? '') : '—' }}</td>
+              <td class="num mono">{{ stock.peRatio !== null ? (stock.peRatio | number: '1.1-1') : '—' }}</td>
+              <td class="num mono" [class.positive]="(stock.marginOfSafety ?? 0) > 0" [class.negative]="(stock.marginOfSafety ?? 0) < 0">
+                {{ stock.marginOfSafety !== null ? (stock.marginOfSafety | number: '1.1-1') + '%' : '—' }}
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (!loading() && !error() && rows().length > 0) {
+    <div class="pagination-wrap">
+      <app-pagination [page]="page()" [totalPages]="totalPages()" [totalElements]="totalElements()" (pageChange)="onPageChange($event)" />
+    </div>
+  }
+</div>

@@ -1,1 +1,14 @@
-<p>market-summary works!</p>
+@if (loading()) {
+  <div class="stat-tile-grid">
+    @for (i of [1, 2, 3, 4]; track i) {
+      <app-skeleton-block height="76px" radius="12px" />
+    }
+  </div>
+} @else if (counts(); as c) {
+  <div class="stat-tile-grid">
+    <app-stat-tile label="Stocks tracked" [value]="c.total.toString()" />
+    <app-stat-tile label="Undervalued" [value]="c.undervalued.toString()" trend="up" [trendLabel]="'Margin of safety > 0'" />
+    <app-stat-tile label="Profitable" [value]="c.profitable.toString()" />
+    <app-stat-tile label="Graham criteria matches" [value]="c.grahamMatches.toString()" />
+  </div>
+}

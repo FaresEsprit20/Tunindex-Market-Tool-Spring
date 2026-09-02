@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 
 @Component({
-  imports: [],
   selector: 'app-analysis',
-  styleUrl: './analysis.scss',
+  imports: [EmptyState],
   templateUrl: './analysis.html',
+  styleUrl: './analysis.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Analysis {}

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth-guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'auth/login', pathMatch: 'full' },
@@ -28,6 +29,31 @@ export const routes: Routes = [
       {
         path: 'oauth-callback',
         loadComponent: () => import('./features/auth/oauth-callback/oauth-callback').then((m) => m.OauthCallback),
+      },
+    ],
+  },
+  {
+    path: 'app',
+    canActivate: [authGuard],
+    loadComponent: () => import('./layout/app-shell/app-shell').then((m) => m.AppShell),
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.Dashboard) },
+      {
+        path: 'stocks',
+        loadComponent: () => import('./features/stocks/stock-list/stock-list').then((m) => m.StockList),
+      },
+      {
+        path: 'stocks/:symbol',
+        loadComponent: () => import('./features/stocks/stock-detail/stock-detail').then((m) => m.StockDetail),
+      },
+      {
+        path: 'watchlist',
+        loadComponent: () => import('./features/watchlist/watchlist/watchlist').then((m) => m.Watchlist),
+      },
+      {
+        path: 'analysis',
+        loadComponent: () => import('./features/analysis/analysis/analysis').then((m) => m.Analysis),
       },
     ],
   },

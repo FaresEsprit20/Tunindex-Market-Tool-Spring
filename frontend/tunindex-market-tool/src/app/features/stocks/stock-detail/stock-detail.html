@@ -1,1 +1,114 @@
-<p>stock-detail works!</p>
+<a routerLink="/app/stocks" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 5l-7 7 7 7"></path></svg>
+  Back to stocks
+</a>
+
+@if (loading()) {
+  <div class="detail-skeleton">
+    <app-skeleton-block width="220px" height="28px" />
+    <div class="stat-tile-grid">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <app-skeleton-block height="76px" radius="12px" />
+      }
+    </div>
+  </div>
+} @else if (error() || !stock()) {
+  <div class="panel-card error-card">
+    <p class="empty-msg">Couldn't load data for "{{ symbol() }}".</p>
+  </div>
+} @else if (stock(); as s) {
+  <div class="detail-head">
+    <div>
+      <div class="title-row">
+        <h1 class="symbol-title">{{ s.symbol }}</h1>
+        @if (s.sector) {
+          <span class="tag">{{ sectorLabels[s.sector] }}</span>
+        }
+        @if (s.ownershipType) {
+          <span class="tag">{{ ownershipLabels[s.ownershipType] }}</span>
+        }
+      </div>
+      <p class="company-name">{{ s.name }}</p>
+    </div>
+
+    <button type="button" class="btn btn-secondary refresh-btn" [disabled]="refreshing()" (click)="refresh()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 4v6h-6"></path></svg>
+      {{ refreshing() ? 'Refreshing…' : 'Refresh data' }}
+    </button>
+  </div>
+
+  <div class="stat-tile-grid section">
+    <app-stat-tile label="Last price" [value]="s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') + ' ' + (s.currency ?? '') : '—'" />
+    <app-stat-tile label="52-week range" [value]="(s.week52Low !== null ? (s.week52Low | number:'1.2-2') : '—') + ' – ' + (s.week52High !== null ? (s.week52High | number:'1.2-2') : '—')" />
+    <app-stat-tile label="Day range" [value]="(s.dayLow !== null ? (s.dayLow | number:'1.2-2') : '—') + ' – ' + (s.dayHigh !== null ? (s.dayHigh | number:'1.2-2') : '—')" />
+    <app-stat-tile label="Volume" [value]="(s.volume !== null ? (s.volume | number) : null) ?? '—'" />
+  </div>
+
+  <div class="two-col-grid section">
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Graham valuation</p></div>
+      <div class="panel-body">
+        <div class="kv-row">
+          <span class="kv-label">Fair value</span>
+          <span class="kv-value mono">{{ s.grahamFairValue !== null ? (s.grahamFairValue | number: '1.2-2') : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Margin of safety</span>
+          <span
+            class="kv-value mono"
+            [class.positive]="(s.marginOfSafety ?? 0) > 0"
+            [class.negative]="(s.marginOfSafety ?? 0) < 0"
+          >{{ s.marginOfSafety !== null ? (s.marginOfSafety | number: '1.1-1') + '%' : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Book value / share</span>
+          <span class="kv-value mono">{{ s.bookValuePerShare !== null ? (s.bookValuePerShare | number: '1.2-2') : '—' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Fundamentals</p></div>
+      <div class="panel-body">
+        <div class="kv-row">
+          <span class="kv-label">EPS</span>
+          <span class="kv-value mono">{{ s.eps !== null ? (s.eps | number: '1.2-2') : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">P/E ratio</span>
+          <span class="kv-value mono">{{ s.peRatio !== null ? (s.peRatio | number: '1.1-1') : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Dividend yield</span>
+          <span class="kv-value mono">{{ s.dividendYield !== null ? (s.dividendYield | number: '1.1-1') + '%' : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Market cap</span>
+          <span class="kv-value mono">{{ (s.marketCap !== null ? (s.marketCap | number) : null) ?? '—' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">Ratios</p></div>
+    <div class="panel-body ratios-grid">
+      <div class="kv-row">
+        <span class="kv-label">Debt / equity</span>
+        <span class="kv-value mono">{{ s.debtToEquity !== null ? (s.debtToEquity | number: '1.2-2') : '—' }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Profit margin</span>
+        <span class="kv-value mono">{{ s.profitMargin !== null ? (s.profitMargin | number: '1.1-1') + '%' : '—' }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Price / book</span>
+        <span class="kv-value mono">{{ s.priceToBook !== null ? (s.priceToBook | number: '1.2-2') : '—' }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Beta</span>
+        <span class="kv-value mono">{{ s.beta !== null ? (s.beta | number: '1.2-2') : '—' }}</span>
+      </div>
+    </div>
+  </div>
+}

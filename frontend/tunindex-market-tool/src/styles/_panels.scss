@@ -1,0 +1,79 @@
+// Shared, global panel/card chrome for the authenticated app (dashboard,
+// stocks, watchlist, ...). Kept separate from _auth-form.scss since the
+// auth flow and the main app are visually distinct contexts, but the
+// underlying card anatomy (bordered surface + head + body) is the same
+// idea — living here once avoids re-shipping it in every lazy chunk.
+
+.panel-card {
+  display: block;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.panel-body {
+  padding: 18px 20px;
+}
+
+.empty-msg {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: 20px 0;
+  margin: 0;
+}
+
+.stat-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 4px;
+}
+
+.page-sub {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}

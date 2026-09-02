@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 
 @Component({
-  imports: [],
   selector: 'app-watchlist',
-  styleUrl: './watchlist.scss',
+  imports: [EmptyState],
   templateUrl: './watchlist.html',
+  styleUrl: './watchlist.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Watchlist {}

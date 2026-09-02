@@ -1,1 +1,29 @@
-<p>sector-distribution works!</p>
+<div class="panel-head">
+  <p class="panel-title">Stocks by sector</p>
+</div>
+
+<div class="panel-body">
+  @if (loading()) {
+    <div class="skeleton-rows">
+      @for (i of [1, 2, 3, 4, 5]; track i) {
+        <app-skeleton-block height="26px" />
+      }
+    </div>
+  } @else if (error()) {
+    <p class="empty-msg">Couldn't load sector data.</p>
+  } @else if (rows().length === 0) {
+    <p class="empty-msg">No sector data available.</p>
+  } @else {
+    <div class="bar-list">
+      @for (row of rows(); track row.sector) {
+        <div class="bar-row">
+          <span class="bar-label">{{ row.label }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="(row.count / maxCount()) * 100"></div>
+          </div>
+          <span class="bar-value">{{ row.count }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>

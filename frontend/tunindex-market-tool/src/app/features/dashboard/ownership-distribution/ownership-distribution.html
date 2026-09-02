@@ -1,1 +1,38 @@
-<p>ownership-distribution works!</p>
+<div class="panel-head">
+  <p class="panel-title">Ownership structure</p>
+</div>
+
+<div class="panel-body">
+  @if (loading()) {
+    <app-skeleton-block height="14px" radius="7px" />
+    <div class="legend-skeleton">
+      <app-skeleton-block width="120px" height="14px" />
+      <app-skeleton-block width="120px" height="14px" />
+    </div>
+  } @else if (error()) {
+    <p class="empty-msg">Couldn't load ownership data.</p>
+  } @else if (rows().length === 0) {
+    <p class="empty-msg">No ownership data available.</p>
+  } @else {
+    <div class="proportion-bar">
+      @for (row of rows(); track row.ownership) {
+        <div
+          class="segment"
+          [class.private]="row.ownership === 'PRIVATE'"
+          [class.government]="row.ownership === 'GOVERNMENT'"
+          [style.width.%]="row.pct"
+        ></div>
+      }
+    </div>
+
+    <div class="legend">
+      @for (row of rows(); track row.ownership) {
+        <div class="legend-item">
+          <span class="swatch" [class.private]="row.ownership === 'PRIVATE'" [class.government]="row.ownership === 'GOVERNMENT'"></span>
+          <span class="legend-label">{{ row.label }}</span>
+          <span class="legend-value">{{ row.count }} <span class="legend-pct">({{ row.pct | number: '1.0-1' }}%)</span></span>
+        </div>
+      }
+    </div>
+  }
+</div>

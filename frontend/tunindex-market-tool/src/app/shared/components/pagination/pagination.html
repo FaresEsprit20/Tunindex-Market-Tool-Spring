@@ -1,1 +1,15 @@
-<p>pagination works!</p>
+<span class="page-info">
+  Page {{ page() }} of {{ totalPages() }}
+  @if (totalElements() !== null) {
+    <span class="total-count">· {{ totalElements() }} total</span>
+  }
+</span>
+
+<div class="page-controls">
+  <button type="button" class="page-btn" [disabled]="!canPrev()" (click)="go(page() - 1)" aria-label="Previous page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 5l-7 7 7 7"></path></svg>
+  </button>
+  <button type="button" class="page-btn" [disabled]="!canNext()" (click)="go(page() + 1)" aria-label="Next page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5l7 7-7 7"></path></svg>
+  </button>
+</div>

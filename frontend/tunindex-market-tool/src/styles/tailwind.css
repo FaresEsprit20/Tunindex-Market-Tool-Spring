@@ -15,8 +15,17 @@
  * further down (`:root[data-theme="dark"]`) redefines the same variable
  * names for dark mode, so the same utility classes resolve correctly at
  * runtime without needing dark: variants sprinkled everywhere.
+ *
+ * "static" forces Tailwind to always emit these as real :root custom
+ * properties, even though no bg-brand/text-negative/etc. utility class is
+ * used anywhere in a template — we consume nearly all of these via var()
+ * in component SCSS, not via generated utility classes, and Tailwind's
+ * default behavior tree-shakes @theme values it doesn't see referenced by
+ * a generated utility. Without `static`, the dark-mode override further
+ * down (plain CSS, always emitted) would silently win outright because
+ * the light defaults never made it into the stylesheet at all.
  */
-@theme {
+@theme static {
   --color-bg: #f6f8fb;
   --color-panel: #ffffff;
   --color-panel-alt: #f0f3f8;

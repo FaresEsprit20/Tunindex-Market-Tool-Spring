@@ -1,23 +1,62 @@
 <app-market-ticker class="ticker-bar" />
 
-<div class="brand">
-  <span class="brand-mark-dot"></span>
-  <span class="brand-mark">Tunindex</span>
-</div>
+<div class="shell-grid">
+  <aside class="brand-panel">
+    <div class="brand-panel-inner">
+      <div class="brand">
+        <span class="brand-mark-dot"></span>
+        <span class="brand-mark">Tunindex</span>
+      </div>
 
-<button
-  type="button"
-  class="theme-toggle"
-  (click)="theme.toggle()"
-  [attr.aria-label]="theme.mode() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
->
-  @if (theme.mode() === 'dark') {
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"></path></svg>
-  } @else {
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path></svg>
-  }
-</button>
+      <div class="brand-copy">
+        <h1>Professional-grade insight into the Tunisian market.</h1>
+        <p>Live BVMT data, Graham valuation, and portfolio tools built for serious investors.</p>
+      </div>
 
-<div class="auth-card-slot">
-  <router-outlet />
+      <ul class="brand-stats">
+        <li>
+          <span class="stat-value">73</span>
+          <span class="stat-label">Listed companies tracked</span>
+        </li>
+        <li>
+          <span class="stat-value">30 min</span>
+          <span class="stat-label">Data refresh interval</span>
+        </li>
+        <li>
+          <span class="stat-value">10+</span>
+          <span class="stat-label">Valuation &amp; risk metrics</span>
+        </li>
+      </ul>
+
+      <svg class="brand-chart" viewBox="0 0 360 120" fill="none" preserveAspectRatio="none">
+        <path d="M0 96 L40 82 L80 90 L120 58 L160 66 L200 34 L240 44 L280 18 L320 26 L360 4" stroke="rgba(255,255,255,0.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M0 96 L40 82 L80 90 L120 58 L160 66 L200 34 L240 44 L280 18 L320 26 L360 4 L360 120 L0 120 Z" fill="url(#chartFade)" />
+        <defs>
+          <linearGradient id="chartFade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="rgba(255,255,255,0.18)" />
+            <stop offset="1" stop-color="rgba(255,255,255,0)" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  </aside>
+
+  <main class="form-panel">
+    <button
+      type="button"
+      class="theme-toggle"
+      (click)="theme.toggle()"
+      [attr.aria-label]="theme.mode() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+    >
+      @if (theme.mode() === 'dark') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"></path></svg>
+      } @else {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path></svg>
+      }
+    </button>
+
+    <div class="auth-card-slot">
+      <router-outlet />
+    </div>
+  </main>
 </div>

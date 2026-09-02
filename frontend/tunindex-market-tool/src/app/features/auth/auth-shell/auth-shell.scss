@@ -1,10 +1,7 @@
 :host {
-  position: relative;
   display: block;
   min-height: 100vh;
-  background:
-    radial-gradient(1100px 520px at 15% -10%, var(--color-brand-light) 0%, transparent 60%),
-    var(--color-bg);
+  background: var(--color-bg);
 }
 
 .ticker-bar {
@@ -13,10 +10,40 @@
   z-index: 10;
 }
 
+.shell-grid {
+  display: grid;
+  grid-template-columns: minmax(380px, 38%) 1fr;
+  min-height: calc(100vh - 41px);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Brand panel — a fixed, intentionally colorful hero regardless of theme.
+.brand-panel {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  background: linear-gradient(160deg, #1656e8 0%, #0d2f80 55%, #071c4d 100%);
+
+  @media (max-width: 900px) {
+    display: none;
+  }
+}
+
+.brand-panel-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+  padding: 56px 56px 72px;
+  width: 100%;
+}
+
 .brand {
-  position: absolute;
-  top: 68px;
-  left: 32px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -26,19 +53,89 @@
   width: 9px;
   height: 9px;
   border-radius: 2px;
-  background: var(--color-brand);
+  background: #ffffff;
 }
 
 .brand-mark {
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--color-text-primary);
+  color: #ffffff;
+}
+
+.brand-copy {
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: #ffffff;
+    margin: 0 0 14px;
+    max-width: 380px;
+  }
+
+  p {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.72);
+    margin: 0;
+    max-width: 340px;
+  }
+}
+
+.brand-stats {
+  list-style: none;
+  margin: 0;
+  padding: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+
+  li {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  min-width: 56px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.brand-chart {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 120px;
+}
+
+.form-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  // Grid items default to min-width: auto, which stops a track from
+  // shrinking below its content's intrinsic width — without this, the
+  // card blows out past the viewport on narrow screens.
+  min-width: 0;
 }
 
 .theme-toggle {
   position: absolute;
-  top: 62px;
+  top: 22px;
   right: 24px;
   width: 34px;
   height: 34px;
@@ -69,9 +166,8 @@
 }
 
 .auth-card-slot {
-  min-height: calc(100vh - 41px);
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 56px 20px 40px;
 }

@@ -73,30 +73,3 @@
   font-variant-numeric: tabular-nums;
 }
 
-.resend-row {
-  text-align: center;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-  margin-top: 16px;
-}
-
-.resend-link {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-left: 4px;
-  color: var(--color-brand);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--color-brand-hover);
-    text-decoration: underline;
-  }
-}
-
-.resend-wait {
-  margin-left: 4px;
-  font-variant-numeric: tabular-nums;
-}

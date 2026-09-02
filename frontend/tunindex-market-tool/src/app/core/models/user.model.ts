@@ -6,6 +6,7 @@ export interface UserDto {
   firstName: string;
   lastName: string;
   email: string;
+  username?: string;
   numTel: string;
   birthDate: string | null;
   photo: string | null;
@@ -13,7 +14,8 @@ export interface UserDto {
   address: AddressDto | null;
 }
 
-// UserExtendedDto = UserDto + id.
+// UserExtendedDto = UserDto + id + two-factor status.
 export interface UserExtendedDto extends UserDto {
   id: number;
+  twoFactorEnabled: boolean;
 }

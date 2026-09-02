@@ -7,6 +7,8 @@ import { API_BASE_URL } from '../config/api.config';
 
 export interface ProfileUpdateRequest {
   email: string; // must match the authenticated user — the backend 400s otherwise
+  firstName: string;
+  lastName: string;
   numTel: string;
   photo: string;
   address: AddressDto;

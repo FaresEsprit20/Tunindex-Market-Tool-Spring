@@ -27,11 +27,13 @@ public class UserExtendedDto {
     private String firstName;
     private String lastName;
     private String email;
+    private String username;
     private String numTel;
     private LocalDate birthDate;
     @JsonIgnore
     private String password;
     private String photo;
+    private boolean twoFactorEnabled;
     private List<RolesDto> roles;
     private AddressDto address;
 
@@ -46,6 +48,8 @@ public class UserExtendedDto {
                 .firstName(user.getFirstName() != null ? user.getFirstName() : "")
                 .lastName(user.getLastName() != null ? user.getLastName() : "")
                 .email(user.getEmail() != null ? user.getEmail() : "")
+                .username(user.getLoginName() != null ? user.getLoginName() : "")
+                .twoFactorEnabled(Boolean.TRUE.equals(user.getTwoFactorEnabled()))
                 .numTel(user.getNumTel() != null ? user.getNumTel() : "")
                 .birthDate(LocalDate.from(user.getBirthDate() != null ? user.getBirthDate() : Instant.EPOCH))
                 .password(user.getPassword() != null ? user.getPassword() : "")

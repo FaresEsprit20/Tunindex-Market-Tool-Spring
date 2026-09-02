@@ -27,6 +27,13 @@ function scorePassword(value: string): number {
 // Tunisian mobile numbers: 8 digits, commonly grouped as 2-3-3.
 const TUNISIAN_PHONE_PATTERN = /^\d{8}$/;
 
+// Mirrors the backend's FieldsValidation.USERNAME_REGEX.
+const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]{3,30}$/;
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 @Component({
   selector: 'app-register',
   imports: [ReactiveFormsModule, RouterLink, Card],
@@ -42,12 +49,15 @@ export class Register {
   protected readonly submitting = signal(false);
   protected readonly created = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly maxBirthDate = todayIsoDate();
 
   protected readonly form = this.fb.nonNullable.group(
     {
       firstName: ['', [Validators.required]],
       lastName: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
+      username: ['', [Validators.pattern(USERNAME_PATTERN)]],
+      birthDate: ['', [Validators.required]],
       phone: ['', [Validators.required, Validators.pattern(TUNISIAN_PHONE_PATTERN)]],
       password: ['', [Validators.required, Validators.minLength(8)]],
       confirmPassword: ['', [Validators.required]],
@@ -86,9 +96,9 @@ export class Register {
     this.errorMessage.set(null);
     this.submitting.set(true);
 
-    const { firstName, lastName, email, phone, password } = this.form.getRawValue();
+    const { firstName, lastName, email, username, birthDate, phone, password } = this.form.getRawValue();
 
-    this.registration.create({ firstName, lastName, email, phone: `+216${phone}`, password }).subscribe({
+    this.registration.create({ firstName, lastName, email, username, birthDate, phone: `+216${phone}`, password }).subscribe({
       next: () => {
         this.submitting.set(false);
         this.created.set(true);

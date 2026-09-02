@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 @Builder
 public class PortfolioAccount {
 
-    public static final BigDecimal STARTING_CASH = BigDecimal.valueOf(100000);
+    public static final BigDecimal STARTING_CASH = BigDecimal.valueOf(20000);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

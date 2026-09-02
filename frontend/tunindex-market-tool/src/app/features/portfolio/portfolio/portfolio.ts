@@ -143,7 +143,7 @@ export class Portfolio {
 
   protected resetAccount(): void {
     const confirmed = window.confirm(
-      'Reset the simulator? This clears all positions and trade history and restores your starting 100,000 TND cash balance.',
+      'Reset the simulator? This clears all positions and trade history and restores your starting 20,000 TND cash balance.',
     );
     if (!confirmed) return;
 

@@ -56,6 +56,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/portfolio/portfolio/portfolio').then((m) => m.Portfolio),
       },
       {
+        path: 'exchange-rates',
+        loadComponent: () =>
+          import('./features/exchange-rates/exchange-rates/exchange-rates').then((m) => m.ExchangeRatesPage),
+      },
+      {
         path: 'analysis',
         loadComponent: () => import('./features/analysis/analysis/analysis').then((m) => m.Analysis),
       },

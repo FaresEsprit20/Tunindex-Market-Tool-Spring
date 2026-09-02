@@ -7,6 +7,9 @@ export interface RegistrationRequest {
   firstName: string;
   lastName: string;
   email: string;
+  username?: string;
+  /** ISO date string (yyyy-MM-dd), as produced by <input type="date">. */
+  birthDate: string;
   phone: string;
   password: string;
 }
@@ -23,6 +26,8 @@ interface RegisterRequestPayload {
   firstName: string;
   lastName: string;
   email: string;
+  username?: string;
+  birthDate: string;
   numTel: string;
   password: string;
   photo: string;
@@ -52,6 +57,8 @@ export class Registration {
       firstName: request.firstName,
       lastName: request.lastName,
       email: request.email,
+      username: request.username?.trim() ? request.username.trim() : undefined,
+      birthDate: request.birthDate,
       numTel: request.phone,
       password: request.password,
       photo: '',

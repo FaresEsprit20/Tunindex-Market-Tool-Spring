@@ -17,18 +17,24 @@
       <form class="panel-body form-body" [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
         <div class="field-row-2">
           <div class="field">
-            <div class="field-label-row"><span class="field-label">First name</span></div>
-            <input class="field-input" type="text" [value]="u.firstName" disabled readonly />
+            <div class="field-label-row"><label class="field-label" for="profile-first">First name</label></div>
+            <input id="profile-first" class="field-input" type="text" formControlName="firstName" />
           </div>
           <div class="field">
-            <div class="field-label-row"><span class="field-label">Last name</span></div>
-            <input class="field-input" type="text" [value]="u.lastName" disabled readonly />
+            <div class="field-label-row"><label class="field-label" for="profile-last">Last name</label></div>
+            <input id="profile-last" class="field-input" type="text" formControlName="lastName" />
           </div>
         </div>
 
-        <div class="field">
-          <div class="field-label-row"><span class="field-label">Email</span></div>
-          <input class="field-input" type="email" [value]="u.email" disabled readonly />
+        <div class="field-row-2">
+          <div class="field">
+            <div class="field-label-row"><span class="field-label">Email</span></div>
+            <input class="field-input" type="email" [value]="u.email" disabled readonly />
+          </div>
+          <div class="field">
+            <div class="field-label-row"><span class="field-label">Username</span></div>
+            <input class="field-input" type="text" [value]="u.username || 'Not set'" disabled readonly />
+          </div>
         </div>
 
         <div class="field">
@@ -38,13 +44,29 @@
 
         <div class="field-row-2">
           <div class="field">
-            <div class="field-label-row"><label class="field-label" for="profile-address1">Address</label></div>
+            <div class="field-label-row"><label class="field-label" for="profile-address1">Address line 1</label></div>
             <input id="profile-address1" class="field-input" type="text" formControlName="address1" />
           </div>
+          <div class="field">
+            <div class="field-label-row"><label class="field-label" for="profile-address2">Address line 2</label></div>
+            <input id="profile-address2" class="field-input" type="text" formControlName="address2" />
+          </div>
+        </div>
+
+        <div class="field-row-2">
           <div class="field">
             <div class="field-label-row"><label class="field-label" for="profile-city">City</label></div>
             <input id="profile-city" class="field-input" type="text" formControlName="city" />
           </div>
+          <div class="field">
+            <div class="field-label-row"><label class="field-label" for="profile-zip">Zip code</label></div>
+            <input id="profile-zip" class="field-input" type="text" formControlName="zipCode" />
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row"><label class="field-label" for="profile-country">Country</label></div>
+          <input id="profile-country" class="field-input" type="text" formControlName="country" />
         </div>
 
         <button type="submit" class="btn btn-primary" [disabled]="savingProfile()">
@@ -72,6 +94,94 @@
           {{ savingPassword() ? 'Updating…' : 'Update password' }}
         </button>
       </form>
+    </div>
+  </div>
+
+  <div class="panel-card section">
+    <div class="panel-head">
+      <p class="panel-title">Two-factor authentication</p>
+      <span class="signal-badge" [class.positive]="twoFactorEnabled()" [class.neutral]="!twoFactorEnabled()">
+        {{ twoFactorEnabled() ? 'Enabled' : 'Disabled' }}
+      </span>
+    </div>
+    <div class="panel-body">
+      @if (totpError()) {
+        <p class="form-error">{{ totpError() }}</p>
+      }
+
+      @if (settingUp() && setupData(); as setup) {
+        <p class="totp-help">
+          Scan this QR code with an authenticator app (Google Authenticator, Authy, 1Password, …), then enter the
+          6-digit code it shows to finish enabling two-factor authentication.
+        </p>
+        <div class="totp-qr-row">
+          @if (qrDataUrl(); as qr) {
+            <img [src]="qr" alt="Two-factor setup QR code" class="totp-qr" width="220" height="220" />
+          } @else {
+            <app-skeleton-block height="220px" width="220px" radius="12px" />
+          }
+          <div class="totp-manual">
+            <span class="field-label">Can't scan? Enter this key manually:</span>
+            <code class="totp-secret mono">{{ setup.secret }}</code>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row"><label class="field-label" for="totp-confirm-code">6-digit code</label></div>
+          <input
+            id="totp-confirm-code"
+            class="field-input totp-code-input"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="one-time-code"
+            [value]="confirmCode()"
+            (input)="onConfirmCodeInput($any($event.target).value)"
+          />
+        </div>
+
+        <div class="totp-actions">
+          <button type="button" class="btn btn-primary" [disabled]="totpBusy() || confirmCode().length !== 6" (click)="confirmTwoFactorSetup()">
+            {{ totpBusy() ? 'Verifying…' : 'Confirm & enable' }}
+          </button>
+          <button type="button" class="btn btn-secondary" [disabled]="totpBusy()" (click)="cancelTwoFactorSetup()">Cancel</button>
+        </div>
+      } @else if (twoFactorEnabled()) {
+        @if (showDisableForm()) {
+          <p class="totp-help">Enter a current code from your authenticator app to disable two-factor authentication.</p>
+          <div class="field">
+            <div class="field-label-row"><label class="field-label" for="totp-disable-code">6-digit code</label></div>
+            <input
+              id="totp-disable-code"
+              class="field-input totp-code-input"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              autocomplete="one-time-code"
+              [value]="disableCode()"
+              (input)="onDisableCodeInput($any($event.target).value)"
+            />
+          </div>
+          <div class="totp-actions">
+            <button type="button" class="btn btn-danger" [disabled]="totpBusy() || disableCode().length !== 6" (click)="disableTwoFactor()">
+              {{ totpBusy() ? 'Disabling…' : 'Confirm disable' }}
+            </button>
+            <button type="button" class="btn btn-secondary" [disabled]="totpBusy()" (click)="toggleDisableForm()">Cancel</button>
+          </div>
+        } @else {
+          <p class="totp-help">Your account is protected — a code from your authenticator app is required at sign-in.</p>
+          <div class="totp-actions">
+            <button type="button" class="btn btn-danger" (click)="toggleDisableForm()">Disable two-factor auth</button>
+          </div>
+        }
+      } @else {
+        <p class="totp-help">Add an extra layer of security: after your password, you'll also need a code from an authenticator app.</p>
+        <div class="totp-actions">
+          <button type="button" class="btn btn-primary" [disabled]="settingUp()" (click)="startTwoFactorSetup()">
+            {{ settingUp() ? 'Starting…' : 'Enable two-factor auth' }}
+          </button>
+        </div>
+      }
     </div>
   </div>
 }

@@ -18,6 +18,8 @@ import java.util.List;
 public class UserUpdateDto {
 
     private String email;
+    private String firstName;
+    private String lastName;
     private String numTel;
     private String photo;
     private AddressDto address;
@@ -30,6 +32,8 @@ public class UserUpdateDto {
 
         return UserUpdateDto.builder()
                 .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
                 .numTel(user.getNumTel())
                 .photo(user.getPhoto() != null ? user.getPhoto() : "")
                 .address(user.getAddress() != null ? AddressDto.fromEntity(user.getAddress()) : new AddressDto())

@@ -49,6 +49,38 @@
 
       <div class="field">
         <div class="field-label-row">
+          <label class="field-label" for="reg-username">Username <span class="muted-inline">(optional)</span></label>
+        </div>
+        <div class="field-input-wrap">
+          <span class="field-icon-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg>
+          </span>
+          <input
+            id="reg-username"
+            class="field-input has-icon"
+            type="text"
+            formControlName="username"
+            autocomplete="username"
+            placeholder="Sign in with this instead of your email"
+          />
+        </div>
+        @if (form.controls.username.invalid && form.controls.username.touched) {
+          <p class="field-error">3-30 characters: letters, digits, underscores, dots or hyphens.</p>
+        }
+      </div>
+
+      <div class="field">
+        <div class="field-label-row">
+          <label class="field-label" for="reg-birthdate">Date of birth</label>
+        </div>
+        <input id="reg-birthdate" class="field-input" type="date" formControlName="birthDate" [max]="maxBirthDate" autocomplete="bday" />
+        @if (form.controls.birthDate.invalid && form.controls.birthDate.touched) {
+          <p class="field-error">Enter your date of birth.</p>
+        }
+      </div>
+
+      <div class="field">
+        <div class="field-label-row">
           <label class="field-label" for="reg-phone">Phone number</label>
         </div>
         <div class="field-prefix">
@@ -124,13 +156,13 @@
         }
       </div>
 
-      <div class="checkbox-row" style="margin-bottom: 20px;">
+      <label class="checkbox-row" style="margin-bottom: 20px;">
         <input type="checkbox" formControlName="acceptTerms" class="checkbox-input" id="reg-terms" />
         <span class="checkbox-visual"></span>
-        <label class="checkbox-label" for="reg-terms">
-          I agree to the <a href="#" (click)="$event.preventDefault()">Terms of Service</a> and <a href="#" (click)="$event.preventDefault()">Privacy Policy</a>.
-        </label>
-      </div>
+        <span class="checkbox-label">
+          I agree to the <a href="#" (click)="$event.preventDefault(); $event.stopPropagation()">Terms of Service</a> and <a href="#" (click)="$event.preventDefault(); $event.stopPropagation()">Privacy Policy</a>.
+        </span>
+      </label>
 
       <button type="submit" class="btn btn-primary" [disabled]="submitting()">
         {{ submitting() ? 'Creating account…' : 'Create account' }}

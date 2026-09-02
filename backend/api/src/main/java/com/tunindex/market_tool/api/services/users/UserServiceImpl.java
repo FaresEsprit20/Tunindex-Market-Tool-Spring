@@ -161,6 +161,9 @@ public class UserServiceImpl implements UserService {
             userEntity.get().setNumTel(userDto.getNumTel());
         }
 
+        userEntity.get().setFirstName(userDto.getFirstName());
+        userEntity.get().setLastName(userDto.getLastName());
+
         Address address = userEntity.get().getAddress();
         address.setAddress1(userDto.getAddress().getAddress1());
         address.setAddress2(userDto.getAddress().getAddress2());

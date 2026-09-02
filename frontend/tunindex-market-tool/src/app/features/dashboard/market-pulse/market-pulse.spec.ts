@@ -1,16 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { WatchlistItem } from './watchlist-item';
+import { MarketPulse } from './market-pulse';
 
-describe('WatchlistItem', () => {
-  let component: WatchlistItem;
-  let fixture: ComponentFixture<WatchlistItem>;
+describe('MarketPulse', () => {
+  let component: MarketPulse;
+  let fixture: ComponentFixture<MarketPulse>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [WatchlistItem],
+      imports: [MarketPulse],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(WatchlistItem);
+    fixture = TestBed.createComponent(MarketPulse);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

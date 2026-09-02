@@ -6,9 +6,31 @@
   </div>
 } @else if (counts(); as c) {
   <div class="stat-tile-grid">
-    <app-stat-tile label="Stocks tracked" [value]="c.total.toString()" />
-    <app-stat-tile label="Undervalued" [value]="c.undervalued.toString()" trend="up" [trendLabel]="'Margin of safety > 0'" />
-    <app-stat-tile label="Profitable" [value]="c.profitable.toString()" />
-    <app-stat-tile label="Graham criteria matches" [value]="c.grahamMatches.toString()" />
+    <app-stat-tile
+      label="Stocks tracked"
+      [value]="c.total.toString()"
+      icon="M3 3v18h18M7 14l4-4 3 3 5-6"
+      accent="brand"
+    />
+    <app-stat-tile
+      label="Undervalued"
+      [value]="c.undervalued.toString()"
+      trend="up"
+      [trendLabel]="'Margin of safety > 0'"
+      icon="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"
+      accent="positive"
+    />
+    <app-stat-tile
+      label="Profitable"
+      [value]="c.profitable.toString()"
+      icon="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+      accent="positive"
+    />
+    <app-stat-tile
+      label="Graham criteria matches"
+      [value]="c.grahamMatches.toString()"
+      icon="M12 4.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 20.6l1-5.8-4.3-4.1 5.9-.9z"
+      accent="warning"
+    />
   </div>
 }

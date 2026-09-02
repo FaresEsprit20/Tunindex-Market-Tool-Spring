@@ -14,25 +14,25 @@
   } @else if (rows().length === 0) {
     <p class="empty-msg">No ownership data available.</p>
   } @else {
-    <div class="proportion-bar">
-      @for (row of rows(); track row.ownership) {
-        <div
-          class="segment"
-          [class.private]="row.ownership === 'PRIVATE'"
-          [class.government]="row.ownership === 'GOVERNMENT'"
-          [style.width.%]="row.pct"
-        ></div>
-      }
-    </div>
-
-    <div class="legend">
-      @for (row of rows(); track row.ownership) {
-        <div class="legend-item">
-          <span class="swatch" [class.private]="row.ownership === 'PRIVATE'" [class.government]="row.ownership === 'GOVERNMENT'"></span>
-          <span class="legend-label">{{ row.label }}</span>
-          <span class="legend-value">{{ row.count }} <span class="legend-pct">({{ row.pct | number: '1.0-1' }}%)</span></span>
+    <div class="donut-layout">
+      <div class="donut" [style.background]="donutBackground()">
+        <div class="donut-hole">
+          @if (dominant(); as d) {
+            <span class="donut-pct">{{ d.pct | number: '1.0-0' }}%</span>
+            <span class="donut-label">{{ d.label }}</span>
+          }
         </div>
-      }
+      </div>
+
+      <div class="legend">
+        @for (row of rows(); track row.ownership) {
+          <div class="legend-item">
+            <span class="swatch" [class.private]="row.ownership === 'PRIVATE'" [class.government]="row.ownership === 'GOVERNMENT'"></span>
+            <span class="legend-label">{{ row.label }}</span>
+            <span class="legend-value">{{ row.count }} <span class="legend-pct">({{ row.pct | number: '1.0-1' }}%)</span></span>
+          </div>
+        }
+      </div>
     </div>
   }
 </div>

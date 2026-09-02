@@ -1,16 +1,17 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { PriceChart } from './price-chart';
+import { WatchlistStar } from './watchlist-star';
 
-describe('PriceChart', () => {
-  let component: PriceChart;
-  let fixture: ComponentFixture<PriceChart>;
+describe('WatchlistStar', () => {
+  let component: WatchlistStar;
+  let fixture: ComponentFixture<WatchlistStar>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PriceChart],
+      imports: [WatchlistStar],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(PriceChart);
+    fixture = TestBed.createComponent(WatchlistStar);
+    fixture.componentRef.setInput('symbol', 'BIAT');
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

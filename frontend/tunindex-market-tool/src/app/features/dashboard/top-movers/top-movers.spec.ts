@@ -1,16 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TechnicalAnalysis } from './technical-analysis';
+import { provideRouter } from '@angular/router';
+import { TopMovers } from './top-movers';
 
-describe('TechnicalAnalysis', () => {
-  let component: TechnicalAnalysis;
-  let fixture: ComponentFixture<TechnicalAnalysis>;
+describe('TopMovers', () => {
+  let component: TopMovers;
+  let fixture: ComponentFixture<TopMovers>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TechnicalAnalysis],
+      imports: [TopMovers],
+      providers: [provideRouter([])],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(TechnicalAnalysis);
+    fixture = TestBed.createComponent(TopMovers);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

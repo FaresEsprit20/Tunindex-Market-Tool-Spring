@@ -7,10 +7,12 @@ import { Stock } from '../../../core/services/stock';
 import { Notification } from '../../../core/services/notification';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { StatTile } from '../../../shared/components/stat-tile/stat-tile';
+import { RangeBar } from '../../../shared/components/range-bar/range-bar';
+import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
 
 @Component({
   selector: 'app-stock-detail',
-  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile],
+  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar],
   templateUrl: './stock-detail.html',
   styleUrl: './stock-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,6 +32,14 @@ export class StockDetail {
 
   private readonly paramMap = toSignal(this.route.paramMap, { initialValue: this.route.snapshot.paramMap });
   protected readonly symbol = computed(() => this.paramMap().get('symbol') ?? '');
+
+  protected readonly dayChangePct = computed(() => {
+    const s = this.stock();
+    if (!s || s.lastPrice === null || s.prevClose === null || s.prevClose === 0) {
+      return null;
+    }
+    return ((s.lastPrice - s.prevClose) / s.prevClose) * 100;
+  });
 
   constructor() {
     this.load();

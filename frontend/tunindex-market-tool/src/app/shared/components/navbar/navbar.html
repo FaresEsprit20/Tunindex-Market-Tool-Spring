@@ -5,9 +5,33 @@
     type="text"
     placeholder="Search symbol or company…"
     [value]="searchQuery()"
-    (input)="searchQuery.set($any($event.target).value)"
+    (input)="onQueryInput($any($event.target).value)"
+    (focus)="onSearchFocus()"
     (keydown.enter)="onSearchSubmit()"
+    (keydown.escape)="dropdownOpen.set(false)"
   />
+  @if (dropdownOpen()) {
+    <div class="search-dropdown">
+      @if (searching()) {
+        <div class="dropdown-status">Searching…</div>
+      } @else if (results().length === 0) {
+        <div class="dropdown-status">No matches for "{{ searchQuery() }}"</div>
+      } @else {
+        @for (r of results(); track r.id) {
+          <button type="button" class="dropdown-item" (click)="openStock(r.symbol)">
+            <span class="dropdown-symbol">{{ r.symbol }}</span>
+            <span class="dropdown-name">{{ r.name }}</span>
+            @if (r.lastPrice !== null) {
+              <span class="dropdown-price mono">{{ r.lastPrice }} {{ r.currency }}</span>
+            }
+          </button>
+        }
+      }
+      <button type="button" class="dropdown-footer" (click)="onSearchSubmit()">
+        See all results for "{{ searchQuery() }}"
+      </button>
+    </div>
+  }
 </div>
 
 <div class="navbar-right">

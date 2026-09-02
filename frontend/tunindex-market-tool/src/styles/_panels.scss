@@ -78,3 +78,16 @@
   color: var(--color-text-secondary);
   margin: 0;
 }
+
+.section {
+  margin-top: 20px;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0 0 10px;
+}

@@ -21,6 +21,7 @@
     <div>
       <div class="title-row">
         <h1 class="symbol-title">{{ s.symbol }}</h1>
+        <app-watchlist-star [symbol]="s.symbol" />
         @if (s.sector) {
           <span class="tag">{{ sectorLabels[s.sector] }}</span>
         }
@@ -37,11 +38,70 @@
     </button>
   </div>
 
+  <div class="price-panel panel-card section">
+    <div class="price-hero">
+      <span class="price-value mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }}</span>
+      <span class="price-currency">{{ s.currency }}</span>
+      @if (dayChangePct(); as chg) {
+        <span class="price-change mono" [class.positive]="chg > 0" [class.negative]="chg < 0">
+          @if (chg > 0) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+          } @else if (chg < 0) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
+          }
+          {{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%
+        </span>
+      }
+      <span class="price-vs-close">vs. prev. close {{ s.prevClose !== null ? (s.prevClose | number: '1.2-2') : '—' }}</span>
+    </div>
+
+    <div class="range-panels">
+      <div class="range-panel-item">
+        <span class="range-panel-label">Day range</span>
+        <app-range-bar
+          [min]="s.dayLow"
+          [max]="s.dayHigh"
+          [current]="s.lastPrice"
+          [minLabel]="(s.dayLow | number: '1.2-2') ?? '—'"
+          [maxLabel]="(s.dayHigh | number: '1.2-2') ?? '—'"
+        />
+      </div>
+      <div class="range-panel-item">
+        <span class="range-panel-label">52-week range</span>
+        <app-range-bar
+          [min]="s.week52Low"
+          [max]="s.week52High"
+          [current]="s.lastPrice"
+          [minLabel]="(s.week52Low | number: '1.2-2') ?? '—'"
+          [maxLabel]="(s.week52High | number: '1.2-2') ?? '—'"
+        />
+      </div>
+    </div>
+  </div>
+
   <div class="stat-tile-grid section">
-    <app-stat-tile label="Last price" [value]="s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') + ' ' + (s.currency ?? '') : '—'" />
-    <app-stat-tile label="52-week range" [value]="(s.week52Low !== null ? (s.week52Low | number:'1.2-2') : '—') + ' – ' + (s.week52High !== null ? (s.week52High | number:'1.2-2') : '—')" />
-    <app-stat-tile label="Day range" [value]="(s.dayLow !== null ? (s.dayLow | number:'1.2-2') : '—') + ' – ' + (s.dayHigh !== null ? (s.dayHigh | number:'1.2-2') : '—')" />
-    <app-stat-tile label="Volume" [value]="(s.volume !== null ? (s.volume | number) : null) ?? '—'" />
+    <app-stat-tile
+      label="Volume"
+      [value]="(s.volume !== null ? (s.volume | number) : null) ?? '—'"
+      icon="M3 3v18h18M7 14l4-4 3 3 5-6"
+    />
+    <app-stat-tile
+      label="Avg. volume (3m)"
+      [value]="(s.avgVolume3m !== null ? (s.avgVolume3m | number) : null) ?? '—'"
+      icon="M3 3v18h18M7 14l4-4 3 3 5-6"
+    />
+    <app-stat-tile
+      label="Market cap"
+      [value]="(s.marketCap !== null ? (s.marketCap | number) : null) ?? '—'"
+      icon="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+      accent="brand"
+    />
+    <app-stat-tile
+      label="Margin of safety"
+      [value]="s.marginOfSafety !== null ? (s.marginOfSafety | number: '1.1-1') + '%' : '—'"
+      icon="M12 4.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 20.6l1-5.8-4.3-4.1 5.9-.9z"
+      [accent]="(s.marginOfSafety ?? 0) >= 0 ? 'positive' : 'negative'"
+    />
   </div>
 
   <div class="two-col-grid section">

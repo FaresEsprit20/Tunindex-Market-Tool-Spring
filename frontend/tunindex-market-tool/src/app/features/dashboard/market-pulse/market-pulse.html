@@ -1,0 +1,63 @@
+<div class="pulse-card" [class.loading]="loading()">
+  <svg class="pulse-chart" viewBox="0 0 600 140" fill="none" preserveAspectRatio="none">
+    <path
+      d="M0 110 L60 95 L120 102 L180 70 L240 80 L300 45 L360 58 L420 25 L480 35 L540 10 L600 20"
+      stroke="rgba(255,255,255,0.35)"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M0 110 L60 95 L120 102 L180 70 L240 80 L300 45 L360 58 L420 25 L480 35 L540 10 L600 20 L600 140 L0 140 Z"
+      fill="url(#pulseFade)"
+    />
+    <defs>
+      <linearGradient id="pulseFade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="rgba(255,255,255,0.14)" />
+        <stop offset="1" stop-color="rgba(255,255,255,0)" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="pulse-content">
+    <div class="pulse-head">
+      <span class="pulse-eyebrow">Market pulse</span>
+      <span class="pulse-live"><span class="live-dot"></span>Live</span>
+    </div>
+
+    @if (pulse(); as p) {
+      <div class="pulse-headline">
+        <span class="pulse-big" [class.negative]="p.avgChangePct < 0">
+          {{ p.avgChangePct > 0 ? '+' : '' }}{{ p.avgChangePct | number: '1.2-2' }}%
+        </span>
+        <span class="pulse-sub">avg. move across tracked stocks today</span>
+      </div>
+
+      <div class="pulse-breakdown">
+        <div class="breakdown-item">
+          <span class="breakdown-dot advancing"></span>
+          <span class="breakdown-count">{{ p.advancing }}</span>
+          <span class="breakdown-label">Advancing</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-dot declining"></span>
+          <span class="breakdown-count">{{ p.declining }}</span>
+          <span class="breakdown-label">Declining</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-dot unchanged"></span>
+          <span class="breakdown-count">{{ p.unchanged }}</span>
+          <span class="breakdown-label">Unchanged</span>
+        </div>
+        <div class="breakdown-item cap">
+          <span class="breakdown-count">{{ p.totalMarketCap | number: '1.0-0' }}</span>
+          <span class="breakdown-label">Total market cap (TND)</span>
+        </div>
+      </div>
+    } @else {
+      <div class="pulse-headline">
+        <span class="pulse-big skeleton-text">···</span>
+      </div>
+    }
+  </div>
+</div>

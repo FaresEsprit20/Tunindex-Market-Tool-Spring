@@ -6,6 +6,8 @@ import { SECTOR_LABELS, SectorType, StockDto } from '../../../core/models/stock.
 import { Stock, StockFilters } from '../../../core/services/stock';
 import { Pagination } from '../../../shared/components/pagination/pagination';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
+import { RangeBar } from '../../../shared/components/range-bar/range-bar';
+import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
 
 const PAGE_SIZE = 20;
 const SECTOR_OPTIONS: SectorType[] = [
@@ -26,7 +28,7 @@ type PresetKey = 'undervalued' | 'profitable' | 'grahamCriteria' | null;
 
 @Component({
   selector: 'app-stock-list',
-  imports: [Pagination, SkeletonBlock, DecimalPipe],
+  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar],
   templateUrl: './stock-list.html',
   styleUrl: './stock-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -118,5 +120,12 @@ export class StockList {
 
   protected openStock(symbol: string): void {
     void this.router.navigate(['/app/stocks', symbol]);
+  }
+
+  protected dayChangePct(stock: StockDto): number | null {
+    if (stock.lastPrice === null || stock.prevClose === null || stock.prevClose === 0) {
+      return null;
+    }
+    return ((stock.lastPrice - stock.prevClose) / stock.prevClose) * 100;
   }
 }

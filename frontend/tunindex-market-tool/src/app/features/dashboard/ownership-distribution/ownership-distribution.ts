@@ -27,6 +27,23 @@ export class OwnershipDistribution {
   protected readonly rows = signal<OwnershipRow[]>([]);
   protected readonly total = computed(() => this.rows().reduce((sum, r) => sum + r.count, 0));
 
+  private readonly segmentColor: Record<OwnershipType, string> = {
+    PRIVATE: 'var(--color-brand)',
+    GOVERNMENT: '#b7791b',
+  };
+
+  protected readonly donutBackground = computed(() => {
+    let cursor = 0;
+    const stops = this.rows().map((row) => {
+      const start = cursor;
+      cursor += row.pct;
+      return `${this.segmentColor[row.ownership] ?? '#8993ab'} ${start}% ${cursor}%`;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
+  });
+
+  protected readonly dominant = computed(() => this.rows()[0] ?? null);
+
   constructor() {
     this.stockService.countByOwnership().subscribe({
       next: (entries) => {

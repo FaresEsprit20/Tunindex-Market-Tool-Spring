@@ -4,34 +4,54 @@
   margin-top: 14px;
 }
 
-.proportion-bar {
+.donut-layout {
   display: flex;
-  height: 14px;
-  border-radius: 7px;
-  overflow: hidden;
-  gap: 2px;
-  background: var(--color-panel-alt);
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
 }
 
-.segment {
-  height: 100%;
+.donut {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
-  &.private {
-    background: var(--color-brand);
-  }
+.donut-hole {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  background: var(--color-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
 
-  &.government {
-    // Fixed hex (not theme-swapped): validated against both light and dark
-    // chart surfaces alongside --color-brand — see dataviz palette check.
-    background: #b7791b;
-  }
+.donut-pct {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-label {
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: 0 4px;
 }
 
 .legend {
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-width: 160px;
 }
 
 .legend-item {

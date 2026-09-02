@@ -15,6 +15,89 @@
   max-width: 40vw;
 }
 
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  max-width: 80vw;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 40;
+  animation: card-enter 0.15s ease-out;
+}
+
+.dropdown-status {
+  padding: 16px;
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+
+  &:hover {
+    background: var(--color-panel-alt);
+  }
+}
+
+.dropdown-symbol {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--color-text-primary);
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.dropdown-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-price {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.dropdown-footer {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: var(--color-panel-alt);
+  color: var(--color-brand);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-brand-dim);
+  }
+}
+
 .search-icon {
   position: absolute;
   left: 11px;

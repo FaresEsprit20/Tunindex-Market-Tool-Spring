@@ -5,6 +5,7 @@
 @import "styles/bootstrap-grid";
 @import "styles/auth-form";
 @import "styles/panels";
+@import "styles/stock-table";
 
 :root {
   // Alpha/"dim" variants of the semantic tokens, derived from the Tailwind
@@ -91,6 +92,17 @@ a {
 @keyframes ticker-slide-in {
   0% {
     transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes card-enter {
+  0% {
+    transform: translateY(8px);
     opacity: 0;
   }
   100% {

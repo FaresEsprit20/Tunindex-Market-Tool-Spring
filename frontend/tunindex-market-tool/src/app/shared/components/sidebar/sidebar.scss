@@ -36,32 +36,58 @@
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 9px 10px;
+  padding: 9px 10px 9px 13px;
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   font-size: 13.5px;
   font-weight: 500;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color 0.14s ease, color 0.14s ease;
 
   svg {
     width: 17px;
     height: 17px;
     flex-shrink: 0;
+    transition: transform 0.14s ease;
+  }
+
+  // A left accent bar that grows in on activation, rather than just a
+  // background tint — reads as "current location" at a glance, the way
+  // Linear/Vercel-style sidebars do it.
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
+    height: 0;
+    border-radius: 0 3px 3px 0;
+    background: var(--color-brand);
+    transform: translateY(-50%);
+    transition: height 0.16s ease;
   }
 
   &:hover {
     background: var(--color-panel-alt);
     color: var(--color-text-primary);
     text-decoration: none;
+
+    svg {
+      transform: translateX(1px);
+    }
   }
 
   &.active {
     background: var(--color-brand-light);
     color: var(--color-brand);
     font-weight: 600;
+
+    &::before {
+      height: 18px;
+    }
   }
 }
 

@@ -1,0 +1,36 @@
+:host {
+  display: inline-flex;
+}
+
+.star-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color 0.14s ease, background-color 0.14s ease, transform 0.1s ease;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    color: var(--color-warning);
+    background: var(--color-warning-dim);
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
+
+  &.active {
+    color: var(--color-warning);
+  }
+}

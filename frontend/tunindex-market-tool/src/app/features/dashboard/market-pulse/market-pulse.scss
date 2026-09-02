@@ -1,0 +1,138 @@
+.pulse-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #1656e8 0%, #0d2f80 65%, #071c4d 100%);
+  box-shadow: var(--shadow-md);
+  padding: 26px 30px 30px;
+  margin-bottom: 20px;
+
+  &.loading {
+    min-height: 150px;
+  }
+}
+
+.pulse-chart {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 110px;
+  pointer-events: none;
+}
+
+.pulse-content {
+  position: relative;
+  z-index: 1;
+}
+
+.pulse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.pulse-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.pulse-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #26c9ab;
+  box-shadow: 0 0 0 3px rgba(38, 201, 171, 0.25);
+}
+
+.pulse-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.pulse-big {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+
+  &.negative {
+    color: #ff8f97;
+  }
+
+  &.skeleton-text {
+    opacity: 0.4;
+  }
+}
+
+.pulse-sub {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.pulse-breakdown {
+  display: flex;
+  gap: 36px;
+  flex-wrap: wrap;
+}
+
+.breakdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &.cap {
+    margin-left: auto;
+  }
+}
+
+.breakdown-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-bottom: 2px;
+
+  &.advancing {
+    background: #26c9ab;
+  }
+
+  &.declining {
+    background: #ff8f97;
+  }
+
+  &.unchanged {
+    background: rgba(255, 255, 255, 0.5);
+  }
+}
+
+.breakdown-count {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown-label {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+}

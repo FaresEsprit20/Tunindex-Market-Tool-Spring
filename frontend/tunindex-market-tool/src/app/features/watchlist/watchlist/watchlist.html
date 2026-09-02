@@ -1,8 +1,70 @@
 <div class="page-head">
   <div>
     <p class="page-title">Watchlist</p>
-    <p class="page-sub">Track the stocks you care about.</p>
+    <p class="page-sub">{{ symbols().length }} {{ symbols().length === 1 ? 'stock' : 'stocks' }} you're tracking.</p>
   </div>
 </div>
 
-<app-empty-state title="Your watchlist is empty" message="Watchlists are coming soon — for now, browse stocks and check back here shortly." />
+@if (symbols().length === 0) {
+  <app-empty-state
+    title="Your watchlist is empty"
+    message="Star any stock from the list or its detail page to track it here."
+  />
+} @else {
+  <div class="panel-card">
+    <div class="table-scroll">
+      <table class="stock-table">
+        <thead>
+          <tr>
+            <th class="star-col"></th>
+            <th>Symbol</th>
+            <th>Name</th>
+            <th>Sector</th>
+            <th class="num">Price</th>
+            <th class="num">Change</th>
+            <th>52W range</th>
+            <th class="num">P/E</th>
+            <th class="num">Margin of safety</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            @for (i of [1, 2, 3]; track i) {
+              <tr class="skeleton-row">
+                <td colspan="9"><app-skeleton-block height="18px" /></td>
+              </tr>
+            }
+          } @else {
+            @for (stock of rows(); track stock.id) {
+              <tr class="stock-row" (click)="openStock(stock.symbol)">
+                <td class="star-col"><app-watchlist-star [symbol]="stock.symbol" /></td>
+                <td class="symbol-cell">{{ stock.symbol }}</td>
+                <td class="name-cell">{{ stock.name }}</td>
+                <td>
+                  @if (stock.sector) {
+                    <span class="sector-tag">{{ sectorLabels[stock.sector] }}</span>
+                  }
+                </td>
+                <td class="num mono">{{ stock.lastPrice !== null ? (stock.lastPrice | number: '1.2-2') + ' ' + (stock.currency ?? '') : '—' }}</td>
+                <td class="num mono">
+                  @if (dayChangePct(stock); as chg) {
+                    <span [class.positive]="chg > 0" [class.negative]="chg < 0">{{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%</span>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="range-cell">
+                  <app-range-bar [min]="stock.week52Low" [max]="stock.week52High" [current]="stock.lastPrice" [compact]="true" />
+                </td>
+                <td class="num mono">{{ stock.peRatio !== null ? (stock.peRatio | number: '1.1-1') : '—' }}</td>
+                <td class="num mono" [class.positive]="(stock.marginOfSafety ?? 0) > 0" [class.negative]="(stock.marginOfSafety ?? 0) < 0">
+                  {{ stock.marginOfSafety !== null ? (stock.marginOfSafety | number: '1.1-1') + '%' : '—' }}
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}

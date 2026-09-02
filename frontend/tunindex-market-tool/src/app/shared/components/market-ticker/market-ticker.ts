@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Stock } from '../../../core/services/stock';
 
 interface TickerItem {
   symbol: string;
@@ -6,23 +7,12 @@ interface TickerItem {
   changePct: number;
 }
 
-// Illustrative snapshot for the decorative ticker strip — not live data.
-const TICKER_ITEMS: TickerItem[] = [
-  { symbol: 'BIAT', price: '128.40', changePct: 0.86 },
-  { symbol: 'SFBT', price: '19.75', changePct: -0.42 },
-  { symbol: 'BH', price: '10.12', changePct: 1.24 },
-  { symbol: 'PGH', price: '5.63', changePct: 0.31 },
-  { symbol: 'STB', price: '3.98', changePct: -0.75 },
-  { symbol: 'UIB', price: '22.05', changePct: 0.58 },
-  { symbol: 'ATB', price: '4.41', changePct: -0.23 },
-  { symbol: 'BNA', price: '11.87', changePct: 0.14 },
-  { symbol: 'UBCI', price: '18.30', changePct: 1.02 },
-];
-
 /**
- * Decorative, continuously scrolling market strip — pure CSS animation
- * (no JS timer, so there's nothing to leak or clean up). The content is
- * duplicated once so the marquee loops seamlessly.
+ * Continuously scrolling market strip, driven by real prices — every symbol
+ * shown here comes from a live GET .../filter call against the backend (see
+ * constructor), not placeholder data. Only rendered inside the authenticated
+ * app shell, since the stock endpoints require a session; there is no public
+ * equivalent to feed this on the pre-login screens.
  */
 @Component({
   selector: 'app-market-ticker',
@@ -33,5 +23,24 @@ const TICKER_ITEMS: TickerItem[] = [
   host: { class: 'market-ticker-host' },
 })
 export class MarketTicker {
-  protected readonly items = TICKER_ITEMS;
+  private readonly stockService = inject(Stock);
+
+  private readonly loadedItems = signal<TickerItem[]>([]);
+  protected readonly items = computed(() => this.loadedItems());
+
+  constructor() {
+    this.stockService.filter({ page: 1, size: 40, sortField: 'symbol', sortDirection: 'ASC' }).subscribe({
+      next: (res) => {
+        const items = res.content
+          .filter((s) => s.lastPrice !== null && s.prevClose !== null && s.prevClose !== 0)
+          .map((s) => ({
+            symbol: s.symbol,
+            price: s.lastPrice!.toFixed(2),
+            changePct: Math.round(((s.lastPrice! - s.prevClose!) / s.prevClose!) * 10000) / 100,
+          }));
+        this.loadedItems.set(items);
+      },
+      error: () => this.loadedItems.set([]),
+    });
+  }
 }

@@ -17,7 +17,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   },
 })
 export class PulseDot {
-  readonly variant = input<'brand' | 'positive' | 'negative'>('positive');
+  readonly variant = input<'brand' | 'positive' | 'negative' | 'warning'>('positive');
   readonly size = input<'sm' | 'md'>('md');
 
   protected readonly colorVar = computed(() => `var(--color-${this.variant()})`);

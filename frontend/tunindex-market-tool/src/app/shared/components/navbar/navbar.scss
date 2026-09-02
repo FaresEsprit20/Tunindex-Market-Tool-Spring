@@ -147,6 +147,14 @@
   white-space: nowrap;
 }
 
+.status-dot-idle {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
 .theme-toggle {
   width: 32px;
   height: 32px;

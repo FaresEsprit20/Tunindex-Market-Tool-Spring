@@ -79,6 +79,13 @@
     </div>
   </div>
 
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">Price history</p></div>
+    <div class="panel-body">
+      <app-price-chart [points]="history()" [loading]="historyLoading()" />
+    </div>
+  </div>
+
   <div class="stat-tile-grid section">
     <app-stat-tile
       label="Volume"

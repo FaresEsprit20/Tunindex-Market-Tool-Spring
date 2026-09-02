@@ -35,9 +35,17 @@
 </div>
 
 <div class="navbar-right">
-  <div class="market-status">
-    <app-pulse-dot variant="positive" size="sm" />
-    <span>Market Data Live</span>
+  <div class="market-status" [title]="freshnessLabel()">
+    @if (freshness() === 'live') {
+      <app-pulse-dot variant="positive" size="sm" />
+    } @else if (freshness() === 'recent') {
+      <app-pulse-dot variant="warning" size="sm" />
+    } @else if (freshness() === 'stale') {
+      <app-pulse-dot variant="negative" size="sm" />
+    } @else {
+      <span class="status-dot-idle"></span>
+    }
+    <span>{{ freshnessLabel() }}</span>
   </div>
 
   <button

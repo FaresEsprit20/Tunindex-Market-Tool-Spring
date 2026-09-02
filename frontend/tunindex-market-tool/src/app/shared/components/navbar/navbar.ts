@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { Subject, forkJoin, of } from 'rxjs';
@@ -29,9 +29,42 @@ export class Navbar {
   protected readonly searching = signal(false);
   protected readonly dropdownOpen = signal(false);
 
+  private readonly lastUpdateAt = signal<Date | null>(null);
+  protected readonly freshness = computed<'live' | 'recent' | 'stale' | 'unknown'>(() => {
+    const at = this.lastUpdateAt();
+    if (!at) return 'unknown';
+    const minutesAgo = (Date.now() - at.getTime()) / 60000;
+    if (minutesAgo < 60) return 'live';
+    if (minutesAgo < 60 * 24) return 'recent';
+    return 'stale';
+  });
+  protected readonly freshnessLabel = computed(() => {
+    const at = this.lastUpdateAt();
+    if (!at) return 'Checking data…';
+    const minutesAgo = Math.round((Date.now() - at.getTime()) / 60000);
+    if (minutesAgo < 1) return 'Updated just now';
+    if (minutesAgo < 60) return `Updated ${minutesAgo}m ago`;
+    const hoursAgo = Math.round(minutesAgo / 60);
+    if (hoursAgo < 24) return `Updated ${hoursAgo}h ago`;
+    return `Updated ${Math.round(hoursAgo / 24)}d ago`;
+  });
+
   private readonly queryChanges = new Subject<string>();
 
   constructor() {
+    // Real freshness, not a permanently-on "live" label: the most recent
+    // lastUpdate timestamp across every tracked stock, from the same
+    // backend field the collector stamps on every save.
+    this.stockService
+      .filter({ page: 1, size: 1, sortField: 'lastUpdate', sortDirection: 'DESC' })
+      .subscribe({
+        next: (res) => {
+          const latest = res.content[0]?.lastUpdate;
+          this.lastUpdateAt.set(latest ? new Date(latest) : null);
+        },
+        error: () => this.lastUpdateAt.set(null),
+      });
+
     this.queryChanges
       .pipe(
         debounceTime(200),

@@ -1,0 +1,56 @@
+@if (loading()) {
+  <div class="chart-skeleton"></div>
+} @else if (!hasData()) {
+  <div class="chart-empty">
+    <p>No price history available yet for this stock.</p>
+  </div>
+} @else {
+  <div class="chart-range">
+    <span>{{ priceRangeLabel().max | number: '1.2-2' }}</span>
+  </div>
+
+  <div class="chart-wrap">
+    <svg
+      [attr.viewBox]="'0 0 ' + viewWidth + ' ' + viewHeight"
+      preserveAspectRatio="none"
+      class="chart-svg"
+      (mousemove)="onMouseMove($event)"
+      (mouseleave)="onMouseLeave()"
+    >
+      <defs>
+        <linearGradient id="priceAreaFade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--color-brand)" stop-opacity="0.18" />
+          <stop offset="1" stop-color="var(--color-brand)" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+
+      <path [attr.d]="areaPath()" fill="url(#priceAreaFade)" stroke="none" />
+      <path [attr.d]="linePath()" fill="none" stroke="var(--color-brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+
+      @if (hoveredPoint(); as hp) {
+        <line [attr.x1]="hp.x" [attr.x2]="hp.x" y1="0" [attr.y2]="viewHeight" class="hover-crosshair" />
+        <circle [attr.cx]="hp.x" [attr.cy]="hp.y" r="4" class="hover-dot" />
+      }
+    </svg>
+
+    @if (hoveredPoint(); as hp) {
+      <div class="chart-tooltip" [style.left.%]="(hp.x / viewWidth) * 100">
+        <span class="tooltip-date">{{ formatDate(hp.date) }}</span>
+        <span class="tooltip-price mono">{{ hp.close | number: '1.2-2' }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="chart-range">
+    <span>{{ priceRangeLabel().min | number: '1.2-2' }}</span>
+  </div>
+
+  <div class="chart-axis">
+    @if (firstPoint(); as fp) {
+      <span>{{ formatDate(fp.date) }}</span>
+    }
+    @if (lastPoint(); as lp) {
+      <span>{{ formatDate(lp.date) }}</span>
+    }
+  </div>
+}

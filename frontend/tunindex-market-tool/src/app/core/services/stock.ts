@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../config/api.config';
 import { OwnershipStatEntry, SectorStatEntry } from '../models/market-statistics.model';
 import { PagedResponse, PaginationAndFilteringRequest } from '../models/pagination.model';
 import { StockDto } from '../models/stock.model';
+import { PriceHistoryPoint } from '../models/price-history.model';
 
 /**
  * Keys accepted by the backend's filters map (collector's StockServiceImpl
@@ -88,5 +89,17 @@ export class Stock {
 
   refresh(symbol: string): Observable<void> {
     return this.http.put<void>(`${API_BASE_URL}/refresh/${encodeURIComponent(symbol)}`, {});
+  }
+
+  /**
+   * Real daily OHLCV history, scraped from ilboursa.com — see
+   * IlBoursaHistoryProvider on the collector. Slow (a few seconds) the very
+   * first time a symbol has nothing cached yet, since that triggers a live
+   * scrape; fast on every call after that.
+   */
+  getHistory(symbol: string, days = 180): Observable<PriceHistoryPoint[]> {
+    return this.http.get<PriceHistoryPoint[]>(`${API_BASE_URL}/history/${encodeURIComponent(symbol)}`, {
+      params: { days },
+    });
   }
 }

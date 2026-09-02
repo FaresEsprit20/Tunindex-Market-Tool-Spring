@@ -1,42 +1,60 @@
-import { Injectable, signal } from '@angular/core';
-
-const STORAGE_KEY = 'tunindex-watchlist';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, effect, inject, signal } from '@angular/core';
+import { API_BASE_URL } from '../config/api.config';
+import { Auth } from './auth';
 
 /**
- * There's no backend endpoint for this yet, so it's local to the browser —
- * genuinely persisted (survives reloads) via localStorage, just not synced
- * across devices.
+ * Backed by the real per-user watchlist endpoints (GET/POST/DELETE
+ * .../watchlist) — nothing here is local-only. `symbols` is a client-side
+ * cache of the server's list, kept in sync by reacting to Auth.isAuthenticated
+ * rather than being wired into every login/logout call site: it fetches once
+ * auth state actually flips true (never on the pre-login page, where no
+ * session exists yet), and clears itself the moment it flips false. This
+ * also means a re-login as a different user in the same tab picks up the
+ * new user's list correctly, with no separate hook needed.
  */
 @Injectable({ providedIn: 'root' })
 export class Watchlist {
-  readonly symbols = signal<string[]>(this.loadFromStorage());
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(Auth);
+
+  readonly symbols = signal<string[]>([]);
+
+  constructor() {
+    effect(() => {
+      if (this.auth.isAuthenticated()) {
+        this.fetch();
+      } else {
+        this.symbols.set([]);
+      }
+    });
+  }
+
+  private fetch(): void {
+    this.http.get<string[]>(`${API_BASE_URL}/watchlist`).subscribe({
+      next: (symbols) => this.symbols.set(symbols),
+      error: () => this.symbols.set([]),
+    });
+  }
 
   isWatched(symbol: string): boolean {
     return this.symbols().includes(symbol);
   }
 
   toggle(symbol: string): void {
-    const current = this.symbols();
-    const next = current.includes(symbol) ? current.filter((s) => s !== symbol) : [...current, symbol];
-    this.symbols.set(next);
-    this.persist(next);
-  }
+    const previous = this.symbols();
+    const alreadyWatched = previous.includes(symbol);
 
-  private loadFromStorage(): string[] {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
+    // Optimistic: flip immediately so the star responds instantly, then
+    // reconcile with the server — roll back only if the request fails.
+    this.symbols.set(alreadyWatched ? previous.filter((s) => s !== symbol) : [...previous, symbol]);
 
-  private persist(symbols: string[]): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols));
-    } catch {
-      // Storage unavailable (private browsing, quota) — watchlist just won't persist this session.
-    }
+    const request$ = alreadyWatched
+      ? this.http.delete<void>(`${API_BASE_URL}/watchlist/${encodeURIComponent(symbol)}`)
+      : this.http.post<void>(`${API_BASE_URL}/watchlist/${encodeURIComponent(symbol)}`, {});
+
+    request$.subscribe({
+      error: () => this.symbols.set(previous),
+    });
   }
 }

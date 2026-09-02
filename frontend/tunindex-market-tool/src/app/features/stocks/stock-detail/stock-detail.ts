@@ -9,10 +9,12 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { StatTile } from '../../../shared/components/stat-tile/stat-tile';
 import { RangeBar } from '../../../shared/components/range-bar/range-bar';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
+import { PriceChart } from '../../../shared/components/price-chart/price-chart';
+import { PriceHistoryPoint } from '../../../core/models/price-history.model';
 
 @Component({
   selector: 'app-stock-detail',
-  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar],
+  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, PriceChart],
   templateUrl: './stock-detail.html',
   styleUrl: './stock-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +31,9 @@ export class StockDetail {
   protected readonly error = signal(false);
   protected readonly refreshing = signal(false);
   protected readonly stock = signal<StockDto | null>(null);
+
+  protected readonly historyLoading = signal(true);
+  protected readonly history = signal<PriceHistoryPoint[]>([]);
 
   private readonly paramMap = toSignal(this.route.paramMap, { initialValue: this.route.snapshot.paramMap });
   protected readonly symbol = computed(() => this.paramMap().get('symbol') ?? '');
@@ -64,6 +69,18 @@ export class StockDetail {
       error: () => {
         this.loading.set(false);
         this.error.set(true);
+      },
+    });
+
+    this.historyLoading.set(true);
+    this.stockService.getHistory(symbol).subscribe({
+      next: (points) => {
+        this.history.set(points);
+        this.historyLoading.set(false);
+      },
+      error: () => {
+        this.history.set([]);
+        this.historyLoading.set(false);
       },
     });
   }

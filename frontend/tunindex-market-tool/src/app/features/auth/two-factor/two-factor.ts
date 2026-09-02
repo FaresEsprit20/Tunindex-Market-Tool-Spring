@@ -1,12 +1,16 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, inject, signal, viewChildren } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Card } from '../../../shared/components/card/card';
-import { TwoFactorAuth } from '../../../core/services/two-factor-auth';
+import { Auth } from '../../../core/services/auth';
 import { Notification } from '../../../core/services/notification';
 
 const CODE_LENGTH = 6;
-const RESEND_COOLDOWN_SECONDS = 60;
-const CODE_TTL_SECONDS = 180;
+// Matches the backend's TOTP_LOGIN_PENDING ticket lifetime (see
+// UnifiedToken.onCreate on the api module) — this is how long the whole
+// login attempt stays valid, not a code-rotation timer: the code itself
+// refreshes every 30s on the authenticator app, independent of this page.
+const SESSION_TTL_SECONDS = 300;
 
 @Component({
   selector: 'app-two-factor',
@@ -17,8 +21,9 @@ const CODE_TTL_SECONDS = 180;
 })
 export class TwoFactor {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly twoFactorAuth = inject(TwoFactorAuth);
+  private readonly auth = inject(Auth);
   private readonly notification = inject(Notification);
+  private readonly router = inject(Router);
 
   protected readonly digitInputs = viewChildren<ElementRef<HTMLInputElement>>('digitInput');
 
@@ -29,16 +34,18 @@ export class TwoFactor {
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
-  protected readonly secondsUntilExpiry = signal(CODE_TTL_SECONDS);
-  protected readonly resendCooldown = signal(RESEND_COOLDOWN_SECONDS);
-  protected readonly canResend = computed(() => this.resendCooldown() <= 0);
-
-  protected readonly expiryLabel = computed(() => formatMmSs(this.secondsUntilExpiry()));
+  protected readonly secondsRemaining = signal(SESSION_TTL_SECONDS);
+  protected readonly expiryLabel = computed(() => formatMmSs(this.secondsRemaining()));
 
   constructor() {
+    if (!this.auth.pendingMfaToken()) {
+      // Direct navigation with no login attempt in flight — nothing to verify.
+      void this.router.navigateByUrl('/auth/login');
+      return;
+    }
+
     const intervalId = setInterval(() => {
-      this.secondsUntilExpiry.update((s) => Math.max(0, s - 1));
-      this.resendCooldown.update((s) => Math.max(0, s - 1));
+      this.secondsRemaining.update((s) => Math.max(0, s - 1));
     }, 1000);
     this.destroyRef.onDestroy(() => clearInterval(intervalId));
   }
@@ -91,28 +98,19 @@ export class TwoFactor {
     this.errorMessage.set(null);
     this.submitting.set(true);
 
-    this.twoFactorAuth.verify(this.code()).subscribe({
+    this.auth.verifyTwoFactor(this.code()).subscribe({
       next: () => {
         this.submitting.set(false);
+        this.notification.show('Signed in', 'Two-factor verification successful.', 'success');
+        void this.router.navigateByUrl('/app/dashboard');
       },
-      error: () => {
+      error: (err: unknown) => {
         this.submitting.set(false);
-        this.errorMessage.set('That code is incorrect or has expired.');
+        const backendMessage = err instanceof HttpErrorResponse ? (err.error?.message as string | undefined) : undefined;
+        this.errorMessage.set(backendMessage ?? 'That code is incorrect or has expired.');
+        this.digits.set(Array(CODE_LENGTH).fill(''));
+        this.digitInputs()[0]?.nativeElement.focus();
       },
-    });
-  }
-
-  protected onResend(): void {
-    if (!this.canResend()) {
-      return;
-    }
-
-    this.twoFactorAuth.resend().subscribe(() => {
-      this.resendCooldown.set(RESEND_COOLDOWN_SECONDS);
-      this.secondsUntilExpiry.set(CODE_TTL_SECONDS);
-      this.digits.set(Array(CODE_LENGTH).fill(''));
-      this.digitInputs()[0]?.nativeElement.focus();
-      this.notification.show('Code sent', 'A new verification code was sent to your device.', 'success');
     });
   }
 }

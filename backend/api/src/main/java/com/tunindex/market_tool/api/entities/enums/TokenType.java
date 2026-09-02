@@ -5,5 +5,6 @@ public enum TokenType {
     OAUTH2_ACCESS,                // OAuth2 access token (short-lived)
     OAUTH2_REFRESH,               // OAuth2 refresh token (long-lived)
     PASSWORD_RESET,               // Password reset tokens
-    TWO_FACTOR                    // 2FA verification tokens
+    TWO_FACTOR,                   // Legacy email-OTP verification tokens
+    TOTP_LOGIN_PENDING            // Short-lived ticket issued after password check, while awaiting a TOTP code
 }

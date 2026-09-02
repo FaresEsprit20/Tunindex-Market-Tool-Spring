@@ -13,6 +13,8 @@ import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidOperationException;
 import com.tunindex.market_tool.api.repository.UnifiedTokenRepository;
 import com.tunindex.market_tool.api.repository.UserRepository;
+import com.tunindex.market_tool.api.entities.UnifiedToken;
+import com.tunindex.market_tool.api.services.totp.TotpService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,6 +58,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final IpUaExtractor ipUaExtractor;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
+    private final TotpService totpService;
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String googleClientId;
@@ -85,11 +88,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             );
         }
 
-        User user = userRepository.findUserByEmail(authRequest.getLogin())
+        User user = userRepository.findUserByEmailOrUsername(authRequest.getLogin())
                 .orElseThrow(() -> new InvalidOperationException(
                         "User not found",
                         ErrorCodes.USER_NOT_FOUND,
-                        List.of("No user found with email: " + authRequest.getLogin())
+                        List.of("No user found with email or username: " + authRequest.getLogin())
                 ));
 
         if (user.getLocked()) {
@@ -98,6 +101,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     ErrorCodes.USER_ACCOUNT_LOCK_NOT_VALID,
                     List.of("Contact support to unlock your account")
             );
+        }
+
+        if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+            String mfaToken = "mfa_" + java.util.UUID.randomUUID().toString().replace("-", "");
+            oauth2TokenService.storeToken(mfaToken, TokenType.TOTP_LOGIN_PENDING,
+                    user.getId(), user.getEmail(), request, 5);
+            log.info("🔐 Password OK, TOTP code required for user: {}", user.getEmail());
+            return AuthenticationResponse.builder()
+                    .requiresTwoFactor(true)
+                    .mfaToken(mfaToken)
+                    .build();
         }
 
         String accessToken = oauth2TokenService.generateAccessToken();
@@ -116,6 +130,52 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         setAuthCookies(request, accessToken, refreshToken);
 
         log.info("✅ Username/password authentication successful for user: {}", user.getEmail());
+
+        return AuthenticationResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
+    }
+
+    @Override
+    public AuthenticationResponse verifyTwoFactor(String mfaToken, String code, HttpServletRequest request) {
+        UnifiedToken pending = unifiedTokenRepository.findByTokenAndType(mfaToken, TokenType.TOTP_LOGIN_PENDING)
+                .orElseThrow(() -> new InvalidOperationException(
+                        "Invalid or expired login session", ErrorCodes.TWO_FACTOR_TOKEN_INVALID,
+                        List.of("The login session has expired — please sign in again")));
+
+        if (pending.isUsed() || pending.getExpirationDate().isBefore(java.time.LocalDateTime.now())) {
+            throw new InvalidOperationException(
+                    "This login session has expired", ErrorCodes.TWO_FACTOR_TOKEN_EXPIRED,
+                    List.of("Please sign in again"));
+        }
+
+        User user = userRepository.findUserByEmail(pending.getUserEmail())
+                .orElseThrow(() -> new InvalidOperationException(
+                        "User not found", ErrorCodes.USER_NOT_FOUND, List.of("email: " + pending.getUserEmail())));
+
+        if (!totpService.verifyCode(user.getTotpSecret(), code)) {
+            throw new InvalidOperationException(
+                    "Invalid authentication code", ErrorCodes.TWO_FACTOR_TOKEN_INVALID,
+                    List.of("The code you entered is incorrect or has expired"));
+        }
+
+        pending.setUsed(true);
+        unifiedTokenRepository.save(pending);
+
+        String accessToken = oauth2TokenService.generateAccessToken();
+        String refreshToken = oauth2TokenService.generateRefreshToken();
+
+        revokeAllUserTokens(user);
+
+        oauth2TokenService.storeToken(accessToken, TokenType.OAUTH2_ACCESS,
+                user.getId(), user.getEmail(), request, 15);
+        oauth2TokenService.storeToken(refreshToken, TokenType.OAUTH2_REFRESH,
+                user.getId(), user.getEmail(), request, 10080);
+
+        setAuthCookies(request, accessToken, refreshToken);
+
+        log.info("✅ TOTP verification successful for user: {}", user.getEmail());
 
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)

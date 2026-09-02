@@ -1,0 +1,193 @@
+<div class="page-head">
+  <div>
+    <p class="page-title">Portfolio Simulator</p>
+    <p class="page-sub">Paper trading, Tunisian stocks only — real market prices, starting with 100,000.000 TND virtual cash.</p>
+  </div>
+  <button type="button" class="btn btn-secondary reset-btn" [disabled]="resetting()" (click)="resetAccount()">
+    Reset simulator
+  </button>
+</div>
+
+@if (loading()) {
+  <div class="stat-tile-grid section">
+    <app-skeleton-block height="76px" radius="12px" />
+    <app-skeleton-block height="76px" radius="12px" />
+    <app-skeleton-block height="76px" radius="12px" />
+    <app-skeleton-block height="76px" radius="12px" />
+  </div>
+} @else if (summary(); as s) {
+  <div class="stat-tile-grid section">
+    <app-stat-tile
+      label="Cash balance"
+      [value]="(s.cashBalance | number: '1.2-2') + ' TND'"
+      icon="M3 6h18v12H3zM3 10h18M7 15h3"
+      accent="brand"
+    />
+    <app-stat-tile
+      label="Portfolio value"
+      [value]="(s.totalPortfolioValue | number: '1.2-2') + ' TND'"
+      icon="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+      accent="brand"
+    />
+    <app-stat-tile
+      label="Unrealized P&amp;L"
+      [value]="(s.totalUnrealizedPnl >= 0 ? '+' : '') + (s.totalUnrealizedPnl | number: '1.2-2') + ' TND'"
+      [trend]="s.totalUnrealizedPnl >= 0 ? 'up' : 'down'"
+      [trendLabel]="(s.totalUnrealizedPnlPct >= 0 ? '+' : '') + (s.totalUnrealizedPnlPct | number: '1.1-1') + '%'"
+      icon="M3 17l6-6 4 4 8-8"
+      [accent]="s.totalUnrealizedPnl >= 0 ? 'positive' : 'negative'"
+    />
+    <app-stat-tile
+      label="Total return"
+      [value]="(s.totalReturnPct >= 0 ? '+' : '') + (s.totalReturnPct | number: '1.2-2') + '%'"
+      icon="M4 19h16M7 15l3-4 3 2 4-6"
+      [accent]="s.totalReturnPct >= 0 ? 'positive' : 'negative'"
+    />
+  </div>
+
+  <div class="trade-grid section">
+    <!-- Trade ticket -->
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Trade ticket</p></div>
+      <div class="panel-body">
+        <div class="trade-field-row">
+          <div class="trade-field">
+            <label class="field-label" for="trade-symbol">Symbol</label>
+            <input
+              id="trade-symbol"
+              class="field-input"
+              type="text"
+              placeholder="e.g. BIAT"
+              [value]="tradeSymbol()"
+              (input)="onSymbolInput($any($event.target).value)"
+              (keydown.enter)="lookupQuote()"
+            />
+          </div>
+          <div class="trade-field qty-field">
+            <label class="field-label" for="trade-qty">Quantity</label>
+            <input
+              id="trade-qty"
+              class="field-input"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="0"
+              [value]="tradeQuantity()"
+              (input)="tradeQuantity.set($any($event.target).value)"
+            />
+          </div>
+          <button type="button" class="btn btn-secondary quote-btn" [disabled]="quoteLoading() || !tradeSymbol()" (click)="lookupQuote()">
+            @if (quoteLoading()) { Loading… } @else { Get quote }
+          </button>
+        </div>
+
+        @if (quoteError()) {
+          <p class="quote-error">Couldn't find a stock for "{{ tradeSymbol() }}".</p>
+        }
+
+        @if (quote(); as q) {
+          <div class="quote-preview">
+            <div class="quote-preview-row">
+              <span class="quote-name">{{ q.name }}</span>
+              <span class="quote-price mono">{{ q.lastPrice !== null ? (q.lastPrice | number: '1.2-2') : '—' }} TND</span>
+            </div>
+            @if (estimatedTotal(); as total) {
+              <div class="quote-preview-row muted">
+                <span>Estimated total</span>
+                <span class="mono">{{ total | number: '1.2-2' }} TND</span>
+              </div>
+            }
+          </div>
+
+          <div class="trade-actions">
+            <button type="button" class="btn btn-primary" [disabled]="submitting() || parsedQuantity() === null" (click)="buy()">
+              Buy
+            </button>
+            <button type="button" class="btn btn-danger" [disabled]="submitting() || parsedQuantity() === null" (click)="sell()">
+              Sell
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Positions -->
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Positions</p></div>
+      @if (s.positions.length === 0) {
+        <p class="empty-msg">No open positions yet — place a trade to get started.</p>
+      } @else {
+        <div class="table-scroll">
+          <table class="stock-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th class="num">Qty</th>
+                <th class="num">Avg cost</th>
+                <th class="num">Price</th>
+                <th class="num">Market value</th>
+                <th class="num">Unrealized P&amp;L</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of s.positions; track p.symbol) {
+                <tr class="stock-row" (click)="selectSymbolForTrade(p.symbol)">
+                  <td class="symbol-cell">{{ p.symbol }}</td>
+                  <td class="num mono">{{ p.quantity | number: '1.0-2' }}</td>
+                  <td class="num mono">{{ p.avgCostBasis | number: '1.2-2' }}</td>
+                  <td class="num mono">{{ p.currentPrice | number: '1.2-2' }}</td>
+                  <td class="num mono">{{ p.marketValue | number: '1.2-2' }}</td>
+                  <td class="num mono" [class.positive]="p.unrealizedPnl >= 0" [class.negative]="p.unrealizedPnl < 0">
+                    {{ p.unrealizedPnl >= 0 ? '+' : '' }}{{ p.unrealizedPnl | number: '1.2-2' }}
+                    ({{ p.unrealizedPnlPct >= 0 ? '+' : '' }}{{ p.unrealizedPnlPct | number: '1.1-1' }}%)
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Transaction history -->
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">Trade history</p></div>
+    @if (transactions().length === 0) {
+      <app-empty-state title="No trades yet" message="Your executed buy and sell orders will show up here." />
+    } @else {
+      <div class="table-scroll">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th class="num">Qty</th>
+              <th class="num">Price</th>
+              <th class="num">Total</th>
+              <th class="num">Realized P&amp;L</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tx of transactions(); track tx.id) {
+              <tr>
+                <td class="mono">{{ tx.executedAt | date: 'MMM d, HH:mm' }}</td>
+                <td class="symbol-cell">{{ tx.symbol }}</td>
+                <td>
+                  <span class="side-badge" [class.positive]="tx.side === 'BUY'" [class.negative]="tx.side === 'SELL'">{{ tx.side }}</span>
+                </td>
+                <td class="num mono">{{ tx.quantity | number: '1.0-2' }}</td>
+                <td class="num mono">{{ tx.price | number: '1.2-2' }}</td>
+                <td class="num mono">{{ tx.totalAmount | number: '1.2-2' }}</td>
+                <td class="num mono" [class.positive]="(tx.realizedPnl ?? 0) > 0" [class.negative]="(tx.realizedPnl ?? 0) < 0">
+                  {{ tx.realizedPnl !== null ? ((tx.realizedPnl >= 0 ? '+' : '') + (tx.realizedPnl | number: '1.2-2')) : '—' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+}

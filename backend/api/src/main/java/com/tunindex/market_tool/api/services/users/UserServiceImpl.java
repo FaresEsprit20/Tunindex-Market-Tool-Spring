@@ -71,6 +71,13 @@ public class UserServiceImpl implements UserService {
                     Collections.singletonList("Another user with the same email already exists in the DB"));
         }
 
+        // Check if username already exists (optional field, so only checked when provided)
+        if (dto.getUsername() != null && !dto.getUsername().trim().isEmpty()
+                && userRepository.existsByLoginName(dto.getUsername().trim())) {
+            throw new InvalidEntityException("Another user with the same username already exists", ErrorCodes.USER_ALREADY_EXISTS,
+                    Collections.singletonList("Another user with the same username already exists in the DB"));
+        }
+
         // Check if phone number already exists - JUST LIKE EMAIL CHECK
         if (dto.getNumTel() != null && !dto.getNumTel().trim().isEmpty()) {
             Optional<User> existingUserByPhone = userRepository.findUserByNumTel(dto.getNumTel().trim());

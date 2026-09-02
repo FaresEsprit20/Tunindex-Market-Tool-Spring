@@ -13,6 +13,8 @@ public interface AuthenticationService {
 
     AuthenticationResponse authenticate(AuthenticationRequest request, HttpServletRequest httpRequest);
 
+    AuthenticationResponse verifyTwoFactor(String mfaToken, String code, HttpServletRequest request);
+
     AuthenticationResponse authenticateWithOAuth2(OAuth2AuthenticationToken oauthToken, HttpServletRequest request);
 
     AuthenticationResponse authenticateWithToken(String token, HttpServletRequest request);

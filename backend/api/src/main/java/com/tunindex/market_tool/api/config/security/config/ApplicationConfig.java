@@ -25,7 +25,7 @@ public class ApplicationConfig {
     @Bean
     @Primary  // This is the main UserDetailsService for username/password auth
     public UserDetailsService userDetailsService() {
-        return username -> repository.findUserByEmail(username)
+        return login -> repository.findUserByEmailOrUsername(login)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 

@@ -112,6 +112,15 @@ public class UnifiedToken {
                 this.expired = false;
                 break;
 
+            case TOTP_LOGIN_PENDING:
+                // Short-lived: the window between a correct password and a
+                // correct TOTP code, not a session lifetime.
+                this.expirationDate = LocalDateTime.now().plusMinutes(5);
+                this.isUsed = false;
+                this.revoked = false;
+                this.expired = false;
+                break;
+
             default:
                 this.expirationDate = LocalDateTime.now().plusHours(1);
                 this.revoked = false;

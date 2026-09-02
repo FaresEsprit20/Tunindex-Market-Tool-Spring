@@ -50,4 +50,28 @@ public abstract class BaseUser extends AbstractEntity {
     private String provider;
     private String providerId;
 
+    // Named loginName (not "username") on purpose: User.getUsername() is
+    // already an @Override for Spring Security's UserDetails contract
+    // (returns the email — see User.java), which would silently shadow a
+    // Lombok-generated getUsername() for a field literally named
+    // "username" and make it unreadable. DB column and DTO/API field are
+    // still named "username" for the user-facing concept.
+    @Column(name = "username", unique = true)
+    private String loginName;
+
+    // TOTP-based two-factor auth (RFC 6238) — configurable per user, off by
+    // default. totpSecret is the Base32 shared secret; it stays null until
+    // setup and is only ever read server-side to verify a submitted code,
+    // never re-sent to the client after initial enrollment.
+    // Not DB-level NOT NULL on purpose (like `locked` above): ddl-auto=update
+    // adding a NOT NULL column against an already-populated table fails
+    // per-row with no default, and Hibernate only warns rather than
+    // aborting startup — silently leaving the column missing. Defaulted in
+    // Java/at the read sites instead.
+    @Column(name = "two_factor_enabled")
+    private Boolean twoFactorEnabled = false;
+
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
 }

@@ -28,6 +28,7 @@ public class UserValidator {
         userDto.setFirstName(InputSanitizer.fullSanitize(userDto.getFirstName()));
         userDto.setLastName(InputSanitizer.fullSanitize(userDto.getLastName()));
         userDto.setEmail(InputSanitizer.fullSanitize(userDto.getEmail()));
+        userDto.setUsername(InputSanitizer.fullSanitize(userDto.getUsername()));
         userDto.setPassword(InputSanitizer.fullSanitize(userDto.getPassword()));
         userDto.setPhoto(InputSanitizer.fullSanitize(userDto.getPhoto()));
 
@@ -53,6 +54,15 @@ public class UserValidator {
         if (!StringUtils.hasLength(userDto.getEmail()) ||
                 !Pattern.matches(FieldsValidation.EMAIL_REGEX, userDto.getEmail())) {
             errors.add("Email is invalid: it must be a valid email format.");
+        }
+
+        // Username Validation (optional — only checked when provided)
+        if (StringUtils.hasLength(userDto.getUsername()) &&
+                (userDto.getUsername().length() < FieldsValidation.MIN_USERNAME_LENGTH ||
+                        userDto.getUsername().length() > FieldsValidation.MAX_USERNAME_LENGTH ||
+                        !Pattern.matches(FieldsValidation.USERNAME_REGEX, userDto.getUsername()))) {
+            errors.add("Username is invalid: it must be between " + FieldsValidation.MIN_USERNAME_LENGTH + " and " + FieldsValidation.MAX_USERNAME_LENGTH +
+                    " characters and contain only letters, digits, underscores, dots or hyphens.");
         }
 
         // Birth Date Validation

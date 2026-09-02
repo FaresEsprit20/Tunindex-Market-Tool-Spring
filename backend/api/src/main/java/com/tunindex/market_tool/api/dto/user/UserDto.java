@@ -25,6 +25,7 @@ public class UserDto {
     private String firstName;
     private String lastName;
     private String email;
+    private String username;
     private String numTel;
     private LocalDate birthDate;
     @JsonIgnore
@@ -43,6 +44,7 @@ public class UserDto {
                 .firstName(user.getFirstName() != null ? user.getFirstName() : "")
                 .lastName(user.getLastName() != null ? user.getLastName() : "")
                 .email(user.getEmail() != null ? user.getEmail() : "")
+                .username(user.getLoginName() != null ? user.getLoginName() : "")
                 .numTel(user.getNumTel()!= null ? user.getNumTel() : "")
                 .birthDate(user.getBirthDate())
                 .password(user.getPassword() != null ? user.getPassword() : "")
@@ -74,6 +76,10 @@ public class UserDto {
         user.setFirstName(userDto.getFirstName() != null ? userDto.getFirstName() : "");
         user.setLastName(userDto.getLastName() != null ? userDto.getLastName() : "");
         user.setEmail(userDto.getEmail() != null ? userDto.getEmail() : "");
+        // Left null (not "") when absent: loginName is unique, and unlike ""
+        // colliding across every username-less user, Postgres treats NULL
+        // as distinct from every other NULL under a unique constraint.
+        user.setLoginName(userDto.getUsername() != null && !userDto.getUsername().isBlank() ? userDto.getUsername().trim() : null);
         user.setNumTel(userDto.getNumTel() != null ? userDto.getNumTel() : "");
         user.setBirthDate(userDto.getBirthDate());
         user.setPassword(userDto.getPassword() != null ? userDto.getPassword() : "");

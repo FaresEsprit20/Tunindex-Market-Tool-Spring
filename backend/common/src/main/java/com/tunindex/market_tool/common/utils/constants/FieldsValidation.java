@@ -54,6 +54,11 @@ public class FieldsValidation {
     // Email Validation
     public static final String EMAIL_REGEX = "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
 
+    // Username Validation (optional field — an alternate login handle alongside email)
+    public static final int MIN_USERNAME_LENGTH = 3;
+    public static final int MAX_USERNAME_LENGTH = 30;
+    public static final String USERNAME_REGEX = "^[a-zA-Z0-9_.-]{3,30}$";
+
     // Phone Number Validation
     public static final String PHONE_NUMBER_REGEX = "^[0-9]{8}$";
     // Assuming phone number should be 8 digits

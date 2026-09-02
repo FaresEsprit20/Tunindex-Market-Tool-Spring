@@ -4,7 +4,7 @@ import { Observable, tap } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface LoginCredentials {
-  email: string;
+  login: string;
   password: string;
   rememberDevice: boolean;
 }
@@ -15,8 +15,11 @@ export interface AuthUser {
 }
 
 interface AuthenticationResponse {
-  accessToken: string;
+  accessToken: string | null;
   refreshToken: string | null;
+  /** True when the password check passed but a TOTP code is still needed. */
+  requiresTwoFactor: boolean;
+  mfaToken: string | null;
 }
 
 interface AuthCheckResponse {
@@ -44,15 +47,50 @@ export class Auth {
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this._currentUser() !== null);
 
+  /**
+   * Set only when a login attempt comes back with requiresTwoFactor: true —
+   * consumed by the two-factor page to complete the login. Not a real
+   * session: no cookies exist yet at this point, so isAuthenticated stays
+   * false until /auth/two-factor/verify succeeds.
+   */
+  private readonly _pendingMfaToken = signal<string | null>(null);
+  readonly pendingMfaToken = this._pendingMfaToken.asReadonly();
+  // The credential the user typed (email or username) — not necessarily a
+  // real email, but good enough as a placeholder until the post-login
+  // checkAuth() call (always run by authGuard) fills in the real one.
+  private pendingLogin: string | null = null;
+
   login(credentials: LoginCredentials): Observable<AuthenticationResponse> {
-    const { email, password, rememberDevice } = credentials;
+    const { login, password, rememberDevice } = credentials;
     return this.http
       .post<AuthenticationResponse>(`${API_BASE_URL}/auth/authenticate`, {
-        login: email,
+        login,
         password,
         remember_me: rememberDevice,
       })
-      .pipe(tap(() => this._currentUser.set({ email, userId: null })));
+      .pipe(
+        tap((res) => {
+          if (res.requiresTwoFactor) {
+            this._pendingMfaToken.set(res.mfaToken);
+            this.pendingLogin = login;
+          } else {
+            this._currentUser.set({ email: login, userId: null });
+          }
+        }),
+      );
+  }
+
+  verifyTwoFactor(code: string): Observable<AuthenticationResponse> {
+    const mfaToken = this._pendingMfaToken();
+    return this.http
+      .post<AuthenticationResponse>(`${API_BASE_URL}/auth/two-factor/verify`, { mfaToken, code })
+      .pipe(
+        tap(() => {
+          this._currentUser.set({ email: this.pendingLogin ?? '', userId: null });
+          this._pendingMfaToken.set(null);
+          this.pendingLogin = null;
+        }),
+      );
   }
 
   checkAuth(): Observable<AuthCheckResponse> {

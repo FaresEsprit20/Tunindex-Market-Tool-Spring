@@ -25,7 +25,7 @@ export class Login {
   protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly form = this.fb.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
+    login: ['', [Validators.required]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     rememberDevice: [true],
   });
@@ -46,12 +46,16 @@ export class Login {
     this.errorMessage.set(null);
     this.submitting.set(true);
 
-    const { email, password, rememberDevice } = this.form.getRawValue();
+    const { login, password, rememberDevice } = this.form.getRawValue();
 
-    this.auth.login({ email, password, rememberDevice }).subscribe({
-      next: () => {
+    this.auth.login({ login, password, rememberDevice }).subscribe({
+      next: (res) => {
         this.submitting.set(false);
-        this.notification.show('Signed in', `Welcome back, ${email}.`, 'success');
+        if (res.requiresTwoFactor) {
+          this.router.navigateByUrl('/auth/two-factor');
+          return;
+        }
+        this.notification.show('Signed in', `Welcome back, ${login}.`, 'success');
         this.router.navigateByUrl('/app/dashboard');
       },
       error: (err: unknown) => {

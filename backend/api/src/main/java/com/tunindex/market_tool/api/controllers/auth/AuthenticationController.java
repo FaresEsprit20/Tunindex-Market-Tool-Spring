@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.api.controllers.auth;
 
+import com.tunindex.market_tool.api.dto.two_factor.TwoFactorLoginVerifyRequestDto;
 import com.tunindex.market_tool.common.dto.auth.AuthCheckResponse;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationRequest;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationResponse;
@@ -52,6 +53,16 @@ public class AuthenticationController implements AuthenticationApi {
             log.info("✅ Username/password authentication successful");
             return ResponseEntity.ok(authResponse);
         }
+    }
+
+    @Override
+    public ResponseEntity<AuthenticationResponse> verifyTwoFactor(
+            @Valid @RequestBody TwoFactorLoginVerifyRequestDto request,
+            HttpServletRequest httpRequest) {
+        log.info("🔐 TOTP verification attempt");
+        AuthenticationResponse authResponse = authenticationService.verifyTwoFactor(
+                request.getMfaToken(), request.getCode(), httpRequest);
+        return ResponseEntity.ok(authResponse);
     }
 
     @Override

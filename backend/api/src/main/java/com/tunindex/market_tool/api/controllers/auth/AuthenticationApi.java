@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.api.controllers.auth;
 
+import com.tunindex.market_tool.api.dto.two_factor.TwoFactorLoginVerifyRequestDto;
 import com.tunindex.market_tool.common.dto.auth.AuthCheckResponse;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationRequest;
 import com.tunindex.market_tool.common.dto.auth.AuthenticationResponse;
@@ -44,6 +45,17 @@ public interface AuthenticationApi {
     })
     @GetMapping(AUTHENTICATION_ENDPOINT + "/google/login-url")
     ResponseEntity<?> getGoogleLoginUrl();
+
+    @Operation(summary = "Verify a TOTP code to complete login",
+            description = "Second step of login when the account has two-factor auth enabled")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login completed successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid or expired code/session")
+    })
+    @PostMapping(AUTHENTICATION_ENDPOINT + "/two-factor/verify")
+    ResponseEntity<AuthenticationResponse> verifyTwoFactor(
+            @Valid @RequestBody TwoFactorLoginVerifyRequestDto request,
+            HttpServletRequest httpRequest);
 
     @Operation(summary = "Check authentication state",
             description = "Checks if the current user is authenticated")

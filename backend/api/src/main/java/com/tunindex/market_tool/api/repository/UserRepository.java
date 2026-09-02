@@ -19,6 +19,11 @@ public interface UserRepository extends JpaRepository<User, Integer>, JpaSpecifi
     @Query(value = "select u from User u where u.email = :email")
     Optional<User> findUserByEmail(@Param("email") String email);
 
+    @Query("select u from User u where u.email = :login or u.loginName = :login")
+    Optional<User> findUserByEmailOrUsername(@Param("login") String login);
+
+    boolean existsByLoginName(String loginName);
+
     @Query("select u from User u join u.roles r where u.numTel = :numTel and r.roleName = 'CUSTOMER'")
     Optional<User> findUserByNumTel(@Param("numTel") String numTel);
 

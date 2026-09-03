@@ -4,6 +4,8 @@ import com.tunindex.market_tool.collector.dto.analysis.TechnicalAnalysisDto;
 import com.tunindex.market_tool.collector.dto.news.NewsImpactDto;
 import com.tunindex.market_tool.collector.dto.scoring.OpportunityScoreDto;
 import com.tunindex.market_tool.collector.entities.Stock;
+import com.tunindex.market_tool.common.entities.enums.OwnershipType;
+import com.tunindex.market_tool.common.entities.enums.SectorType;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -43,6 +45,15 @@ public class TunindexScorer {
     /** Headlines older than this stop counting toward the news component. */
     private static final int NEWS_LOOKBACK_DAYS = 90;
 
+    /**
+     * closeTo52weekslowPct at or above this counts as "near the low" — the
+     * field runs 100 = at the low, 0 = at the high, so 85 means the price
+     * sits in the bottom 15% of its year. Matches the near52WeekLow screener
+     * filter's intent, one notch looser than its 90 default so the upgrade
+     * catches a stock on approach rather than only at the exact bottom.
+     */
+    private static final BigDecimal NEAR_LOW_THRESHOLD = new BigDecimal("85");
+
     public OpportunityScoreDto score(Stock stock, TechnicalAnalysisDto technical, List<NewsImpactDto> news) {
         List<String> reasons = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
@@ -72,7 +83,7 @@ public class TunindexScorer {
                 .lastPrice(stock.getPriceData() != null ? stock.getPriceData().getLastPrice() : null)
                 .currency(stock.getCurrency())
                 .overallScore(overall)
-                .verdict(verdict(overall, completeness))
+                .verdict(verdict(overall, completeness, stock, isNearFiftyTwoWeekLow(stock), reasons, warnings))
                 .valuationScore(valuation)
                 .financialHealthScore(health)
                 .timingScore(timing)
@@ -140,10 +151,24 @@ public class TunindexScorer {
     // ── Timing: is now a good moment to enter? ─────────────────────────────
 
     private Integer scoreTiming(Stock stock, TechnicalAnalysisDto technical, List<String> reasons, List<String> warnings) {
-        List<Integer> parts = new ArrayList<>();
-
         BigDecimal closeTo52WeekLow = stock.getPriceData() != null
                 ? stock.getPriceData().getCloseTo52weekslowPct() : null;
+        return scoreTimingFrom(closeTo52WeekLow, technical, reasons, warnings);
+    }
+
+    /**
+     * The timing component, taking its inputs directly rather than reading
+     * them off a Stock.
+     *
+     * <p>Public because the backtester calls it with values reconstructed as
+     * of a past date. That is deliberate: a backtest that re-implements the
+     * scoring it claims to be testing measures its own copy, not the thing
+     * that ships. This way both paths run the same arithmetic.
+     */
+    public Integer scoreTimingFrom(BigDecimal closeTo52WeekLow, TechnicalAnalysisDto technical,
+                                   List<String> reasons, List<String> warnings) {
+        List<Integer> parts = new ArrayList<>();
+
         if (closeTo52WeekLow != null) {
             // 100 = at the 52-week low (best entry), 0 = at the high.
             double pct = closeTo52WeekLow.doubleValue();
@@ -350,16 +375,67 @@ public class TunindexScorer {
         return totalWeight == 0 ? 0 : (int) Math.round((double) weightedSum / totalWeight);
     }
 
-    private String verdict(int overall, int completeness) {
+    /**
+     * Turns the blended score into a call, then applies two overrides that
+     * sit outside the arithmetic because they are policy, not weighting.
+     *
+     * @param nearFiftyTwoWeekLow price within {@link #NEAR_LOW_THRESHOLD}% of
+     *                            the bottom of its 52-week range
+     */
+    private String verdict(int overall, int completeness, Stock stock,
+                           boolean nearFiftyTwoWeekLow, List<String> reasons, List<String> warnings) {
+
+        // Policy override, applied before anything else: a government-owned
+        // company outside the financial sector is excluded regardless of how
+        // well it scores. State-owned banks are the stated exception.
+        if (isExcludedStateOwned(stock)) {
+            warnings.add("State-owned and outside the financial sector — excluded by policy, "
+                    + "whatever the score says");
+            return "AVOID";
+        }
+
         // Too little data to stand behind a call, however the blend landed.
         if (completeness < 50) {
             return "WATCH";
         }
-        if (overall >= 80) return "STRONG_BUY";
-        if (overall >= 65) return "BUY";
-        if (overall >= 50) return "WATCH";
-        if (overall >= 35) return "HOLD";
-        return "AVOID";
+
+        String base;
+        if (overall >= 80) base = "STRONG_BUY";
+        else if (overall >= 65) base = "BUY";
+        else if (overall >= 50) base = "WATCH";
+        else if (overall >= 35) base = "HOLD";
+        else base = "AVOID";
+
+        // A stock already good enough to buy, caught at the bottom of its
+        // range, is the entry point this whole tool exists to find — so it
+        // is promoted rather than left to the score's rounding.
+        if ("BUY".equals(base) && nearFiftyTwoWeekLow) {
+            reasons.add("Already a buy and trading near its 52-week low — upgraded to strong buy");
+            return "STRONG_BUY";
+        }
+
+        return base;
+    }
+
+    /**
+     * Government-owned and not a financial. Banks, insurers and other
+     * financial-sector names stay eligible — the exclusion is aimed at
+     * state-run industrials and utilities, not at public banks.
+     */
+    private boolean isNearFiftyTwoWeekLow(Stock stock) {
+        BigDecimal position = stock.getPriceData() != null
+                ? stock.getPriceData().getCloseTo52weekslowPct() : null;
+        return position != null && position.compareTo(NEAR_LOW_THRESHOLD) >= 0;
+    }
+
+    private boolean isExcludedStateOwned(Stock stock) {
+        if (stock.getOwnershipType() != OwnershipType.GOVERNMENT) {
+            return false;
+        }
+        SectorType sector = stock.getSector();
+        return !(sector == SectorType.BANKING
+                || sector == SectorType.FINANCIALS
+                || sector == SectorType.INSURANCE);
     }
 
     private int count(Integer... values) {

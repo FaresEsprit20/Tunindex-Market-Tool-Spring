@@ -13,7 +13,8 @@ import { CandlestickChart } from '../../../shared/components/candlestick-chart/c
 import { PriceHistoryPoint } from '../../../core/models/price-history.model';
 import { NewsList } from '../../../shared/components/news-list/news-list';
 import { ScorePanel } from '../../../shared/components/score-panel/score-panel';
-import { exchangeFlag } from '../../../core/constants/exchange-flags';
+import { exchangeCountry } from '../../../core/constants/exchange-flags';
+import { CountryFlag } from '../../../shared/components/country-flag/country-flag';
 import { Explain } from '../../../shared/directives/explain';
 import {
   EXPLAIN_NOTES,
@@ -26,13 +27,13 @@ import {
 
 @Component({
   selector: 'app-stock-detail',
-  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, CandlestickChart, NewsList, ScorePanel, Explain],
+  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, CandlestickChart, NewsList, ScorePanel, Explain, CountryFlag],
   templateUrl: './stock-detail.html',
   styleUrl: './stock-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockDetail {
-  protected readonly exchangeFlag = exchangeFlag;
+  protected readonly exchangeCountry = exchangeCountry;
   // Exposed to the template so each figure can show its own arithmetic.
   protected readonly notes = EXPLAIN_NOTES;
   protected readonly explainPeRatio = explainPeRatio;

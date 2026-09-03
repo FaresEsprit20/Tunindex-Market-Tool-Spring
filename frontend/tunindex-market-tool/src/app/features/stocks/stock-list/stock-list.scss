@@ -249,3 +249,44 @@
 .filter-inline .search-wrap { width: 200px; }
 .filter-inline .sector-select { padding: 4px 8px; font-size: 12px; }
 .chip { padding: 3px 9px; font-size: 11.5px; }
+
+/* ── Column picker (phase 04) ─────────────────────────────────────────── */
+
+.col-picker {
+  position: relative;
+}
+
+.col-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 170px;
+  padding: 5px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: card-enter 0.14s var(--ease-standard);
+}
+
+.col-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-panel-alt);
+    color: var(--color-text-primary);
+  }
+
+  input {
+    accent-color: var(--color-brand);
+    cursor: pointer;
+  }
+}

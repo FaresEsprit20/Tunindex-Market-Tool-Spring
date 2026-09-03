@@ -214,3 +214,17 @@
     font-weight: 700;
   }
 }
+
+
+// A reason that maps to a screener filter is operable; one that doesn't
+// stays plain text, so the underline reliably means "this goes somewhere".
+.reason-link {
+  color: inherit;
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--color-brand);
+    text-decoration-color: var(--color-brand);
+  }
+}

@@ -50,7 +50,18 @@
   @if (s.reasons.length > 0) {
     <ul class="rationale-list positive">
       @for (reason of s.reasons; track reason) {
-        <li>{{ reason }}</li>
+        <li>
+          @if (reasonToFilter(reason); as f) {
+            <a
+              class="reason-link"
+              routerLink="/app/stocks"
+              [queryParams]="filterParams(reason)"
+              [title]="f.description"
+            >{{ reason }}</a>
+          } @else {
+            {{ reason }}
+          }
+        </li>
       }
     </ul>
   }

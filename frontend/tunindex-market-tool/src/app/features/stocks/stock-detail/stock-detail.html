@@ -20,8 +20,8 @@
   <div class="detail-head">
     <div>
       <div class="title-row">
-        <span class="exchange-flag" [title]="s.exchange ?? 'Unknown exchange'">{{ exchangeFlag(s.exchange) }}</span>
-        <h1 class="symbol-title">{{ s.symbol }}</h1>
+        <app-country-flag class="exchange-flag" [code]="exchangeCountry(s.exchange)" [width]="24" [title]="s.exchange ?? 'Unknown exchange'" />
+        <h1 class="symbol-title" style="view-transition-name: stock-symbol">{{ s.symbol }}</h1>
         <app-watchlist-star [symbol]="s.symbol" />
         @if (s.sector) {
           <span class="tag">{{ sectorLabels[s.sector] }}</span>

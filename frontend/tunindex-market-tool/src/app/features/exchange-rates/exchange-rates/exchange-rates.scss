@@ -130,15 +130,13 @@
   gap: 11px;
 }
 
-// Sized well above the surrounding text: at body size the regional-indicator
-// glyphs render as unreadable specks on most platforms.
+// Fixed width so every row's text starts at the same x regardless of how
+// the platform draws a given glyph.
 .flag {
-  font-size: 21px;
+  font-size: 19px;
   line-height: 1;
   flex-shrink: 0;
-  // Keeps every row's text starting at the same x regardless of how wide
-  // the platform draws a given flag.
-  width: 27px;
+  width: 26px;
   text-align: center;
 }
 

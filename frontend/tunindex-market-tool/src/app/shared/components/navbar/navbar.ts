@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Subject, forkJoin, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { Theme } from '../../../core/services/theme';
+import { DENSITY_OPTIONS, Density, DensityMode } from '../../../core/services/density';
 import { Stock } from '../../../core/services/stock';
 import { StockDto } from '../../../core/models/stock.model';
 import { PulseDot } from '../pulse-dot/pulse-dot';
@@ -21,6 +22,8 @@ const FRESHNESS_REFRESH_INTERVAL_MS = 60_000;
 })
 export class Navbar {
   protected readonly theme = inject(Theme);
+  protected readonly density = inject(Density);
+  protected readonly densityOptions = DENSITY_OPTIONS;
   private readonly router = inject(Router);
   private readonly stockService = inject(Stock);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
@@ -149,6 +152,17 @@ export class Navbar {
     this.dropdownOpen.set(false);
     this.searchQuery.set('');
     void this.router.navigate(['/app/stocks', symbol]);
+  }
+
+  /** Steps through the density levels in order, wrapping at the end. */
+  protected cycleDensity(): void {
+    const order: DensityMode[] = ['comfortable', 'compact', 'terminal'];
+    const next = order[(order.indexOf(this.density.mode()) + 1) % order.length];
+    this.density.set(next);
+  }
+
+  protected densityLabel(): string {
+    return this.densityOptions.find((o) => o.value === this.density.mode())?.label ?? '';
   }
 
   protected onThemeToggle(event: MouseEvent): void {

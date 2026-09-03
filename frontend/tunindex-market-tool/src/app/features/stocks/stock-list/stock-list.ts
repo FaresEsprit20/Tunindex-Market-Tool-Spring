@@ -9,11 +9,14 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { RangeBar } from '../../../shared/components/range-bar/range-bar';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
 import { Sparkline } from '../../../shared/components/sparkline/sparkline';
-import { exchangeFlag } from '../../../core/constants/exchange-flags';
+import { exchangeCountry } from '../../../core/constants/exchange-flags';
+import { PriceStream } from '../../../core/services/price-stream';
+import { CountryFlag } from '../../../shared/components/country-flag/country-flag';
 
 // Rows are now ~24px, so a page shows a useful slice of the exchange
 // instead of a fifth of it.
 const PAGE_SIZE = 50;
+const COLUMNS_STORAGE_KEY = 'tunindex-stock-columns';
 const SECTOR_OPTIONS: SectorType[] = [
   'FINANCIALS',
   'BANKING',
@@ -163,14 +166,15 @@ const TABLE_COLUMNS: TableColumn[] = [
 
 @Component({
   selector: 'app-stock-list',
-  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, Sparkline],
+  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, Sparkline, CountryFlag],
   templateUrl: './stock-list.html',
   styleUrl: './stock-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockList {
-  protected readonly exchangeFlag = exchangeFlag;
+  protected readonly exchangeCountry = exchangeCountry;
   private readonly stockService = inject(Stock);
+  protected readonly priceStream = inject(PriceStream);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -193,6 +197,18 @@ export class StockList {
   protected readonly totalElements = signal(0);
 
   protected readonly tableColumns = TABLE_COLUMNS;
+
+  /**
+   * Which columns are shown. Symbol is deliberately absent from the
+   * hideable set — a grid with no identifier column is unusable, so it is
+   * never offered as something to turn off.
+   */
+  protected readonly hideableColumns = TABLE_COLUMNS.filter((c) => c.label !== 'Symbol');
+  protected readonly visibleColumns = signal<ReadonlySet<string>>(this.readColumnPrefs());
+  protected readonly columnMenuOpen = signal(false);
+
+  /** Row the keyboard is on, as an index into rows(). -1 = none. */
+  protected readonly activeRow = signal(-1);
   protected readonly sortField = signal<SortField>('symbol');
   protected readonly sortDirection = signal<'ASC' | 'DESC'>('ASC');
 
@@ -235,17 +251,34 @@ export class StockList {
   });
 
   constructor() {
+    // One shared stream for the app; connecting twice is a no-op.
+    this.priceStream.connect();
+
     // Angular reuses this component instance for repeat navigations to
     // /app/stocks (e.g. a navbar search while already on this page), so a
     // constructor-only fetch would leave stale results on screen. Track
     // queryParam() so a new external ?q= reloads too, not just first mount.
     let firstRun = true;
     effect(() => {
-      const q = this.queryParam().get('q') ?? '';
+      const params = this.queryParam();
+      const q = params.get('q') ?? '';
       if (firstRun) {
         firstRun = false;
         if (q) {
           this.searchInput.set(q);
+        }
+        // Filter flags can arrive in the URL — from a clicked scorer reason,
+        // or a shared link. Applying them here is also what makes a screen
+        // bookmarkable.
+        const incoming = new Set<FlagKey>();
+        for (const key of [...PRIMARY_FLAGS, ...MORE_FLAGS]) {
+          if (params.get(key) === 'true') {
+            incoming.add(key);
+          }
+        }
+        if (incoming.size > 0) {
+          this.flags.set(incoming);
+          this.showAdvanced.set(true);
         }
         this.load();
         return;
@@ -449,11 +482,117 @@ export class StockList {
     });
   }
 
+  protected isColumnVisible(label: string): boolean {
+    return label === 'Symbol' || this.visibleColumns().has(label);
+  }
+
+  protected toggleColumn(label: string): void {
+    const next = new Set(this.visibleColumns());
+    next.has(label) ? next.delete(label) : next.add(label);
+    this.visibleColumns.set(next);
+    try {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify([...next]));
+    } catch {
+      // Private browsing — the choice just won't survive a reload.
+    }
+  }
+
+  /** Count of columns currently rendered, so colspans stay correct. */
+  protected visibleColumnCount(): number {
+    // +1 for the always-present star column.
+    return 1 + TABLE_COLUMNS.filter((c) => this.isColumnVisible(c.label)).length;
+  }
+
+  private readColumnPrefs(): ReadonlySet<string> {
+    const all = new Set(TABLE_COLUMNS.map((c) => c.label));
+    try {
+      const stored = localStorage.getItem(COLUMNS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as string[];
+        // Intersect with the current column set so a stored name that no
+        // longer exists can't resurrect a column or hide a new one.
+        return new Set(parsed.filter((label) => all.has(label)));
+      }
+    } catch {
+      // Fall through to "everything visible".
+    }
+    return all;
+  }
+
+  /** ↑/↓ move the focused row, Enter opens it — the grid without a mouse. */
+  protected onGridKeydown(event: KeyboardEvent): void {
+    const count = this.rows().length;
+    if (count === 0) return;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        this.activeRow.set(Math.min(this.activeRow() + 1, count - 1));
+        this.scrollActiveIntoView();
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        this.activeRow.set(Math.max(this.activeRow() - 1, 0));
+        this.scrollActiveIntoView();
+        break;
+      case 'Home':
+        event.preventDefault();
+        this.activeRow.set(0);
+        this.scrollActiveIntoView();
+        break;
+      case 'End':
+        event.preventDefault();
+        this.activeRow.set(count - 1);
+        this.scrollActiveIntoView();
+        break;
+      case 'Enter': {
+        const row = this.rows()[this.activeRow()];
+        if (row) {
+          event.preventDefault();
+          this.openStock(row.symbol);
+        }
+        break;
+      }
+    }
+  }
+
+  private scrollActiveIntoView(): void {
+    queueMicrotask(() => {
+      document.querySelector('.stock-row.active')?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  /** Pushed price if one has arrived, otherwise the value from the fetch. */
+  protected livePrice(stock: StockDto): number | null {
+    return this.priceStream.prices()[stock.symbol]?.price ?? stock.lastPrice;
+  }
+
+  protected liveChangePct(stock: StockDto): number | null {
+    const pushed = this.priceStream.prices()[stock.symbol];
+    if (pushed?.changePct !== undefined && pushed.changePct !== null) {
+      return pushed.changePct;
+    }
+    return this.dayChangePct(stock);
+  }
+
+  protected flashFor(symbol: string): 'up' | 'down' | null {
+    return this.priceStream.flashes()[symbol] ?? null;
+  }
+
   protected sparklineFor(symbol: string): number[] {
     return this.sparklines()[symbol] ?? [];
   }
 
+  /**
+   * The symbol currently morphing into the detail view. Only one element on
+   * the page may carry a given view-transition-name at a time, so this is a
+   * single value rather than a set — naming every row would make the
+   * transition ambiguous and the browser would skip it entirely.
+   */
+  protected readonly transitioningSymbol = signal<string | null>(null);
+
   protected openStock(symbol: string): void {
+    this.transitioningSymbol.set(symbol);
     void this.router.navigate(['/app/stocks', symbol]);
   }
 

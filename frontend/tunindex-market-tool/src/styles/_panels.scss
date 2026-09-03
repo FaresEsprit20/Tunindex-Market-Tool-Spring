@@ -34,7 +34,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 15px;
+  padding: calc(var(--panel-py) - 2px) var(--panel-px);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -46,7 +46,7 @@
 }
 
 .panel-body {
-  padding: 13px 15px;
+  padding: var(--panel-py) var(--panel-px);
 }
 
 .empty-msg {

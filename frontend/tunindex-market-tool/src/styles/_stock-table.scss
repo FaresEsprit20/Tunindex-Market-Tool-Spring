@@ -15,7 +15,13 @@
 
 .stock-table {
   width: 100%;
-  border-collapse: collapse;
+  // separate, not collapse: collapsed borders make sticky cells render
+  // their border on the scrolling layer, which leaves a visible seam as
+  // columns pass underneath the frozen ones.
+  border-collapse: separate;
+  border-spacing: 0;
+  // Single source of truth for the frozen offset.
+  --star-col-width: 34px;
 
   th {
     text-align: left;
@@ -24,7 +30,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-text-tertiary);
-    padding: 5px 8px;
+    padding: calc(var(--row-py) + 2px) var(--row-px);
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
     // Column labels stay put while a long list scrolls past. The scroll
@@ -89,8 +95,8 @@
   }
 
   td {
-    padding: 3px 8px;
-    font-size: 11.5px;
+    padding: var(--row-py) var(--row-px);
+    font-size: var(--data-font);
     line-height: 1.55;
     color: var(--color-text-primary);
     border-bottom: 1px solid var(--color-border);
@@ -135,8 +141,13 @@
     }
 
     &.star-col {
-      width: 30px;
-      padding-left: 12px;
+      // border-box so the declared width is the rendered width: the frozen
+      // symbol column offsets by this exact value, and any mismatch shows
+      // up as the symbol drifting during horizontal scroll.
+      box-sizing: border-box;
+      width: var(--star-col-width);
+      min-width: var(--star-col-width);
+      padding-left: 10px;
       padding-right: 4px;
     }
   }
@@ -152,6 +163,17 @@
 
 .stock-table .negative {
   color: var(--color-negative);
+}
+
+// Keyboard-focused row. Uses the same inset rail as hover so the two
+// states read as one idea rather than competing highlights.
+.stock-row.active {
+  background: var(--color-panel-alt);
+  box-shadow: inset 2px 0 0 var(--color-brand);
+
+  .symbol-cell {
+    color: var(--color-brand);
+  }
 }
 
 .stock-row {
@@ -174,6 +196,47 @@
   &:last-child td {
     border-bottom: none;
   }
+}
+
+// Frozen: the identifier stays put when the grid scrolls sideways, which
+// is the difference between reading a wide row and losing track of it.
+//
+// Both leading cells pin, not just the symbol: the star column sits ahead
+// of it, so pinning the symbol alone let the star scroll out and drag the
+// symbol left until it hit the container edge.
+.stock-table td.star-col,
+.stock-table th.star-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-panel);
+}
+
+.stock-table td.symbol-cell,
+.stock-table th:nth-child(2) {
+  position: sticky;
+  // Offset by the star column's own width so the two sit flush.
+  left: var(--star-col-width);
+  z-index: 1;
+  background: var(--color-panel);
+}
+
+// Headers outrank body cells so a pinned column can't scroll over them.
+.stock-table th.star-col,
+.stock-table th:nth-child(2) {
+  z-index: 3;
+}
+
+.stock-row:hover td.symbol-cell,
+.stock-row:hover td.star-col,
+.stock-row.active td.symbol-cell,
+.stock-row.active td.star-col {
+  background: var(--color-panel-alt);
+}
+
+.table-scroll:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
 }
 
 .symbol-cell {
@@ -215,7 +278,38 @@
 // Exchange flag ahead of the ticker: identifies the venue at a glance and
 // gives the symbol column a fixed left edge to align on.
 .row-flag {
-  font-size: 13px;
   margin-right: 7px;
-  line-height: 1;
+  vertical-align: middle;
+}
+
+// Per-cell tick flash. The wash fades from a saturated tint back to
+// transparent, so the change announces itself and then gets out of the way
+// — a permanent highlight would just become another colour to ignore.
+.price-cell {
+  transition: background-color 0.1s ease;
+}
+
+.price-cell.tick-up {
+  animation: cell-tick-up 1.4s var(--ease-standard);
+}
+
+.price-cell.tick-down {
+  animation: cell-tick-down 1.4s var(--ease-standard);
+}
+
+@keyframes cell-tick-up {
+  0% { background-color: color-mix(in srgb, var(--color-positive) 32%, transparent); }
+  100% { background-color: transparent; }
+}
+
+@keyframes cell-tick-down {
+  0% { background-color: color-mix(in srgb, var(--color-negative) 32%, transparent); }
+  100% { background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .price-cell.tick-up,
+  .price-cell.tick-down {
+    animation: none;
+  }
 }

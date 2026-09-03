@@ -49,6 +49,16 @@
   // most state changes, `spring` where something should feel physical
   // (a toggle, a press), `exit` for things leaving, which should go
   // faster than they arrived.
+  // Density scale (phase 11). `compact` is the default and matches the
+  // values the tables were tuned at; the other two step around it. Every
+  // dense surface reads these rather than hard-coding a padding.
+  --row-py: 3px;
+  --row-px: 8px;
+  --data-font: 11.5px;
+  --control-h: 26px;
+  --panel-py: 13px;
+  --panel-px: 15px;
+
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
@@ -73,6 +83,26 @@
   // On a dark ground the rim is a faint light edge, not a white one —
   // white here would read as a glowing outline rather than a lit edge.
   --rim-light: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+// Density levels. Only the tokens change; no component knows which mode
+// is active, which is what keeps this to a handful of lines.
+:root[data-density="comfortable"] {
+  --row-py: 7px;
+  --row-px: 12px;
+  --data-font: 12.5px;
+  --control-h: 32px;
+  --panel-py: 16px;
+  --panel-px: 18px;
+}
+
+:root[data-density="terminal"] {
+  --row-py: 1px;
+  --row-px: 6px;
+  --data-font: 11px;
+  --control-h: 22px;
+  --panel-py: 8px;
+  --panel-px: 10px;
 }
 
 html,
@@ -325,4 +355,25 @@ a {
   margin-top: 4px;
   line-height: 1.45;
   white-space: normal;
+}
+
+/* ── Shared-element motion (phase 09) ──────────────────────────────────────
+   A named pair morphs between routes instead of cross-fading, so the row you
+   clicked visibly becomes the page you land on. The default route fade above
+   still applies to everything that isn't named. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(stock-symbol),
+  ::view-transition-new(stock-symbol) {
+    // Let the browser interpolate position and size; opacity animation on a
+    // morphing element reads as a flicker rather than movement.
+    animation-duration: 0.32s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    mix-blend-mode: normal;
+  }
+
+  // The morphing element rides above the page cross-fade rather than being
+  // dimmed by it.
+  ::view-transition-group(stock-symbol) {
+    z-index: 10;
+  }
 }

@@ -3,6 +3,8 @@ import { OpportunityScore, SCORE_COMPONENTS, VERDICT_LABELS, Verdict } from '../
 import { Stock } from '../../../core/services/stock';
 import { SkeletonBlock } from '../skeleton-block/skeleton-block';
 import { ScoreRing } from '../score-ring/score-ring';
+import { RouterLink } from '@angular/router';
+import { reasonToFilter } from '../../../core/utils/reason-filters';
 
 /**
  * One symbol's Tunindex Score with its component breakdown and the real
@@ -11,12 +13,20 @@ import { ScoreRing } from '../score-ring/score-ring';
  */
 @Component({
   selector: 'app-score-panel',
-  imports: [SkeletonBlock, ScoreRing],
+  imports: [SkeletonBlock, ScoreRing, RouterLink],
   templateUrl: './score-panel.html',
   styleUrl: './score-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ScorePanel {
+  /** Null when a reason has no screener equivalent — it then renders inert. */
+  protected readonly reasonToFilter = reasonToFilter;
+
+  protected filterParams(reason: string): Record<string, string> {
+    const filter = reasonToFilter(reason);
+    return filter ? { [filter.param]: filter.value } : {};
+  }
+
   readonly symbol = input.required<string>();
 
   private readonly stockService = inject(Stock);

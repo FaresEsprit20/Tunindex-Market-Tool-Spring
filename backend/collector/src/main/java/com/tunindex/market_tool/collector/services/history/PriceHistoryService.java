@@ -18,4 +18,11 @@ public interface PriceHistoryService {
      * Just read what's already stored, no fetch.
      */
     List<PriceHistoryPointDto> getStored(String symbol, LocalDate from);
+
+    /**
+     * Closing prices per symbol since a date, for many symbols in one query.
+     * Feeds the stock table's row sparklines.
+     */
+    java.util.Map<String, java.util.List<java.math.BigDecimal>> getClosesForSymbols(
+            List<String> symbols, LocalDate from);
 }

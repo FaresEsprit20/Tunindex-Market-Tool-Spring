@@ -14,6 +14,14 @@ public interface PriceHistoryRepository extends JpaRepository<PriceHistory, Long
 
     List<PriceHistory> findBySymbolAndTradeDateGreaterThanEqualOrderByTradeDateAsc(String symbol, LocalDate from);
 
+    /**
+     * Every listed symbol's closes since a date, in one query. The stock
+     * table draws a sparkline per row, and doing that as one request per
+     * row would mean 20 round trips to paint a single page.
+     */
+    List<PriceHistory> findBySymbolInAndTradeDateGreaterThanEqualOrderBySymbolAscTradeDateAsc(
+            List<String> symbols, LocalDate from);
+
     List<PriceHistory> findBySymbolOrderByTradeDateAsc(String symbol);
 
     Optional<PriceHistory> findBySymbolAndTradeDate(String symbol, LocalDate tradeDate);

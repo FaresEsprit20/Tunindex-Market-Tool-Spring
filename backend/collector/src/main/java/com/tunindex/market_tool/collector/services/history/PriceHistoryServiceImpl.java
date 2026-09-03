@@ -11,8 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -38,6 +42,22 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
                 .stream()
                 .map(PriceHistoryPointDto::fromEntity)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, List<BigDecimal>> getClosesForSymbols(List<String> symbols, LocalDate from) {
+        // The query returns every symbol's rows already ordered by symbol
+        // then date, so grouping preserves chronological order per series
+        // without a second sort.
+        return priceHistoryRepository
+                .findBySymbolInAndTradeDateGreaterThanEqualOrderBySymbolAscTradeDateAsc(symbols, from)
+                .stream()
+                .filter(point -> point.getClose() != null)
+                .collect(Collectors.groupingBy(
+                        PriceHistory::getSymbol,
+                        LinkedHashMap::new,
+                        Collectors.mapping(PriceHistory::getClose, Collectors.toList())));
     }
 
     // Not @Transactional: this is called via `this.` from within the same

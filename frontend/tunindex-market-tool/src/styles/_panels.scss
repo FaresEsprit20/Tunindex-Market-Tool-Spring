@@ -9,17 +9,24 @@
   background: var(--color-panel);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), var(--rim-light);
   overflow: hidden;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
 
   // Lifts on hover via light and shadow only — never a transform. These
   // are dense data panels; moving them under the cursor while the user is
   // reading a row would be motion for its own sake.
   &:hover {
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-md), var(--rim-light);
     border-color: var(--color-border-strong);
   }
+}
+
+.panel-title {
+  // Slightly tightened: headings this size read as loose at default
+  // tracking, and the whole interface is built on dense figures.
+  letter-spacing: -0.006em;
 }
 
 .panel-head {
@@ -91,10 +98,15 @@
 }
 
 .page-title {
-  font-size: 20px;
+  // Larger and tighter than before. Page titles were competing with panel
+  // headings at 20px; the extra size and negative tracking re-establish
+  // the top of the hierarchy without adding weight.
+  font-size: 25px;
   font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
   color: var(--color-text-primary);
-  margin: 0 0 4px;
+  margin: 0 0 5px;
 }
 
 .page-sub {

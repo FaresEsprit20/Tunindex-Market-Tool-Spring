@@ -90,19 +90,33 @@
   }
 
   td {
-    padding: 11px 16px;
+    padding: 10px 16px;
     font-size: 13px;
     color: var(--color-text-primary);
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
+    // Every figure in a column lines up on the decimal regardless of the
+    // digits above it — the single biggest thing separating a data table
+    // from a spreadsheet screenshot.
+    font-variant-numeric: tabular-nums;
 
     &.num {
       text-align: right;
+      // Numbers carry the meaning here; nudging their tracking in slightly
+      // makes a column of them read as one block rather than loose glyphs.
+      letter-spacing: -0.01em;
     }
 
     &.mono {
       font-family: var(--font-mono);
       font-variant-numeric: tabular-nums;
+    }
+
+    &.spark-cell {
+      width: 88px;
+      padding-top: 4px;
+      padding-bottom: 4px;
+      line-height: 0;
     }
 
     // Nested (not a sibling rule) so this actually beats the plain `td`
@@ -142,13 +156,19 @@
 
 .stock-row {
   cursor: pointer;
-  transition: background-color 0.1s ease, box-shadow 0.1s ease;
+  transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 
   &:hover {
     background: var(--color-panel-alt);
     // An inset left rule marks the hovered row without shifting any cell —
     // a border would change the row's box and nudge every column.
     box-shadow: inset 2px 0 0 var(--color-brand);
+
+    // The symbol steps up to brand on hover so the eye can track which row
+    // it is on without re-reading the whole line.
+    .symbol-cell {
+      color: var(--color-brand);
+    }
   }
 
   &:last-child td {
@@ -159,6 +179,8 @@
 .symbol-cell {
   font-family: var(--font-mono);
   font-weight: 700;
+  letter-spacing: -0.01em;
+  transition: color var(--duration-fast) ease;
 }
 
 .name-cell {

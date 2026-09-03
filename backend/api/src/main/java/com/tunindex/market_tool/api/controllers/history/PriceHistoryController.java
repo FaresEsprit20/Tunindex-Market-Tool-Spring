@@ -8,8 +8,10 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -35,6 +37,19 @@ public class PriceHistoryController implements PriceHistoryApi {
                 // ilboursa's own two-step scrape can be slow the first time
                 // for a symbol with nothing cached yet.
                 .timeout(Duration.ofSeconds(35))
+                .block();
+    }
+
+    @Override
+    public Map<String, List<BigDecimal>> sparklines(String symbols, int days) {
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/sparklines?symbols={symbols}&days={days}", symbols, days)
+                .header("X-API-Key", internalApiKey)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, List<BigDecimal>>>() {})
+                // Reads stored rows only, so this stays fast even for a full page.
+                .timeout(Duration.ofSeconds(15))
                 .block();
     }
 }

@@ -107,6 +107,17 @@ export class Stock {
     });
   }
 
+  /**
+   * Closing prices for several symbols in one request — what the stock
+   * table's row sparklines draw. Reads stored rows only, so it never
+   * triggers a scrape.
+   */
+  getSparklines(symbols: string[], days = 30): Observable<Record<string, number[]>> {
+    return this.http.get<Record<string, number[]>>(`${API_BASE_URL}/history/sparklines`, {
+      params: { symbols: symbols.join(','), days },
+    });
+  }
+
   getTechnicalAnalysis(symbol: string, days = 180): Observable<TechnicalAnalysis> {
     return this.http.get<TechnicalAnalysis>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/technical`, {
       params: { days },

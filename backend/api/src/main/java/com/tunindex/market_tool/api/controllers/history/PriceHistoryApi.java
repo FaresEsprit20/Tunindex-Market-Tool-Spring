@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.util.Map;
+import java.math.BigDecimal;
 
 import static com.tunindex.market_tool.common.utils.constants.Constants.APP_ROOT;
 
@@ -21,4 +23,10 @@ public interface PriceHistoryApi {
             @PathVariable("symbol") String symbol,
             @RequestParam(value = "days", defaultValue = "180") int days,
             @RequestParam(value = "refresh", defaultValue = "false") boolean refresh);
+
+    @GetMapping(value = APP_ROOT + "/history/sparklines", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Closing prices for several symbols at once, for row sparklines")
+    Map<String, List<BigDecimal>> sparklines(
+            @RequestParam("symbols") String symbols,
+            @RequestParam(value = "days", defaultValue = "30") int days);
 }

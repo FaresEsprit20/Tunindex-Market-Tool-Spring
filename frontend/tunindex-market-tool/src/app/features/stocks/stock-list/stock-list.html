@@ -205,13 +205,13 @@
         @if (loading()) {
           @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
             <tr class="skeleton-row">
-              <td colspan="9"><app-skeleton-block height="18px" /></td>
+              <td colspan="10"><app-skeleton-block height="18px" /></td>
             </tr>
           }
         } @else if (error()) {
-          <tr><td colspan="9" class="empty-cell">Couldn't load stocks. Try again shortly.</td></tr>
+          <tr><td colspan="10" class="empty-cell">Couldn't load stocks. Try again shortly.</td></tr>
         } @else if (rows().length === 0) {
-          <tr><td colspan="9" class="empty-cell">No stocks match these filters.</td></tr>
+          <tr><td colspan="10" class="empty-cell">No stocks match these filters.</td></tr>
         } @else {
           @for (stock of rows(); track stock.id) {
             <tr class="stock-row" (click)="openStock(stock.symbol)">
@@ -230,6 +230,9 @@
                 } @else {
                   —
                 }
+              </td>
+              <td class="spark-cell">
+                <app-sparkline [points]="sparklineFor(stock.symbol)" />
               </td>
               <td class="range-cell">
                 <app-range-bar [min]="stock.week52Low" [max]="stock.week52High" [current]="stock.lastPrice" [compact]="true" />

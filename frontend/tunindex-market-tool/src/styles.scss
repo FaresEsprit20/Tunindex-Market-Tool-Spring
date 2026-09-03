@@ -21,17 +21,58 @@
   // Elevation system — every surface reads as flat without this. Shadows
   // need different weights per theme (dark panels barely show a black
   // shadow), so this is a plain override, not a color-mix derivation.
-  --shadow-xs: 0 1px 2px rgba(16, 25, 46, 0.05);
-  --shadow-sm: 0 1px 3px rgba(16, 25, 46, 0.07), 0 1px 2px rgba(16, 25, 46, 0.04);
-  --shadow-md: 0 8px 20px rgba(16, 25, 46, 0.09), 0 2px 6px rgba(16, 25, 46, 0.05);
-  --shadow-lg: 0 16px 40px rgba(16, 25, 46, 0.14), 0 4px 10px rgba(16, 25, 46, 0.06);
+  //
+  // Each level pairs a tight contact shadow with a wider ambient one, and
+  // carries a hairline top highlight: a single soft blur reads as a drop
+  // shadow stuck on a flat rectangle, while contact + ambient + rim reads
+  // as a surface with a real edge, which is the whole difference between
+  // "admin panel" and "instrument".
+  --shadow-xs: 0 1px 1px rgba(16, 25, 46, 0.04), 0 1px 2px rgba(16, 25, 46, 0.05);
+  --shadow-sm:
+    0 1px 1px rgba(16, 25, 46, 0.05),
+    0 2px 4px rgba(16, 25, 46, 0.05),
+    0 4px 12px rgba(16, 25, 46, 0.04);
+  --shadow-md:
+    0 1px 1px rgba(16, 25, 46, 0.05),
+    0 4px 8px rgba(16, 25, 46, 0.06),
+    0 12px 28px rgba(16, 25, 46, 0.08);
+  --shadow-lg:
+    0 2px 4px rgba(16, 25, 46, 0.06),
+    0 12px 24px rgba(16, 25, 46, 0.10),
+    0 28px 56px rgba(16, 25, 46, 0.12);
+
+  // A 1px inner highlight along the top edge, the way a physical panel
+  // catches light. Applied via box-shadow so it never affects layout.
+  --rim-light: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  // Motion vocabulary. Three curves, used consistently: `standard` for
+  // most state changes, `spring` where something should feel physical
+  // (a toggle, a press), `exit` for things leaving, which should go
+  // faster than they arrived.
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --duration-fast: 0.12s;
+  --duration-base: 0.2s;
+  --duration-slow: 0.35s;
 }
 
 :root[data-theme="dark"] {
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.24);
-  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.28);
-  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52), 0 4px 12px rgba(0, 0, 0, 0.32);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-md:
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 8px 20px rgba(0, 0, 0, 0.42);
+  --shadow-lg:
+    0 4px 8px rgba(0, 0, 0, 0.45),
+    0 16px 32px rgba(0, 0, 0, 0.5),
+    0 32px 64px rgba(0, 0, 0, 0.4);
+
+  // On a dark ground the rim is a faint light edge, not a white one —
+  // white here would read as a glowing outline rather than a lit edge.
+  --rim-light: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 html,

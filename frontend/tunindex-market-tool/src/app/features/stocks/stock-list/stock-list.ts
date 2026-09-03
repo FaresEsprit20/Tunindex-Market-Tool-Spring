@@ -8,6 +8,7 @@ import { Pagination } from '../../../shared/components/pagination/pagination';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { RangeBar } from '../../../shared/components/range-bar/range-bar';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
+import { Sparkline } from '../../../shared/components/sparkline/sparkline';
 
 const PAGE_SIZE = 20;
 const SECTOR_OPTIONS: SectorType[] = [
@@ -150,6 +151,8 @@ const TABLE_COLUMNS: TableColumn[] = [
   { field: 'sector', label: 'Sector', numeric: false },
   { field: 'lastPrice', label: 'Price', numeric: true },
   { field: null, label: 'Change', numeric: true },
+  // Drawn from stored closes, so there is no column to order it by.
+  { field: null, label: '30D trend', numeric: false },
   { field: 'closeTo52weekslowPct', label: '52W range', numeric: false },
   { field: 'peRatio', label: 'P/E', numeric: true },
   { field: 'marginOfSafety', label: 'Margin of safety', numeric: true },
@@ -157,7 +160,7 @@ const TABLE_COLUMNS: TableColumn[] = [
 
 @Component({
   selector: 'app-stock-list',
-  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar],
+  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, Sparkline],
   templateUrl: './stock-list.html',
   styleUrl: './stock-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -179,6 +182,8 @@ export class StockList {
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
   protected readonly rows = signal<StockDto[]>([]);
+  /** symbol -> closing prices, for the row sparklines. */
+  protected readonly sparklines = signal<Record<string, number[]>>({});
   protected readonly page = signal(1);
   protected readonly totalPages = signal(1);
   protected readonly totalElements = signal(0);
@@ -407,6 +412,7 @@ export class StockList {
           this.totalPages.set(res.totalPages || 1);
           this.totalElements.set(res.totalElements);
           this.loading.set(false);
+          this.loadSparklines(res.content.map((s) => s.symbol));
         },
         error: () => {
           this.loading.set(false);
@@ -422,6 +428,25 @@ export class StockList {
     if (range.max.trim()) {
       (filters as Record<string, string>)[maxKey] = range.max.trim();
     }
+  }
+
+  /**
+   * One batch request for the whole page's traces. Failures are swallowed:
+   * a missing sparkline should leave the cell blank, never block the table.
+   */
+  private loadSparklines(symbols: string[]): void {
+    if (symbols.length === 0) {
+      this.sparklines.set({});
+      return;
+    }
+    this.stockService.getSparklines(symbols, 30).subscribe({
+      next: (series) => this.sparklines.set(series),
+      error: () => this.sparklines.set({}),
+    });
+  }
+
+  protected sparklineFor(symbol: string): number[] {
+    return this.sparklines()[symbol] ?? [];
   }
 
   protected openStock(symbol: string): void {

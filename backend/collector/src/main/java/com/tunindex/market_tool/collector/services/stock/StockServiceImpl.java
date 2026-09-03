@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -182,6 +183,24 @@ public class StockServiceImpl implements StockService {
      * Safely parses a BigDecimal from the filters map.
      * Returns null (and logs a warning) if the value is missing or malformed.
      */
+    /**
+     * Resolves an enum-valued filter, rejecting anything the enum doesn't
+     * define. Dropping an unknown value instead would remove the constraint
+     * from the query altogether and return every row, which reads to the
+     * caller as "these all match" — see the call sites.
+     */
+    private <E extends Enum<E>> E parseEnumFilter(Class<E> type, String rawValue, String filterKey) {
+        try {
+            return Enum.valueOf(type, rawValue.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            List<String> valid = Arrays.stream(type.getEnumConstants()).map(Enum::name).toList();
+            throw new InvalidEntityException(
+                    "Invalid value for filter '" + filterKey + "'",
+                    ErrorCodes.PAGE_NOT_VALID,
+                    List.of("'" + rawValue + "' is not a valid " + filterKey + ". Valid values: " + String.join(", ", valid)));
+        }
+    }
+
     private BigDecimal parseBigDecimal(Map<String, String> filters, String key) {
         String value = filters.get(key);
         if (!StringUtils.hasLength(value)) return null;
@@ -227,22 +246,20 @@ public class StockServiceImpl implements StockService {
             spec = spec.and(StockSpecification.exchangeEquals(filters.get("exchange")));
         }
 
+        // An unrecognised enum value used to be logged and then dropped, which
+        // silently widened the query back to the ENTIRE dataset — a screener
+        // answering "stocks whose ownership is X" with all 69 rows is worse
+        // than an error, because the caller has no way to tell. Reject it
+        // instead, naming the values that would have worked.
         if (StringUtils.hasLength(filters.get("sector"))) {
-            try {
-                SectorType sector = SectorType.valueOf(filters.get("sector").toUpperCase());
-                spec = spec.and(StockSpecification.sectorEquals(sector));
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid sector value: {}", filters.get("sector"));
-            }
+            SectorType sector = parseEnumFilter(SectorType.class, filters.get("sector"), "sector");
+            spec = spec.and(StockSpecification.sectorEquals(sector));
         }
 
         if (StringUtils.hasLength(filters.get("ownershipType"))) {
-            try {
-                OwnershipType ownershipType = OwnershipType.valueOf(filters.get("ownershipType").toUpperCase());
-                spec = spec.and(StockSpecification.ownershipTypeEquals(ownershipType));
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid ownership type value: {}", filters.get("ownershipType"));
-            }
+            OwnershipType ownershipType =
+                    parseEnumFilter(OwnershipType.class, filters.get("ownershipType"), "ownershipType");
+            spec = spec.and(StockSpecification.ownershipTypeEquals(ownershipType));
         }
 
         // ── PRICE ──────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.sql.SQLException;
@@ -68,6 +69,41 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         errorDto.setMessage(exception.getMessage());
         errorDto.setErrors(exception.getErrors());
         return new ResponseEntity<>(errorDto, badRequest);
+    }
+
+    /**
+     * Errors raised by a downstream service (the collector) reached the
+     * browser as a 500 whose body was the whole WebClient stack trace —
+     * leaking the internal host:port and filter chain, and turning a plain
+     * "unknown sector" validation failure into an apparent server crash.
+     * Pass the downstream status through and forward its JSON body, falling
+     * back to a terse message when the body isn't the shared error shape.
+     */
+    @ExceptionHandler(WebClientResponseException.class)
+    public ResponseEntity<CustomErrorMsg> handleDownstreamException(WebClientResponseException exception) {
+        HttpStatus status = HttpStatus.resolve(exception.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.BAD_GATEWAY;
+        }
+
+        try {
+            CustomErrorMsg downstream = exception.getResponseBodyAs(CustomErrorMsg.class);
+            if (downstream != null && downstream.getMessage() != null) {
+                downstream.setHttpCode(status.value());
+                return new ResponseEntity<>(downstream, status);
+            }
+        } catch (Exception ignored) {
+            // Body wasn't our error shape — fall through to the generic one.
+        }
+
+        CustomErrorMsg errorDto = new CustomErrorMsg();
+        errorDto.setCode(ErrorCodes.INVALID_PARAMETER);
+        errorDto.setHttpCode(status.value());
+        errorDto.setMessage(status.is4xxClientError()
+                ? "The request was rejected by the data service."
+                : "The data service is unavailable. Please try again shortly.");
+        errorDto.setErrors(List.of());
+        return new ResponseEntity<>(errorDto, status);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

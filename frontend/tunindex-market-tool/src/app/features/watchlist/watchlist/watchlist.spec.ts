@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { Watchlist } from './watchlist';
@@ -9,7 +11,8 @@ describe('Watchlist', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [Watchlist],
-      providers: [provideRouter([])],
+      // The empty state now offers scored suggestions, which fetch.
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(Watchlist);

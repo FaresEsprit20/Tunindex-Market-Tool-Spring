@@ -1,0 +1,49 @@
+<div class="panel-card">
+  <div class="panel-head">
+    <p class="panel-title">Market news</p>
+    @if (!loading() && items().length > 0) {
+      <div class="tone-summary">
+        <span class="tone-pill positive">{{ positiveCount() }} positive</span>
+        <span class="tone-pill negative">{{ negativeCount() }} negative</span>
+      </div>
+    }
+  </div>
+
+  <div class="panel-body">
+    @if (loading()) {
+      <div class="news-skeleton">
+        <app-skeleton-block height="15px" width="92%" />
+        <app-skeleton-block height="15px" width="78%" />
+        <app-skeleton-block height="15px" width="85%" />
+        <app-skeleton-block height="15px" width="70%" />
+      </div>
+    } @else if (error()) {
+      <p class="empty-msg">Couldn't load market news.</p>
+    } @else if (items().length === 0) {
+      <p class="empty-msg">No market headlines yet.</p>
+    } @else {
+      <ul class="news-list">
+        @for (item of items(); track item.url) {
+          <li class="news-row">
+            <span class="news-dot" [class]="sentimentClass(item.sentiment)" [title]="item.sentiment ?? 'NEUTRAL'"></span>
+            <a [href]="item.url" target="_blank" rel="noopener noreferrer" class="news-headline">{{ item.headline }}</a>
+            @if (item.relatedChangePct !== null) {
+              <span
+                class="news-move mono"
+                [class.positive]="item.relatedChangePct > 0"
+                [class.negative]="item.relatedChangePct < 0"
+              >
+                {{ item.relatedChangePct > 0 ? '+' : '' }}{{ item.relatedChangePct | number: '1.2-2' }}%
+              </span>
+            }
+            <span class="news-date">{{ item.publishedAt | date: 'MMM d, HH:mm' }}</span>
+          </li>
+        }
+      </ul>
+      <p class="footnote">
+        From the BVMT exchange news feed. The move shown is the day change of the stock the
+        source filed each story against — not a measured effect of the story itself.
+      </p>
+    }
+  </div>
+</div>

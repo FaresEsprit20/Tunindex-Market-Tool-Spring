@@ -1,0 +1,125 @@
+<div class="page-head">
+  <div>
+    <p class="page-title">Alerts</p>
+    <p class="page-sub">
+      Standing rules checked against real figures on a timer. Anything that trips lands in your
+      notifications.
+    </p>
+  </div>
+  @if (!loading() && rules().length > 0) {
+    <span class="active-count"><strong>{{ activeCount() }}</strong> active</span>
+  }
+</div>
+
+<div class="panel-card">
+  <div class="panel-head"><p class="panel-title">New alert</p></div>
+  <div class="panel-body">
+    <div class="alert-form">
+      <label class="form-field">
+        <span class="form-label">Symbol</span>
+        <input
+          class="form-input mono"
+          type="text"
+          placeholder="e.g. BIAT"
+          [value]="formSymbol()"
+          (input)="formSymbol.set($any($event.target).value)"
+          (keydown.enter)="create()"
+        />
+      </label>
+
+      <label class="form-field wide">
+        <span class="form-label">Condition</span>
+        <select class="form-input" [value]="formType()" (change)="formType.set($any($event.target).value)">
+          @for (type of types(); track type.type) {
+            <option [value]="type.type">{{ type.description }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="form-field" [class.hidden]="!needsThreshold()">
+        <span class="form-label">Threshold</span>
+        <div class="threshold-wrap">
+          <input
+            class="form-input mono"
+            type="number"
+            step="any"
+            placeholder="0"
+            [value]="formThreshold()"
+            (input)="formThreshold.set($any($event.target).value)"
+            (keydown.enter)="create()"
+          />
+          <span class="threshold-unit">{{ unitFor(formType()) }}</span>
+        </div>
+      </label>
+
+      <button type="button" class="btn btn-primary form-submit" [disabled]="!canSubmit()" (click)="create()">
+        {{ saving() ? 'Creating…' : 'Create alert' }}
+      </button>
+    </div>
+
+    @if (!needsThreshold()) {
+      <p class="form-hint">This condition fires on the event itself, so it takes no threshold.</p>
+    }
+  </div>
+</div>
+
+<div class="panel-card section">
+  <div class="panel-head"><p class="panel-title">Your alerts</p></div>
+  <div class="panel-body">
+    @if (loading()) {
+      <div class="rules-skeleton">
+        <app-skeleton-block height="52px" radius="8px" />
+        <app-skeleton-block height="52px" radius="8px" />
+      </div>
+    } @else if (rules().length === 0) {
+      <app-empty-state
+        title="No alerts yet"
+        message="Create one above and you'll be notified when it trips — no need to keep the app open."
+      />
+    } @else {
+      <ul class="rule-list">
+        @for (rule of rules(); track rule.id) {
+          <li class="rule-row" [class.disabled]="!rule.enabled">
+            <span class="rule-symbol mono">{{ rule.symbol }}</span>
+
+            <span class="rule-condition">
+              {{ rule.typeDescription }}
+              @if (rule.threshold !== null) {
+                <strong class="mono">{{ rule.threshold }}{{ unitFor(rule.type) }}</strong>
+              }
+            </span>
+
+            <span class="rule-fired">
+              @if (rule.lastTriggeredAt) {
+                Last fired {{ rule.lastTriggeredAt | date: 'MMM d, HH:mm' }}
+              } @else {
+                Not fired yet
+              }
+            </span>
+
+            <button
+              type="button"
+              class="rule-toggle"
+              [class.on]="rule.enabled"
+              (click)="toggle(rule)"
+              [attr.aria-label]="(rule.enabled ? 'Disable' : 'Enable') + ' alert on ' + rule.symbol"
+            >
+              <span class="toggle-knob"></span>
+            </button>
+
+            <button type="button" class="rule-delete" (click)="remove(rule)" [attr.aria-label]="'Delete alert on ' + rule.symbol">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path>
+              </svg>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>
+
+<p class="disclaimer">
+  Rules are evaluated a few minutes apart, and a threshold rule fires on the crossing rather than
+  every time it's checked — so a price that sits above your level notifies once, not repeatedly.
+</p>

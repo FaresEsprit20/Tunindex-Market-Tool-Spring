@@ -60,6 +60,21 @@
         @if (selectedRate(); as r) {
           <p class="rate-footnote">1 {{ r.code }} = {{ r.rateToTnd | number: '1.4-4' }} TND &middot; 1 TND = {{ (1 / r.rateToTnd) | number: '1.4-4' }} {{ r.code }}</p>
         }
+
+        <!-- Ready-reckoner for the amounts people convert most, so the
+             common case needs no typing at all. -->
+        @if (quickConversions().length > 0 && selectedRate(); as r) {
+          <div class="quick-table">
+            <p class="quick-title">Common amounts</p>
+            @for (row of quickConversions(); track row.tnd) {
+              <div class="quick-row">
+                <span class="quick-tnd mono">{{ row.tnd | number }} TND</span>
+                <span class="quick-arrow">→</span>
+                <span class="quick-foreign mono">{{ row.foreign | number: '1.2-2' }} {{ r.code }}</span>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
 

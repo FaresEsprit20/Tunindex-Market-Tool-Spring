@@ -1,1 +1,30 @@
-<p>market-status works!</p>
+@if (session(); as s) {
+  <div class="session-card" [class]="stateClass(s.state)">
+    <div class="session-main">
+      <div class="session-indicator">
+        <span class="session-dot" [class.pulsing]="isOpen()"></span>
+        <span class="session-state">{{ s.label }}</span>
+      </div>
+      <div class="session-next">
+        {{ s.nextTransitionLabel }} in <span class="mono countdown">{{ countdown() }}</span>
+      </div>
+    </div>
+
+    <div class="session-meta">
+      <div class="meta-item">
+        <span class="meta-label">Tunis time</span>
+        <span class="meta-value mono">{{ tunisClock() }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Session</span>
+        <span class="meta-value mono">10:00 – 14:00</span>
+      </div>
+    </div>
+  </div>
+  <p class="session-footnote">
+    From the published BVMT timetable in {{ s.timezone }} — it doesn't account for exchange
+    holidays or an unscheduled halt.
+  </p>
+} @else if (!loading()) {
+  <p class="empty-msg">Session status unavailable.</p>
+}

@@ -2,22 +2,19 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { Dashboard } from './dashboard';
+import { NotificationBell } from './notification-bell';
 
-describe('Dashboard', () => {
-  let component: Dashboard;
-  let fixture: ComponentFixture<Dashboard>;
+describe('NotificationBell', () => {
+  let component: NotificationBell;
+  let fixture: ComponentFixture<NotificationBell>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Dashboard],
-      // The dashboard's widgets fetch (market session, news, opportunities)
-      // and Top opportunities links through to the full list, so this needs
-      // both an HTTP backend and a router.
+      imports: [NotificationBell],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(Dashboard);
+    fixture = TestBed.createComponent(NotificationBell);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

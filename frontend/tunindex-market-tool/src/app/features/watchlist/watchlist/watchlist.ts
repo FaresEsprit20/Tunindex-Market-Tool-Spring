@@ -10,10 +10,11 @@ import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { RangeBar } from '../../../shared/components/range-bar/range-bar';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
+import { TopOpportunities } from '../../dashboard/top-opportunities/top-opportunities';
 
 @Component({
   selector: 'app-watchlist',
-  imports: [EmptyState, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar],
+  imports: [EmptyState, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, TopOpportunities],
   templateUrl: './watchlist.html',
   styleUrl: './watchlist.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

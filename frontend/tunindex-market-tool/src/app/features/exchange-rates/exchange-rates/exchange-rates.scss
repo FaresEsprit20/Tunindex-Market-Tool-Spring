@@ -73,3 +73,53 @@
 .active-row {
   background: var(--color-brand-dim);
 }
+
+.quick-table {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+}
+
+.quick-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0 0 10px;
+}
+
+.quick-row {
+  display: grid;
+  grid-template-columns: 1fr 24px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.quick-tnd,
+.quick-foreign {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-tnd {
+  color: var(--color-text-secondary);
+}
+
+.quick-foreign {
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.quick-arrow {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  text-align: center;
+}

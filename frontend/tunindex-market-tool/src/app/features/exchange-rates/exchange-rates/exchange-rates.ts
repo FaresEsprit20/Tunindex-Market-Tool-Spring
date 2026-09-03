@@ -35,6 +35,15 @@ export class ExchangeRatesPage {
     return rates.find((r) => r.code === this.selectedCode()) ?? null;
   });
 
+  /** Round figures people actually convert, as a ready-reckoner. */
+  private readonly quickAmounts = [1, 10, 100, 500, 1000, 5000, 10000];
+
+  protected readonly quickConversions = computed(() => {
+    const rate = this.selectedRate()?.rateToTnd;
+    if (!rate) return [];
+    return this.quickAmounts.map((tnd) => ({ tnd, foreign: tnd / rate }));
+  });
+
   constructor() {
     this.load();
   }

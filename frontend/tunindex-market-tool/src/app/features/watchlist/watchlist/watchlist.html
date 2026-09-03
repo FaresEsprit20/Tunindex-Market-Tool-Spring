@@ -10,6 +10,13 @@
     title="Your watchlist is empty"
     message="Star any stock from the list or its detail page to track it here."
   />
+
+  <!-- An empty watchlist is a dead end otherwise. The scorer already knows
+       what looks interesting today, so offer that as the starting point. -->
+  <div class="section">
+    <p class="section-label">Not sure where to start</p>
+    <app-top-opportunities />
+  </div>
 } @else {
   <div class="panel-card">
     <div class="table-scroll">

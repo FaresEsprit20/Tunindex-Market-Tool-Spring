@@ -9,6 +9,8 @@ import { StockDto } from '../../../core/models/stock.model';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { StatTile } from '../../../shared/components/stat-tile/stat-tile';
+import { Sparkline } from '../../../shared/components/sparkline/sparkline';
+import { OpportunityScore, VERDICT_LABELS, Verdict } from '../../../core/models/opportunity.model';
 
 /**
  * IBKR-style paper trading simulator scoped to Tunisian (BVMT) stocks.
@@ -17,7 +19,7 @@ import { StatTile } from '../../../shared/components/stat-tile/stat-tile';
  */
 @Component({
   selector: 'app-portfolio',
-  imports: [DecimalPipe, DatePipe, EmptyState, SkeletonBlock, StatTile],
+  imports: [DecimalPipe, DatePipe, EmptyState, SkeletonBlock, StatTile, Sparkline],
   templateUrl: './portfolio.html',
   styleUrl: './portfolio.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,6 +28,8 @@ export class Portfolio {
   private readonly portfolioService = inject(PortfolioService);
   private readonly stockService = inject(Stock);
   private readonly notification = inject(Notification);
+
+  protected readonly verdictLabels = VERDICT_LABELS;
 
   protected readonly loading = signal(true);
   protected readonly summary = signal<PortfolioSummary | null>(null);
@@ -38,6 +42,11 @@ export class Portfolio {
   protected readonly quoteError = signal(false);
   protected readonly submitting = signal(false);
   protected readonly resetting = signal(false);
+  /** Score for the symbol in the ticket — so you see what you're buying. */
+  protected readonly quoteScore = signal<OpportunityScore | null>(null);
+  protected readonly quoteSpark = signal<number[]>([]);
+  /** symbol -> closes, for the sparkline on each held position. */
+  protected readonly positionSparks = signal<Record<string, number[]>>({});
 
   protected readonly parsedQuantity = computed(() => {
     const raw = Number(this.tradeQuantity());
@@ -51,6 +60,72 @@ export class Portfolio {
     return q.lastPrice * qty;
   });
 
+  protected readonly cashBalance = computed(() => this.summary()?.cashBalance ?? 0);
+
+  /** Cash left after this order — negative means it can't be afforded. */
+  protected readonly cashAfterBuy = computed(() => {
+    const total = this.estimatedTotal();
+    return total === null ? null : this.cashBalance() - total;
+  });
+
+  protected readonly canAfford = computed(() => {
+    const after = this.cashAfterBuy();
+    return after === null ? true : after >= 0;
+  });
+
+  /** Most whole shares the current cash balance covers. */
+  protected readonly maxAffordable = computed(() => {
+    const price = this.quote()?.lastPrice;
+    if (!price || price <= 0) return 0;
+    return Math.floor(this.cashBalance() / price);
+  });
+
+  /** Shares already held of the symbol in the ticket, if any. */
+  protected readonly existingPosition = computed(() => {
+    const symbol = this.tradeSymbol().trim().toUpperCase();
+    if (!symbol) return null;
+    return this.summary()?.positions.find((p) => p.symbol === symbol) ?? null;
+  });
+
+  protected readonly dayChangePct = computed(() => {
+    const q = this.quote();
+    if (!q || q.lastPrice === null || q.prevClose === null || q.prevClose === 0) return null;
+    return ((q.lastPrice - q.prevClose) / q.prevClose) * 100;
+  });
+
+  /** Each position's share of total market value, for the allocation bar. */
+  protected readonly allocation = computed(() => {
+    const positions = this.summary()?.positions ?? [];
+    const total = positions.reduce((sum, p) => sum + p.marketValue, 0);
+    if (total <= 0) return [];
+    return positions
+      .map((p) => ({ symbol: p.symbol, pct: (p.marketValue / total) * 100, value: p.marketValue }))
+      .sort((a, b) => b.pct - a.pct);
+  });
+
+  protected fillQuantity(fraction: number): void {
+    const max = this.maxAffordable();
+    const qty = Math.max(1, Math.floor(max * fraction));
+    this.tradeQuantity.set(max > 0 ? String(qty) : '');
+  }
+
+  protected sparkFor(symbol: string): number[] {
+    return this.positionSparks()[symbol] ?? [];
+  }
+
+  protected verdictClass(verdict: Verdict): string {
+    switch (verdict) {
+      case 'STRONG_BUY':
+        return 'strong-buy';
+      case 'BUY':
+        return 'buy';
+      case 'WATCH':
+        return 'watch';
+      default:
+        return 'hold';
+    }
+  }
+
   constructor() {
     this.loadPortfolio();
     this.loadTransactions();
@@ -62,6 +137,13 @@ export class Portfolio {
       next: (res) => {
         this.summary.set(res);
         this.loading.set(false);
+        const symbols = res.positions.map((p) => p.symbol);
+        if (symbols.length > 0) {
+          this.stockService.getSparklines(symbols, 30).subscribe({
+            next: (series) => this.positionSparks.set(series),
+            error: () => this.positionSparks.set({}),
+          });
+        }
       },
       error: () => this.loading.set(false),
     });
@@ -77,6 +159,8 @@ export class Portfolio {
   protected onSymbolInput(value: string): void {
     this.tradeSymbol.set(value.toUpperCase());
     this.quote.set(null);
+    this.quoteScore.set(null);
+    this.quoteSpark.set([]);
     this.quoteError.set(false);
   }
 
@@ -91,10 +175,22 @@ export class Portfolio {
     this.quoteLoading.set(true);
     this.quoteError.set(false);
     this.quote.set(null);
+    this.quoteScore.set(null);
+    this.quoteSpark.set([]);
     this.stockService.findBySymbol(symbol).subscribe({
       next: (res) => {
         this.quote.set(res);
         this.quoteLoading.set(false);
+        // Both are context, not gates: a failure leaves the panel out
+        // rather than blocking the trade.
+        this.stockService.getScore(res.symbol).subscribe({
+          next: (score) => this.quoteScore.set(score),
+          error: () => this.quoteScore.set(null),
+        });
+        this.stockService.getSparklines([res.symbol], 30).subscribe({
+          next: (series) => this.quoteSpark.set(series[res.symbol] ?? []),
+          error: () => this.quoteSpark.set([]),
+        });
       },
       error: () => {
         this.quoteLoading.set(false);
@@ -130,6 +226,8 @@ export class Portfolio {
         );
         this.tradeQuantity.set('');
         this.quote.set(null);
+    this.quoteScore.set(null);
+    this.quoteSpark.set([]);
         this.tradeSymbol.set('');
         this.loadPortfolio();
         this.loadTransactions();

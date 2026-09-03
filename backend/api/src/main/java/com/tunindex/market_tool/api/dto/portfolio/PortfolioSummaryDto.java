@@ -22,4 +22,11 @@ public class PortfolioSummaryDto {
     private BigDecimal totalUnrealizedPnlPct;
     private BigDecimal totalRealizedPnl;
     private BigDecimal totalReturnPct;
+
+    /**
+     * Today's move across every held position — the figure a holder checks
+     * first, and the one the summary previously had no answer for.
+     */
+    private BigDecimal totalDayChangeValue;
+    private BigDecimal totalDayChangePct;
 }

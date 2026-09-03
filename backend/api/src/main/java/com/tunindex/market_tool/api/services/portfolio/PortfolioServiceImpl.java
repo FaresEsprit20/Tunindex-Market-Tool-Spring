@@ -57,10 +57,13 @@ public class PortfolioServiceImpl implements PortfolioService {
         List<PortfolioPositionDto> positionDtos = new ArrayList<>();
         BigDecimal totalMarketValue = BigDecimal.ZERO;
         BigDecimal totalCostBasis = BigDecimal.ZERO;
+        BigDecimal totalDayChangeValue = BigDecimal.ZERO;
+        BigDecimal prevDayMarketValue = BigDecimal.ZERO;
 
         for (PortfolioPosition position : positions) {
             BigDecimal currentPrice = position.getAvgCostBasis();
             String name = position.getSymbol();
+            BigDecimal prevClose = null;
             try {
                 StockResponseDto stock = fetchStock(position.getSymbol());
                 if (stock.getLastPrice() != null) {
@@ -69,6 +72,7 @@ public class PortfolioServiceImpl implements PortfolioService {
                 if (stock.getName() != null) {
                     name = stock.getName();
                 }
+                prevClose = stock.getPrevClose();
             } catch (Exception ex) {
                 log.warn("Live price refresh failed for {} while building portfolio, falling back to cost basis", position.getSymbol());
             }
@@ -79,6 +83,22 @@ public class PortfolioServiceImpl implements PortfolioService {
             BigDecimal unrealizedPnlPct = costBasisTotal.compareTo(BigDecimal.ZERO) == 0
                     ? BigDecimal.ZERO
                     : unrealizedPnl.divide(costBasisTotal, 6, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+
+            // Today's move on the position: (last - prevClose) x quantity.
+            BigDecimal dayChangeValue = null;
+            BigDecimal dayChangePct = null;
+            if (prevClose != null && prevClose.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal perShare = currentPrice.subtract(prevClose);
+                dayChangeValue = perShare.multiply(position.getQuantity()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+                dayChangePct = perShare.divide(prevClose, 6, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
+                totalDayChangeValue = totalDayChangeValue.add(dayChangeValue);
+                // Yesterday's value of the holding, so the portfolio-level
+                // percentage is weighted by position size rather than a flat
+                // average of each position's percentage.
+                prevDayMarketValue = prevDayMarketValue.add(
+                        prevClose.multiply(position.getQuantity()).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+            }
 
             totalMarketValue = totalMarketValue.add(marketValue);
             totalCostBasis = totalCostBasis.add(costBasisTotal);
@@ -92,6 +112,9 @@ public class PortfolioServiceImpl implements PortfolioService {
                     .marketValue(marketValue)
                     .unrealizedPnl(unrealizedPnl)
                     .unrealizedPnlPct(unrealizedPnlPct)
+                    .prevClose(prevClose)
+                    .dayChangeValue(dayChangeValue)
+                    .dayChangePct(dayChangePct)
                     .build());
         }
 
@@ -120,6 +143,11 @@ public class PortfolioServiceImpl implements PortfolioService {
                 .totalUnrealizedPnl(totalUnrealizedPnl)
                 .totalUnrealizedPnlPct(totalUnrealizedPnlPct)
                 .totalRealizedPnl(totalRealizedPnl)
+                .totalDayChangeValue(totalDayChangeValue)
+                .totalDayChangePct(prevDayMarketValue.compareTo(BigDecimal.ZERO) > 0
+                        ? totalDayChangeValue.divide(prevDayMarketValue, 6, RoundingMode.HALF_UP)
+                                .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO)
                 .totalReturnPct(totalReturnPct)
                 .build();
     }

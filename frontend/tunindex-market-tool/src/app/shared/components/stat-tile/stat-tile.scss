@@ -1,18 +1,16 @@
+// A cell in the summary strip, not a card. The strip owns the border,
+// radius and shadow (see .stat-tile-grid) — repeating them per tile is
+// what made five figures occupy a third of the screen.
 :host {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 18px 20px;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
   background: var(--color-panel);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+  transition: background-color var(--duration-fast) ease;
 
   &:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--color-border-strong);
-    transform: translateY(-1px);
+    background: var(--color-panel-alt);
   }
 }
 
@@ -20,14 +18,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 15px;
+    height: 15px;
   }
 
   &.accent-brand {
@@ -54,23 +52,30 @@
 .stat-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1px;
   min-width: 0;
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
 }
 
 .stat-value {
   font-family: var(--font-mono);
-  font-size: 26px;
+  // Down from 26px: at that size a five-figure balance wrapped onto two
+  // lines, which is what forced the tiles so tall in the first place.
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .stat-trend {
@@ -79,12 +84,12 @@
   gap: 3px;
   width: fit-content;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 
   svg {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
   }
 
   &.up {

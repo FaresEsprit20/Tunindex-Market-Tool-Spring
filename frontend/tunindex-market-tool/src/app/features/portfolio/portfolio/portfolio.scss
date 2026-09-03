@@ -109,3 +109,198 @@
     color: var(--color-negative);
   }
 }
+
+/* ── Trade ticket: quote card ─────────────────────────────────────────── */
+
+.quote-card {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-top: 16px;
+  animation: card-enter 0.2s var(--ease-standard) both;
+}
+
+.quote-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.quote-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quote-symbol {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.quote-name {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-verdict {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &.strong-buy { background: var(--color-positive-dim); color: var(--color-positive); }
+  &.buy        { background: var(--color-brand-dim);    color: var(--color-brand); }
+  &.watch      { background: var(--color-warning-dim);  color: var(--color-warning); }
+  &.hold       { background: var(--color-panel);        color: var(--color-text-tertiary); }
+}
+
+.quote-figures {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.quote-price-block {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.quote-price {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.quote-currency {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.quote-day {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+
+  &.positive { color: var(--color-positive); }
+  &.negative { color: var(--color-negative); }
+}
+
+.quote-held {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+
+  strong { color: var(--color-text-primary); }
+}
+
+/* ── Quantity shortcuts ───────────────────────────────────────────────── */
+
+.qty-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.qty-shortcut-label {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.qty-chip {
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-panel);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease, transform var(--duration-fast) var(--ease-spring);
+
+  &:hover {
+    background: var(--color-brand-dim);
+    border-color: var(--color-brand);
+    color: var(--color-brand);
+  }
+
+  &:active { transform: scale(0.94); }
+}
+
+.qty-max {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  margin-left: auto;
+}
+
+/* ── Order summary ────────────────────────────────────────────────────── */
+
+.order-summary {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-dim);
+  border: 1px solid transparent;
+  transition: background-color var(--duration-base) ease, border-color var(--duration-base) ease;
+
+  &.unaffordable {
+    background: var(--color-negative-dim);
+    border-color: var(--color-negative);
+  }
+}
+
+.order-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+
+  &.muted {
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  strong {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+}
+
+.order-warning {
+  font-size: 12px;
+  color: var(--color-negative);
+  margin: 8px 0 0;
+}

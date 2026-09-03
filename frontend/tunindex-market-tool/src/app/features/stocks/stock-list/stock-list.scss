@@ -1,4 +1,4 @@
-.filter-bar {
+.filter-inline {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -69,14 +69,18 @@
   transition: all 0.12s ease;
 
   &:hover {
-    border-color: var(--color-brand);
-    color: var(--color-brand);
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+    background: var(--color-panel-alt);
   }
 
+  // Pressed, not painted: an inset shadow reads as "engaged" without
+  // spending the accent colour that P&L figures need.
   &.active {
-    background: var(--color-brand);
-    border-color: var(--color-brand);
-    color: #ffffff;
+    background: var(--color-panel-alt);
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+    box-shadow: inset 0 1px 2px rgba(16, 25, 46, 0.12);
   }
 }
 
@@ -225,3 +229,23 @@
     padding: 8px 18px;
   }
 }
+
+
+/* Toolbar segment: the filter row now lives inside .workspace-bar, so it
+   carries no card chrome of its own and contributes no vertical block. */
+.filter-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.filter-inline .search-wrap { width: 200px; }
+.filter-inline .sector-select { padding: 4px 8px; font-size: 12px; }
+.chip { padding: 3px 9px; font-size: 11.5px; }

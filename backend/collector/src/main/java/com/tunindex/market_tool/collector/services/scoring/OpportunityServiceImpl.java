@@ -19,6 +19,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -80,16 +81,46 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     private OpportunityScoreDto scoreStock(Stock stock, boolean includeNews) {
-        TechnicalAnalysisDto technical = computeTechnical(stock.getSymbol());
+        List<PriceHistory> history = priceHistoryRepository
+                .findBySymbolAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
+                        stock.getSymbol(), LocalDate.now().minusDays(TECHNICAL_HISTORY_DAYS));
+
+        TechnicalAnalysisDto technical = computeTechnical(history, stock.getSymbol());
         List<NewsImpactDto> news = includeNews ? loadClassifiedNews(stock.getSymbol()) : List.of();
-        return scorer.score(stock, technical, news);
+        return scorer.score(stock, technical, news, oneYearReturnPct(stock.getSymbol()));
     }
 
-    private TechnicalAnalysisDto computeTechnical(String symbol) {
+    /**
+     * Real 12-month return: first stored close on or after a year ago,
+     * compared with the latest. The scraped oneYearReturn field is empty for
+     * every tracked symbol, so this is what actually feeds momentum.
+     */
+    private BigDecimal oneYearReturnPct(String symbol) {
+        List<PriceHistory> yearly = priceHistoryRepository
+                .findBySymbolAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
+                        symbol, LocalDate.now().minusDays(365))
+                .stream()
+                .filter(p -> p.getClose() != null)
+                .toList();
+
+        // Two points is arithmetically enough but says nothing about a year;
+        // require a real series before reporting a 12-month figure.
+        if (yearly.size() < 20) {
+            return null;
+        }
+        BigDecimal first = yearly.get(0).getClose();
+        BigDecimal last = yearly.get(yearly.size() - 1).getClose();
+        if (first.signum() == 0) {
+            return null;
+        }
+        return last.subtract(first)
+                .divide(first, 6, java.math.RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private TechnicalAnalysisDto computeTechnical(List<PriceHistory> history, String symbol) {
         try {
-            List<PriceHistory> history = priceHistoryRepository
-                    .findBySymbolAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
-                            symbol, LocalDate.now().minusDays(TECHNICAL_HISTORY_DAYS));
             if (history.isEmpty()) {
                 return null;
             }

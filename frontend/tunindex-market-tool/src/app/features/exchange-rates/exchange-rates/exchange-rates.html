@@ -93,8 +93,13 @@
             @for (r of d.rates; track r.code) {
               <tr class="stock-row" [class.active-row]="r.code === selectedCode()" (click)="onSelectCurrency(r.code)">
                 <td>
-                  <span class="symbol-cell">{{ r.code }}</span>
-                  <span class="currency-name">{{ r.name }}</span>
+                  <span class="currency-cell">
+                    <span class="flag" aria-hidden="true">{{ flagFor(r.code) }}</span>
+                    <span class="currency-text">
+                      <span class="symbol-cell">{{ r.code }}</span>
+                      <span class="currency-name">{{ r.name }}</span>
+                    </span>
+                  </span>
                 </td>
                 <td class="num mono">{{ r.rateToTnd | number: '1.2-4' }}</td>
               </tr>

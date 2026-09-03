@@ -55,6 +55,19 @@ public class TunindexScorer {
     private static final BigDecimal NEAR_LOW_THRESHOLD = new BigDecimal("85");
 
     public OpportunityScoreDto score(Stock stock, TechnicalAnalysisDto technical, List<NewsImpactDto> news) {
+        return score(stock, technical, news, null);
+    }
+
+    /**
+     * @param oneYearReturnPct 12-month return measured from stored price
+     *                         history. The scraped {@code oneYearReturn}
+     *                         field is empty for every tracked stock, so
+     *                         without this the momentum component scored on
+     *                         its trend signal alone and silently lost half
+     *                         its inputs.
+     */
+    public OpportunityScoreDto score(Stock stock, TechnicalAnalysisDto technical,
+                                     List<NewsImpactDto> news, BigDecimal oneYearReturnPct) {
         List<String> reasons = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
 
@@ -62,7 +75,7 @@ public class TunindexScorer {
         Integer timing = scoreTiming(stock, technical, reasons, warnings);
         Integer health = scoreFinancialHealth(stock, reasons, warnings);
         Integer income = scoreIncome(stock, reasons);
-        Integer momentum = scoreMomentum(stock, technical, reasons, warnings);
+        Integer momentum = scoreMomentum(stock, technical, oneYearReturnPct, reasons, warnings);
         Integer newsScore = scoreNews(news, reasons, warnings);
 
         int overall = blend(
@@ -280,11 +293,15 @@ public class TunindexScorer {
 
     // ── Momentum: is the market already moving with it? ────────────────────
 
-    private Integer scoreMomentum(Stock stock, TechnicalAnalysisDto technical, List<String> reasons, List<String> warnings) {
+    private Integer scoreMomentum(Stock stock, TechnicalAnalysisDto technical, BigDecimal computedOneYearReturn,
+                                  List<String> reasons, List<String> warnings) {
         List<Integer> parts = new ArrayList<>();
 
-        BigDecimal oneYearReturn = stock.getFundamentalData() != null
+        BigDecimal stored = stock.getFundamentalData() != null
                 ? stock.getFundamentalData().getOneYearReturn() : null;
+        // Prefer the figure measured from real stored closes; fall back to
+        // the scraped field on the chance it is ever populated.
+        BigDecimal oneYearReturn = computedOneYearReturn != null ? computedOneYearReturn : stored;
         if (oneYearReturn != null) {
             double ret = oneYearReturn.doubleValue();
             // -30% -> 0, +30% -> 100, flat -> 50.

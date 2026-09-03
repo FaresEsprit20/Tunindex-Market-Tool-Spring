@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, input, signal } fro
 import { OpportunityScore, SCORE_COMPONENTS, VERDICT_LABELS, Verdict } from '../../../core/models/opportunity.model';
 import { Stock } from '../../../core/services/stock';
 import { SkeletonBlock } from '../skeleton-block/skeleton-block';
+import { ScoreRing } from '../score-ring/score-ring';
 
 /**
  * One symbol's Tunindex Score with its component breakdown and the real
@@ -10,7 +11,7 @@ import { SkeletonBlock } from '../skeleton-block/skeleton-block';
  */
 @Component({
   selector: 'app-score-panel',
-  imports: [SkeletonBlock],
+  imports: [SkeletonBlock, ScoreRing],
   templateUrl: './score-panel.html',
   styleUrl: './score-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -10,8 +10,7 @@
   // only caps — a short table still renders at its natural height with no
   // scrollbar at all.
   overflow: auto;
-  max-height: calc(100vh - 300px);
-  min-height: 220px;
+  max-height: calc(100vh - 250px);
 }
 
 .stock-table {
@@ -20,12 +19,12 @@
 
   th {
     text-align: left;
-    font-size: 11px;
+    font-size: 9.5px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-text-tertiary);
-    padding: 11px 16px;
+    padding: 5px 8px;
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
     // Column labels stay put while a long list scrolls past. The scroll
@@ -90,8 +89,9 @@
   }
 
   td {
-    padding: 10px 16px;
-    font-size: 13px;
+    padding: 3px 8px;
+    font-size: 11.5px;
+    line-height: 1.55;
     color: var(--color-text-primary);
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
@@ -113,9 +113,9 @@
     }
 
     &.spark-cell {
-      width: 88px;
-      padding-top: 4px;
-      padding-bottom: 4px;
+      width: 84px;
+      padding-top: 1px;
+      padding-bottom: 1px;
       line-height: 0;
     }
 
@@ -189,12 +189,11 @@
   text-overflow: ellipsis;
 }
 
+// Plain text, not a pill. A filled chip on every row put 20 coloured
+// objects on screen competing with the figures that actually changed.
 .sector-tag {
-  font-size: 11.5px;
-  color: var(--color-text-secondary);
-  background: var(--color-panel-alt);
-  border-radius: var(--radius-sm);
-  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
   white-space: nowrap;
 }
 
@@ -211,4 +210,12 @@
 
 .pagination-wrap {
   padding: 4px 16px 14px;
+}
+
+// Exchange flag ahead of the ticker: identifies the venue at a glance and
+// gives the symbol column a fixed left edge to align on.
+.row-flag {
+  font-size: 13px;
+  margin-right: 7px;
+  line-height: 1;
 }

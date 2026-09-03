@@ -263,3 +263,66 @@ a {
 .flash-once {
   animation: flash-wash 1.8s ease-out;
 }
+
+/* ── Explain-on-hover (phase 07) ───────────────────────────────────────────
+   Appended to <body> by the Explain directive, so these live globally
+   rather than in a component's scoped sheet. */
+
+.explainable {
+  cursor: help;
+  // A dotted underline is the long-standing convention for "there is more
+  // behind this word", and costs no layout.
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: 3px;
+  outline: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration-color: var(--color-brand);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+.explain-pop {
+  position: fixed;
+  z-index: 4000;
+  max-width: 300px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.1s ease, transform 0.1s ease;
+
+  &.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.explain-formula {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.explain-note {
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+  line-height: 1.45;
+  white-space: normal;
+}

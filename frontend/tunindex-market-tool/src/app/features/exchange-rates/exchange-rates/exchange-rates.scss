@@ -123,3 +123,27 @@
   font-size: 12px;
   text-align: center;
 }
+
+.currency-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
+// Sized well above the surrounding text: at body size the regional-indicator
+// glyphs render as unreadable specks on most platforms.
+.flag {
+  font-size: 21px;
+  line-height: 1;
+  flex-shrink: 0;
+  // Keeps every row's text starting at the same x regardless of how wide
+  // the platform draws a given flag.
+  width: 27px;
+  text-align: center;
+}
+
+.currency-text {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+}

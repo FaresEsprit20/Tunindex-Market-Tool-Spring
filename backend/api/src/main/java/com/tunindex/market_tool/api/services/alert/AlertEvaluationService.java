@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
@@ -87,7 +86,14 @@ public class AlertEvaluationService {
         }
     }
 
-    @Transactional
+    /**
+     * Deliberately NOT @Transactional: this method makes blocking calls to
+     * the collector (prices, scores, news) that can take tens of seconds,
+     * and holding a pooled DB connection across a network round trip is how
+     * a ten-connection pool gets exhausted by a handful of rules. Each
+     * repository save below is transactional on its own, which is all the
+     * atomicity a single rule update needs.
+     */
     protected boolean evaluate(AlertRule rule,
                                Map<String, StockResponseDto> stockCache,
                                Map<String, OpportunityScoreResponseDto> scoreCache) {

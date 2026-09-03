@@ -14,6 +14,9 @@ export interface PortfolioPosition {
   marketValue: number;
   unrealizedPnl: number;
   unrealizedPnlPct: number;
+  prevClose: number | null;
+  dayChangeValue: number | null;
+  dayChangePct: number | null;
 }
 
 export interface PortfolioSummary {
@@ -26,6 +29,8 @@ export interface PortfolioSummary {
   totalUnrealizedPnlPct: number;
   totalRealizedPnl: number;
   totalReturnPct: number;
+  totalDayChangeValue: number;
+  totalDayChangePct: number;
 }
 
 export interface PortfolioTransaction {

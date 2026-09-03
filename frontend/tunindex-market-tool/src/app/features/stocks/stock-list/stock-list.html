@@ -1,11 +1,8 @@
-<div class="page-head">
-  <div>
-    <p class="page-title">Stocks</p>
-    <p class="page-sub">Browse and filter all tracked BVMT-listed companies.</p>
-  </div>
-</div>
-
-<div class="filter-bar">
+<div class="workspace">
+  <div class="workspace-bar">
+    <p class="workspace-title">Stocks</p>
+    <span class="workspace-count">{{ totalElements() }} listed</span>
+<div class="filter-inline">
   <div class="search-wrap">
     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
     <input
@@ -38,10 +35,11 @@
       <span class="filter-count">{{ activeAdvancedCount() }}</span>
     }
   </button>
-</div>
+    </div>
+  </div>
 
 @if (showAdvanced()) {
-  <div class="panel-card advanced-panel">
+    <div class="panel-card advanced-panel">
     <div class="panel-body">
       <p class="filter-group-label">Investor strategies <span class="group-hint">pick one</span></p>
       <div class="advanced-presets">
@@ -171,8 +169,9 @@
   </div>
 }
 
-<div class="panel-card section">
-  <div class="table-scroll">
+  <div class="workspace-row">
+    <div class="panel-card fill">
+      <div class="table-scroll">
     <table class="stock-table">
       <thead>
         <tr>
@@ -216,7 +215,7 @@
           @for (stock of rows(); track stock.id) {
             <tr class="stock-row" (click)="openStock(stock.symbol)">
               <td class="star-col"><app-watchlist-star [symbol]="stock.symbol" /></td>
-              <td class="symbol-cell">{{ stock.symbol }}</td>
+              <td class="symbol-cell"><span class="row-flag" [title]="stock.exchange ?? ''">{{ exchangeFlag(stock.exchange) }}</span>{{ stock.symbol }}</td>
               <td class="name-cell">{{ stock.name }}</td>
               <td>
                 @if (stock.sector) {
@@ -245,12 +244,14 @@
           }
         }
       </tbody>
-    </table>
-  </div>
+        </table>
+      </div>
 
-  @if (!loading() && !error() && rows().length > 0) {
-    <div class="pagination-wrap">
-      <app-pagination [page]="page()" [totalPages]="totalPages()" [totalElements]="totalElements()" (pageChange)="onPageChange($event)" />
+      @if (!loading() && !error() && rows().length > 0) {
+        <div class="pagination-wrap">
+          <app-pagination [page]="page()" [totalPages]="totalPages()" [totalElements]="totalElements()" (pageChange)="onPageChange($event)" />
+        </div>
+      }
     </div>
-  }
+  </div>
 </div>

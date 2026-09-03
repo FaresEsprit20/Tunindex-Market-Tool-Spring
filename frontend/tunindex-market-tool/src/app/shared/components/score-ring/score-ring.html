@@ -1,0 +1,40 @@
+<svg
+  [attr.width]="size"
+  [attr.height]="size"
+  [attr.viewBox]="'0 0 ' + size + ' ' + size"
+  class="score-ring-svg"
+  role="img"
+  [attr.aria-label]="'Tunindex Score ' + score().overallScore + ' of 100'"
+>
+  <!-- Rotated so the first segment starts at 12 o'clock rather than 3. -->
+  <g [attr.transform]="'rotate(-90 ' + center + ' ' + center + ')'">
+    @for (arc of arcs(); track arc.key) {
+      <circle
+        class="arc-track"
+        [attr.cx]="center"
+        [attr.cy]="center"
+        [attr.r]="radius"
+        [attr.stroke-width]="strokeWidth"
+        [attr.stroke-dasharray]="arc.trackDash"
+        [attr.stroke-dashoffset]="arc.trackOffset"
+      />
+      <circle
+        class="arc-fill"
+        [class]="'arc-fill ' + arc.colorClass"
+        [attr.cx]="center"
+        [attr.cy]="center"
+        [attr.r]="radius"
+        [attr.stroke-width]="strokeWidth"
+        [attr.stroke-dasharray]="arc.fillDash"
+        [attr.stroke-dashoffset]="arc.fillOffset"
+      >
+        <title>{{ arcTitle(arc) }}</title>
+      </circle>
+    }
+  </g>
+
+  <text class="ring-value" [class]="'ring-value ' + overallClass()" [attr.x]="center" [attr.y]="center - 2">
+    {{ score().overallScore }}
+  </text>
+  <text class="ring-max" [attr.x]="center" [attr.y]="center + 15">/100</text>
+</svg>

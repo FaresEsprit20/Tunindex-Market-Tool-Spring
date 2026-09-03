@@ -26,6 +26,17 @@
       accent="brand"
     />
     <app-stat-tile
+      label="Today"
+      [numericValue]="s.totalDayChangeValue"
+      [decimals]="2"
+      [signed]="true"
+      suffix=" TND"
+      [trend]="s.totalDayChangeValue >= 0 ? 'up' : 'down'"
+      [trendLabel]="(s.totalDayChangePct >= 0 ? '+' : '') + (s.totalDayChangePct | number: '1.2-2') + '%'"
+      icon="M12 8v8M8 12h8M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"
+      [accent]="s.totalDayChangeValue >= 0 ? 'positive' : 'negative'"
+    />
+    <app-stat-tile
       label="Portfolio value"
       [numericValue]="s.totalPortfolioValue"
       [decimals]="2"
@@ -96,27 +107,73 @@
         }
 
         @if (quote(); as q) {
-          <div class="quote-preview">
-            <div class="quote-preview-row">
-              <span class="quote-name">{{ q.name }}</span>
-              <span class="quote-price mono">{{ q.lastPrice !== null ? (q.lastPrice | number: '1.2-2') : '—' }} TND</span>
-            </div>
-            @if (estimatedTotal(); as total) {
-              <div class="quote-preview-row muted">
-                <span>Estimated total</span>
-                <span class="mono">{{ total | number: '1.2-2' }} TND</span>
+          <div class="quote-card">
+            <div class="quote-head">
+              <div class="quote-id">
+                <span class="quote-symbol mono">{{ q.symbol }}</span>
+                <span class="quote-name">{{ q.name }}</span>
               </div>
+              @if (quoteScore(); as sc) {
+                <span class="quote-verdict" [class]="verdictClass(sc.verdict)">
+                  {{ sc.overallScore }} · {{ verdictLabels[sc.verdict] }}
+                </span>
+              }
+            </div>
+
+            <div class="quote-figures">
+              <div class="quote-price-block">
+                <span class="quote-price mono">{{ q.lastPrice !== null ? (q.lastPrice | number: '1.2-2') : '—' }}</span>
+                <span class="quote-currency">TND</span>
+                @if (dayChangePct(); as chg) {
+                  <span class="quote-day" [class.positive]="chg > 0" [class.negative]="chg < 0">
+                    {{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}% today
+                  </span>
+                }
+              </div>
+              <app-sparkline [points]="quoteSpark()" />
+            </div>
+
+            @if (existingPosition(); as held) {
+              <p class="quote-held">
+                You already hold <strong class="mono">{{ held.quantity | number }}</strong> at
+                <strong class="mono">{{ held.avgCostBasis | number: '1.2-2' }}</strong> avg.
+              </p>
             }
           </div>
 
+          <div class="qty-shortcuts">
+            <span class="qty-shortcut-label">Buy with</span>
+            <button type="button" class="qty-chip" (click)="fillQuantity(0.25)">25%</button>
+            <button type="button" class="qty-chip" (click)="fillQuantity(0.5)">50%</button>
+            <button type="button" class="qty-chip" (click)="fillQuantity(1)">Max</button>
+            <span class="qty-max mono">{{ maxAffordable() | number }} affordable</span>
+          </div>
+
+          @if (estimatedTotal(); as total) {
+            <div class="order-summary" [class.unaffordable]="!canAfford()">
+              <div class="order-row">
+                <span>Order total</span>
+                <strong class="mono">{{ total | number: '1.2-2' }} TND</strong>
+              </div>
+              <div class="order-row muted">
+                <span>Cash after buy</span>
+                <span class="mono">{{ cashAfterBuy() | number: '1.2-2' }} TND</span>
+              </div>
+              @if (!canAfford()) {
+                <p class="order-warning">Not enough cash for this order — reduce the quantity.</p>
+              }
+            </div>
+          }
+
           <div class="trade-actions">
-            <button type="button" class="btn btn-primary" [disabled]="submitting() || parsedQuantity() === null" (click)="buy()">
+            <button type="button" class="btn btn-primary" [disabled]="submitting() || parsedQuantity() === null || !canAfford()" (click)="buy()">
               Buy
             </button>
             <button type="button" class="btn btn-danger" [disabled]="submitting() || parsedQuantity() === null" (click)="sell()">
               Sell
             </button>
           </div>
+
         }
       </div>
     </div>
@@ -135,6 +192,8 @@
                 <th class="num">Qty</th>
                 <th class="num">Avg cost</th>
                 <th class="num">Price</th>
+                <th class="num">Today</th>
+                <th>30D</th>
                 <th class="num">Market value</th>
                 <th class="num">Unrealized P&amp;L</th>
               </tr>
@@ -146,6 +205,12 @@
                   <td class="num mono">{{ p.quantity | number: '1.0-2' }}</td>
                   <td class="num mono">{{ p.avgCostBasis | number: '1.2-2' }}</td>
                   <td class="num mono">{{ p.currentPrice | number: '1.2-2' }}</td>
+                  <td class="num mono" [class.positive]="(p.dayChangePct ?? 0) > 0" [class.negative]="(p.dayChangePct ?? 0) < 0">
+                    @if (p.dayChangePct !== null) {
+                      {{ p.dayChangePct > 0 ? '+' : '' }}{{ p.dayChangePct | number: '1.2-2' }}%
+                    } @else { — }
+                  </td>
+                  <td class="spark-cell"><app-sparkline [points]="sparkFor(p.symbol)" /></td>
                   <td class="num mono">{{ p.marketValue | number: '1.2-2' }}</td>
                   <td class="num mono" [class.positive]="p.unrealizedPnl >= 0" [class.negative]="p.unrealizedPnl < 0">
                     {{ p.unrealizedPnl >= 0 ? '+' : '' }}{{ p.unrealizedPnl | number: '1.2-2' }}

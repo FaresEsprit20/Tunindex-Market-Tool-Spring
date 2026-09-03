@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-const WIDTH = 76;
-const HEIGHT = 26;
-const PADDING = 2;
+const WIDTH = 68;
+// Sized to sit inside a terminal row rather than set its height.
+const HEIGHT = 18;
+const PADDING = 1.5;
 
 /**
  * A row-scale price trace: real closes, no axis, no labels.

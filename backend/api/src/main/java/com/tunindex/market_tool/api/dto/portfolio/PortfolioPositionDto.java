@@ -20,4 +20,10 @@ public class PortfolioPositionDto {
     private BigDecimal marketValue;
     private BigDecimal unrealizedPnl;
     private BigDecimal unrealizedPnlPct;
+
+    /** Previous session's close, from the same live quote as currentPrice. */
+    private BigDecimal prevClose;
+    /** Today's move on this position, in TND and percent. */
+    private BigDecimal dayChangeValue;
+    private BigDecimal dayChangePct;
 }

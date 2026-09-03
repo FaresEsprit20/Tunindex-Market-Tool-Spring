@@ -6,8 +6,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  // Sized to the row, not to a comfortable tap target: in a grid this
+  // sits in every row and was single-handedly setting the row height.
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: none;
   background: transparent;
@@ -17,8 +19,8 @@
   transition: color 0.14s ease, background-color 0.14s ease, transform 0.1s ease;
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
   }
 
   &:hover {

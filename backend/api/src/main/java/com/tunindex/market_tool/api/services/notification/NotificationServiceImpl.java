@@ -24,7 +24,10 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class NotificationServiceImpl implements NotificationService {
 
     /** Streams stay open for the session; the client reconnects on its own. */
-    private static final long STREAM_TIMEOUT_MS = 30 * 60 * 1000L;
+    // Five minutes, not thirty: each open stream pins an async servlet
+    // request, and the client reconnects on its own, so a long timeout only
+    // makes abandoned tabs expensive.
+    private static final long STREAM_TIMEOUT_MS = 5 * 60 * 1000L;
 
     private final UserNotificationRepository repository;
 

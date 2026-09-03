@@ -35,6 +35,57 @@ export class ExchangeRatesPage {
     return rates.find((r) => r.code === this.selectedCode()) ?? null;
   });
 
+  /**
+   * Currency code to country flag. Built from the ISO 3166 region letters
+   * inside each currency code (EUR is the exception — a union, not a
+   * country) and rendered as regional-indicator emoji, so there are no
+   * image requests and nothing to 404.
+   */
+  private static readonly FLAGS: Record<string, string> = {
+    EUR: '🇪🇺',
+    USD: '🇺🇸',
+    GBP: '🇬🇧',
+    CHF: '🇨🇭',
+    JPY: '🇯🇵',
+    CAD: '🇨🇦',
+    CNY: '🇨🇳',
+    AED: '🇦🇪',
+    SAR: '🇸🇦',
+    MAD: '🇲🇦',
+    DZD: '🇩🇿',
+    LYD: '🇱🇾',
+    EGP: '🇪🇬',
+    TRY: '🇹🇷',
+    SEK: '🇸🇪',
+    NOK: '🇳🇴',
+    DKK: '🇩🇰',
+    RUB: '🇷🇺',
+    INR: '🇮🇳',
+    AUD: '🇦🇺',
+    KWD: '🇰🇼',
+    QAR: '🇶🇦',
+    BHD: '🇧🇭',
+    JOD: '🇯🇴',
+    TND: '🇹🇳',
+  };
+
+  protected flagFor(code: string): string {
+    const known = ExchangeRatesPage.FLAGS[code];
+    if (known) {
+      return known;
+    }
+    // Fall back to the code's first two letters as regional indicators —
+    // correct for most currencies, since the first two letters are the
+    // country. A wrong-looking flag beats a missing cell.
+    const region = code.slice(0, 2).toUpperCase();
+    if (!/^[A-Z]{2}$/.test(region)) {
+      return '🏳️';
+    }
+    return String.fromCodePoint(
+      ...[...region].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65),
+    );
+  }
+
   /** Round figures people actually convert, as a ready-reckoner. */
   private readonly quickAmounts = [1, 10, 100, 500, 1000, 5000, 10000];
 

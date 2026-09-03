@@ -20,6 +20,7 @@
   <div class="detail-head">
     <div>
       <div class="title-row">
+        <span class="exchange-flag" [title]="s.exchange ?? 'Unknown exchange'">{{ exchangeFlag(s.exchange) }}</span>
         <h1 class="symbol-title">{{ s.symbol }}</h1>
         <app-watchlist-star [symbol]="s.symbol" />
         @if (s.sector) {
@@ -29,7 +30,7 @@
           <span class="tag">{{ ownershipLabels[s.ownershipType] }}</span>
         }
       </div>
-      <p class="company-name">{{ s.name }}</p>
+      <p class="company-name">{{ s.name }}<span class="exchange-name">· {{ s.exchange }}</span></p>
     </div>
 
     <div class="detail-actions">
@@ -49,7 +50,7 @@
       <span class="price-value mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }}</span>
       <span class="price-currency">{{ s.currency }}</span>
       @if (dayChangePct(); as chg) {
-        <span class="price-change mono" [class.positive]="chg > 0" [class.negative]="chg < 0">
+        <span class="price-change mono" [class.positive]="chg > 0" [class.negative]="chg < 0" [appExplain]="explainDayChange(s)">
           @if (chg > 0) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
           } @else if (chg < 0) {
@@ -123,7 +124,7 @@
       <div class="panel-body">
         <div class="kv-row">
           <span class="kv-label">Fair value</span>
-          <span class="kv-value mono">{{ s.grahamFairValue !== null ? (s.grahamFairValue | number: '1.2-2') : '—' }}</span>
+          <span class="kv-value mono" appExplain=" " [explainNote]="notes.grahamFairValue">{{ s.grahamFairValue !== null ? (s.grahamFairValue | number: '1.2-2') : '—' }}</span>
         </div>
         <div class="kv-row">
           <span class="kv-label">Margin of safety</span>
@@ -131,11 +132,13 @@
             class="kv-value mono"
             [class.positive]="(s.marginOfSafety ?? 0) > 0"
             [class.negative]="(s.marginOfSafety ?? 0) < 0"
+            [appExplain]="explainMarginOfSafety(s)"
+            [explainNote]="notes.marginOfSafety"
           >{{ s.marginOfSafety !== null ? (s.marginOfSafety | number: '1.1-1') + '%' : '—' }}</span>
         </div>
         <div class="kv-row">
           <span class="kv-label">Book value / share</span>
-          <span class="kv-value mono">{{ s.bookValuePerShare !== null ? (s.bookValuePerShare | number: '1.2-2') : '—' }}</span>
+          <span class="kv-value mono" appExplain=" " [explainNote]="notes.bookValuePerShare">{{ s.bookValuePerShare !== null ? (s.bookValuePerShare | number: '1.2-2') : '—' }}</span>
         </div>
       </div>
     </div>
@@ -149,11 +152,11 @@
         </div>
         <div class="kv-row">
           <span class="kv-label">P/E ratio</span>
-          <span class="kv-value mono">{{ s.peRatio !== null ? (s.peRatio | number: '1.1-1') : '—' }}</span>
+          <span class="kv-value mono" [appExplain]="explainPeRatio(s)" [explainNote]="notes.peRatio">{{ s.peRatio !== null ? (s.peRatio | number: '1.1-1') : '—' }}</span>
         </div>
         <div class="kv-row">
           <span class="kv-label">Dividend yield</span>
-          <span class="kv-value mono">{{ s.dividendYield !== null ? (s.dividendYield | number: '1.1-1') + '%' : '—' }}</span>
+          <span class="kv-value mono" appExplain=" " [explainNote]="notes.dividendYield">{{ s.dividendYield !== null ? (s.dividendYield | number: '1.1-1') + '%' : '—' }}</span>
         </div>
         <div class="kv-row">
           <span class="kv-label">Market cap</span>
@@ -168,7 +171,7 @@
     <div class="panel-body ratios-grid">
       <div class="kv-row">
         <span class="kv-label">Debt / equity</span>
-        <span class="kv-value mono">{{ s.debtToEquity !== null ? (s.debtToEquity | number: '1.2-2') : '—' }}</span>
+        <span class="kv-value mono" appExplain=" " [explainNote]="notes.debtToEquity">{{ s.debtToEquity !== null ? (s.debtToEquity | number: '1.2-2') : '—' }}</span>
       </div>
       <div class="kv-row">
         <span class="kv-label">Profit margin</span>
@@ -176,7 +179,7 @@
       </div>
       <div class="kv-row">
         <span class="kv-label">Price / book</span>
-        <span class="kv-value mono">{{ s.priceToBook !== null ? (s.priceToBook | number: '1.2-2') : '—' }}</span>
+        <span class="kv-value mono" [appExplain]="explainPriceToBook(s)" [explainNote]="notes.priceToBook">{{ s.priceToBook !== null ? (s.priceToBook | number: '1.2-2') : '—' }}</span>
       </div>
       <div class="kv-row">
         <span class="kv-label">Beta</span>

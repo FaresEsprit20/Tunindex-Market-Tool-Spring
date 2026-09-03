@@ -9,8 +9,11 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { RangeBar } from '../../../shared/components/range-bar/range-bar';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
 import { Sparkline } from '../../../shared/components/sparkline/sparkline';
+import { exchangeFlag } from '../../../core/constants/exchange-flags';
 
-const PAGE_SIZE = 20;
+// Rows are now ~24px, so a page shows a useful slice of the exchange
+// instead of a fifth of it.
+const PAGE_SIZE = 50;
 const SECTOR_OPTIONS: SectorType[] = [
   'FINANCIALS',
   'BANKING',
@@ -166,6 +169,7 @@ const TABLE_COLUMNS: TableColumn[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockList {
+  protected readonly exchangeFlag = exchangeFlag;
   private readonly stockService = inject(Stock);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

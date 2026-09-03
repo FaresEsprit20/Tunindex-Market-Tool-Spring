@@ -11,10 +11,7 @@
   <p class="empty-msg">Couldn't score {{ symbol() }} right now.</p>
 } @else if (score(); as s) {
   <div class="score-head">
-    <div class="score-ring" [class]="scoreClass(s.overallScore)">
-      <span class="score-value">{{ s.overallScore }}</span>
-      <span class="score-max">/100</span>
-    </div>
+    <app-score-ring [score]="s" />
     <div class="score-head-text">
       <span class="verdict-badge" [class]="verdictClass(s.verdict)">{{ verdictLabels[s.verdict] }}</span>
       <p class="score-caption">

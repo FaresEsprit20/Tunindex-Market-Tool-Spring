@@ -34,19 +34,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 11px 15px;
   border-bottom: 1px solid var(--color-border);
 }
 
 .panel-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .panel-body {
-  padding: 18px 20px;
+  padding: 13px 15px;
 }
 
 .empty-msg {
@@ -57,14 +57,28 @@
   margin: 0;
 }
 
+// One banded strip rather than a row of floating cards. Five separate
+// cards each holding a single number spent ~140px of height apiece and
+// read as five unrelated objects; a summary bar divided by hairlines is
+// how a trading account header actually works, and costs a third of the
+// space for the same figures.
 .stat-tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--rim-light);
+  overflow: hidden;
 
-  // A short left-to-right cascade as the row of figures lands, so the eye
-  // is led across it instead of being hit with four numbers at once. Kept
-  // to ~40ms steps and a 300ms rise: a cascade, not a wait.
+  > * {
+    border-right: 1px solid var(--color-border);
+
+    &:last-child {
+      border-right: none;
+    }
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     > * {
       animation: card-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -72,7 +86,7 @@
 
     @for $i from 1 through 6 {
       > *:nth-child(#{$i}) {
-        animation-delay: #{($i - 1) * 0.04}s;
+        animation-delay: #{($i - 1) * 0.035}s;
       }
     }
   }
@@ -81,7 +95,10 @@
 .two-col-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
+  // Panels size to their own content instead of both stretching to the
+  // taller one, which is what left half-empty cards side by side.
+  align-items: start;
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -93,7 +110,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
@@ -116,7 +133,7 @@
 }
 
 .section {
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .section-label {
@@ -127,3 +144,97 @@
   color: var(--color-text-tertiary);
   margin: 0 0 10px;
 }
+
+/* ── Workspace layout (phase 01) ───────────────────────────────────────────
+   A page opts in by putting `.workspace` on its root element. It then fills
+   the content box exactly and never scrolls itself; its panels scroll.
+   Pages that haven't been converted keep behaving as documents, so this
+   lands page by page instead of in one commit. */
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+// A row of panels sharing the remaining height.
+.workspace-row {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
+
+.workspace-row.split-2 { grid-template-columns: 1fr 1fr; }
+.workspace-row.split-main { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.workspace-row.split-side { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
+
+@media (max-width: 1100px) {
+  .workspace-row.split-2,
+  .workspace-row.split-main,
+  .workspace-row.split-side {
+    grid-template-columns: 1fr;
+  }
+}
+
+// A panel inside a workspace: header pinned, body scrolls, footer pinned.
+.panel-card.fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+
+  .panel-head { flex-shrink: 0; }
+
+  .panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  // A table inside a filling panel manages its own scroll and drops the
+  // viewport-relative cap, which only made sense for a scrolling document.
+  .table-scroll {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
+  .pagination-wrap {
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+// Toolbar strip: the filter bar and page identity on one pinned line,
+// replacing the separate 62px page-title block.
+.workspace-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.workspace-title {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.workspace-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.workspace-spacer { flex: 1; }

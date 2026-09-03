@@ -29,6 +29,38 @@
   border-right: 1px solid var(--color-border);
 }
 
+// A one-shot wash when a price actually moves. The strip is already in
+// constant motion, so a change has to announce itself with colour rather
+// than movement to be noticed at all.
+.ticker-item.tick-up,
+.ticker-item.tick-down {
+  animation: ticker-tick 1.5s var(--ease-standard);
+}
+
+.ticker-item.tick-up {
+  --tick-color: var(--color-positive);
+}
+
+.ticker-item.tick-down {
+  --tick-color: var(--color-negative);
+}
+
+@keyframes ticker-tick {
+  0% {
+    background-color: color-mix(in srgb, var(--tick-color) 26%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-item.tick-up,
+  .ticker-item.tick-down {
+    animation: none;
+  }
+}
+
 .ticker-symbol {
   font-size: 12.5px;
   font-weight: 700;

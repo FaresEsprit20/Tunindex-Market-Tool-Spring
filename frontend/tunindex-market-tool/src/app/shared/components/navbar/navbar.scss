@@ -6,7 +6,18 @@
   height: 100%;
   padding: 0 20px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-panel);
+  // Frosted rather than opaque: the ticker scrolling underneath stays
+  // faintly perceptible, which makes the chrome feel like a layer over a
+  // live surface instead of a lid on top of it.
+  background: color-mix(in srgb, var(--color-panel) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+
+  // No backdrop-filter support: fall back to the solid panel so the bar is
+  // never semi-transparent over scrolling content.
+  @supports not (backdrop-filter: blur(1px)) {
+    background: var(--color-panel);
+  }
 }
 
 .search-wrap {

@@ -26,42 +26,96 @@ const SECTOR_OPTIONS: SectorType[] = [
   'OTHER',
 ];
 
-// Every key here maps 1:1 to a boolean filter the backend already supports
-// (StockServiceImpl.buildSpecificationFromFilters) — this UI previously
-// only exposed 3 of these.
+/**
+ * Investor presets are mutually exclusive by design: each is a complete,
+ * named strategy (a bundle of thresholds), and stacking two of them just
+ * intersects into noise.
+ */
 type PresetKey =
-  | 'undervalued'
-  | 'profitable'
   | 'grahamCriteria'
-  | 'lowDebt'
-  | 'highDividend'
-  | 'lowPeRatio'
   | 'valueInvestorFavorites'
   | 'growthInvestorFavorites'
   | 'incomeInvestorFavorites'
   | 'contrarianFavorites';
 
 const PRESET_LABELS: Record<PresetKey, string> = {
-  undervalued: 'Undervalued',
-  profitable: 'Profitable',
   grahamCriteria: 'Graham criteria',
-  lowDebt: 'Low debt',
-  highDividend: 'High dividend',
-  lowPeRatio: 'Low P/E',
   valueInvestorFavorites: 'Value investor',
   growthInvestorFavorites: 'Growth investor',
   incomeInvestorFavorites: 'Income investor',
   contrarianFavorites: 'Contrarian',
 };
-const PRIMARY_PRESETS: PresetKey[] = ['undervalued', 'profitable', 'grahamCriteria'];
-const MORE_PRESETS: PresetKey[] = [
-  'lowDebt',
-  'highDividend',
-  'lowPeRatio',
+const PRESET_KEYS: PresetKey[] = [
+  'grahamCriteria',
   'valueInvestorFavorites',
   'growthInvestorFavorites',
   'incomeInvestorFavorites',
   'contrarianFavorites',
+];
+
+/**
+ * Single-condition flags. Unlike presets these combine freely — the
+ * backend ANDs every filter it is given — so they are multi-select, except
+ * within the contradictory pairs below.
+ */
+type FlagKey =
+  | 'profitable'
+  | 'undervalued'
+  | 'overvalued'
+  | 'lowDebt'
+  | 'highDebt'
+  | 'lowPeRatio'
+  | 'highDividend'
+  | 'priceBelowGrahamValue'
+  | 'priceAboveGrahamValue'
+  | 'near52WeekLow'
+  | 'near52WeekHigh';
+
+const FLAG_LABELS: Record<FlagKey, string> = {
+  profitable: 'Profitable',
+  undervalued: 'Undervalued',
+  overvalued: 'Overvalued',
+  lowDebt: 'Low debt',
+  highDebt: 'High debt',
+  lowPeRatio: 'Low P/E',
+  highDividend: 'High dividend',
+  priceBelowGrahamValue: 'Below Graham value',
+  priceAboveGrahamValue: 'Above Graham value',
+  near52WeekLow: 'Near 52W low',
+  near52WeekHigh: 'Near 52W high',
+};
+
+/** The three chips shown inline; the rest live behind "More filters". */
+const PRIMARY_FLAGS: FlagKey[] = ['undervalued', 'profitable', 'near52WeekLow'];
+const MORE_FLAGS: FlagKey[] = [
+  'overvalued',
+  'lowDebt',
+  'highDebt',
+  'lowPeRatio',
+  'highDividend',
+  'priceBelowGrahamValue',
+  'priceAboveGrahamValue',
+  'near52WeekHigh',
+];
+
+/**
+ * Pairs that cannot both hold. Selecting one clears the other rather than
+ * letting the user build a query that must return zero rows.
+ */
+const OPPOSITE_FLAGS: Partial<Record<FlagKey, FlagKey>> = {
+  undervalued: 'overvalued',
+  overvalued: 'undervalued',
+  lowDebt: 'highDebt',
+  highDebt: 'lowDebt',
+  priceBelowGrahamValue: 'priceAboveGrahamValue',
+  priceAboveGrahamValue: 'priceBelowGrahamValue',
+  near52WeekLow: 'near52WeekHigh',
+  near52WeekHigh: 'near52WeekLow',
+};
+
+const OWNERSHIP_OPTIONS = [
+  { value: 'PRIVATE', label: 'Private sector' },
+  { value: 'GOVERNMENT', label: 'Government owned' },
 ];
 
 interface RangeFilter {
@@ -116,8 +170,11 @@ export class StockList {
   protected readonly sectorOptions = SECTOR_OPTIONS;
   protected readonly sectorLabels = SECTOR_LABELS;
   protected readonly presetLabels = PRESET_LABELS;
-  protected readonly primaryPresets = PRIMARY_PRESETS;
-  protected readonly morePresets = MORE_PRESETS;
+  protected readonly presetKeys = PRESET_KEYS;
+  protected readonly flagLabels = FLAG_LABELS;
+  protected readonly primaryFlags = PRIMARY_FLAGS;
+  protected readonly moreFlags = MORE_FLAGS;
+  protected readonly ownershipOptions = OWNERSHIP_OPTIONS;
 
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
@@ -132,7 +189,9 @@ export class StockList {
 
   protected readonly searchInput = signal('');
   protected readonly sector = signal<SectorType | ''>('');
+  protected readonly ownershipType = signal('');
   protected readonly preset = signal<PresetKey | null>(null);
+  protected readonly flags = signal<ReadonlySet<FlagKey>>(new Set());
   protected readonly showAdvanced = signal(false);
 
   protected readonly priceRange = signal<RangeFilter>({ min: '', max: '' });
@@ -140,6 +199,27 @@ export class StockList {
   protected readonly dividendYieldRange = signal<RangeFilter>({ min: '', max: '' });
   protected readonly debtToEquityRange = signal<RangeFilter>({ min: '', max: '' });
   protected readonly marginOfSafetyRange = signal<RangeFilter>({ min: '', max: '' });
+  protected readonly profitMarginRange = signal<RangeFilter>({ min: '', max: '' });
+  protected readonly epsRange = signal<RangeFilter>({ min: '', max: '' });
+  protected readonly bvpsRange = signal<RangeFilter>({ min: '', max: '' });
+  protected readonly grahamFairValueRange = signal<RangeFilter>({ min: '', max: '' });
+  protected readonly closeTo52WeekLowRange = signal<RangeFilter>({ min: '', max: '' });
+
+  /** Every range signal, so clear/count logic never misses a newly-added one. */
+  private allRanges(): RangeFilter[] {
+    return [
+      this.priceRange(),
+      this.peRange(),
+      this.dividendYieldRange(),
+      this.debtToEquityRange(),
+      this.marginOfSafetyRange(),
+      this.profitMarginRange(),
+      this.epsRange(),
+      this.bvpsRange(),
+      this.grahamFairValueRange(),
+      this.closeTo52WeekLowRange(),
+    ];
+  }
 
   private readonly queryParam = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -180,10 +260,38 @@ export class StockList {
     this.load();
   }
 
+  protected onOwnershipChange(value: string): void {
+    this.ownershipType.set(value);
+    this.page.set(1);
+    this.load();
+  }
+
   protected togglePreset(key: PresetKey): void {
     this.preset.set(this.preset() === key ? null : key);
     this.page.set(1);
     this.load();
+  }
+
+  protected toggleFlag(key: FlagKey): void {
+    const next = new Set(this.flags());
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+      // Turning on one half of a contradictory pair turns the other off,
+      // rather than letting the two AND into a guaranteed-empty result.
+      const opposite = OPPOSITE_FLAGS[key];
+      if (opposite) {
+        next.delete(opposite);
+      }
+    }
+    this.flags.set(next);
+    this.page.set(1);
+    this.load();
+  }
+
+  protected isFlagActive(key: FlagKey): boolean {
+    return this.flags().has(key);
   }
 
   protected toggleAdvanced(): void {
@@ -196,11 +304,20 @@ export class StockList {
   }
 
   protected clearAdvancedFilters(): void {
-    this.priceRange.set({ min: '', max: '' });
-    this.peRange.set({ min: '', max: '' });
-    this.dividendYieldRange.set({ min: '', max: '' });
-    this.debtToEquityRange.set({ min: '', max: '' });
-    this.marginOfSafetyRange.set({ min: '', max: '' });
+    const empty = { min: '', max: '' };
+    this.priceRange.set(empty);
+    this.peRange.set(empty);
+    this.dividendYieldRange.set(empty);
+    this.debtToEquityRange.set(empty);
+    this.marginOfSafetyRange.set(empty);
+    this.profitMarginRange.set(empty);
+    this.epsRange.set(empty);
+    this.bvpsRange.set(empty);
+    this.grahamFairValueRange.set(empty);
+    this.closeTo52WeekLowRange.set(empty);
+    this.flags.set(new Set());
+    this.preset.set(null);
+    this.ownershipType.set('');
     this.page.set(1);
     this.load();
   }
@@ -227,8 +344,9 @@ export class StockList {
   }
 
   protected activeAdvancedCount(): number {
-    return [this.priceRange(), this.peRange(), this.dividendYieldRange(), this.debtToEquityRange(), this.marginOfSafetyRange()]
-      .filter((r) => r.min.trim() || r.max.trim()).length;
+    const ranges = this.allRanges().filter((r) => r.min.trim() || r.max.trim()).length;
+    const flagsInPanel = this.moreFlags.filter((key) => this.flags().has(key)).length;
+    return ranges + flagsInPanel + (this.preset() ? 1 : 0) + (this.ownershipType() ? 1 : 0);
   }
 
   private load(): void {
@@ -253,8 +371,15 @@ export class StockList {
     if (this.sector()) {
       filters.sector = this.sector();
     }
+    if (this.ownershipType()) {
+      filters.ownershipType = this.ownershipType();
+    }
     if (this.preset()) {
       filters[this.preset()!] = 'true';
+    }
+    // Flags all AND together server-side, so every selected one is sent.
+    for (const flag of this.flags()) {
+      filters[flag] = 'true';
     }
 
     this.applyRange(filters, this.priceRange(), 'minPrice', 'maxPrice');
@@ -262,6 +387,11 @@ export class StockList {
     this.applyRange(filters, this.dividendYieldRange(), 'minDividendYield', 'maxDividendYield');
     this.applyRange(filters, this.debtToEquityRange(), 'minDebtToEquity', 'maxDebtToEquity');
     this.applyRange(filters, this.marginOfSafetyRange(), 'minMarginOfSafety', 'maxMarginOfSafety');
+    this.applyRange(filters, this.profitMarginRange(), 'minProfitMargin', 'maxProfitMargin');
+    this.applyRange(filters, this.epsRange(), 'minEps', 'maxEps');
+    this.applyRange(filters, this.bvpsRange(), 'minBvps', 'maxBvps');
+    this.applyRange(filters, this.grahamFairValueRange(), 'minGrahamFairValue', 'maxGrahamFairValue');
+    this.applyRange(filters, this.closeTo52WeekLowRange(), 'minCloseTo52WeekLow', 'maxCloseTo52WeekLow');
 
     this.stockService
       .filter({

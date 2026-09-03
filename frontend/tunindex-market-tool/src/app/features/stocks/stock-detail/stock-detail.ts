@@ -12,10 +12,11 @@ import { WatchlistStar } from '../../../shared/components/watchlist-star/watchli
 import { CandlestickChart } from '../../../shared/components/candlestick-chart/candlestick-chart';
 import { PriceHistoryPoint } from '../../../core/models/price-history.model';
 import { NewsList } from '../../../shared/components/news-list/news-list';
+import { ScorePanel } from '../../../shared/components/score-panel/score-panel';
 
 @Component({
   selector: 'app-stock-detail',
-  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, CandlestickChart, NewsList],
+  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, CandlestickChart, NewsList, ScorePanel],
   templateUrl: './stock-detail.html',
   styleUrl: './stock-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

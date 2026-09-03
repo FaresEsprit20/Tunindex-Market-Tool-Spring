@@ -9,6 +9,7 @@ import { PriceHistoryPoint } from '../models/price-history.model';
 import { FundamentalAnalysis, TechnicalAnalysis } from '../models/analysis.model';
 import { StockNews } from '../models/stock-news.model';
 import { NewsImpact } from '../models/news-impact.model';
+import { OpportunityScore } from '../models/opportunity.model';
 
 /**
  * Keys accepted by the backend's filters map (collector's StockServiceImpl
@@ -135,5 +136,21 @@ export class Stock {
     return this.http.get<NewsImpact[]>(`${API_BASE_URL}/news/${encodeURIComponent(symbol)}/impact`, {
       params: { limit, tradingDaysAfter },
     });
+  }
+
+  /**
+   * Ranked buy opportunities across every tracked stock — the Tunindex
+   * Score (see TunindexScorer on the collector). Heavier than a normal
+   * lookup: the backend rescores the whole exchange per call.
+   */
+  getOpportunities(limit = 20, minScore = 0): Observable<OpportunityScore[]> {
+    return this.http.get<OpportunityScore[]>(`${API_BASE_URL}/opportunities`, {
+      params: { limit, minScore },
+    });
+  }
+
+  /** One stock's Tunindex Score with its component breakdown. */
+  getScore(symbol: string): Observable<OpportunityScore> {
+    return this.http.get<OpportunityScore>(`${API_BASE_URL}/score/${encodeURIComponent(symbol)}`);
   }
 }

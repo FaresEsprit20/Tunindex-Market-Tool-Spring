@@ -26,8 +26,8 @@
   </select>
 
   <div class="preset-chips">
-    @for (key of primaryPresets; track key) {
-      <button type="button" class="chip" [class.active]="preset() === key" (click)="togglePreset(key)">{{ presetLabels[key] }}</button>
+    @for (key of primaryFlags; track key) {
+      <button type="button" class="chip" [class.active]="isFlagActive(key)" (click)="toggleFlag(key)">{{ flagLabels[key] }}</button>
     }
   </div>
 
@@ -43,12 +43,31 @@
 @if (showAdvanced()) {
   <div class="panel-card advanced-panel">
     <div class="panel-body">
+      <p class="filter-group-label">Investor strategies <span class="group-hint">pick one</span></p>
       <div class="advanced-presets">
-        @for (key of morePresets; track key) {
+        @for (key of presetKeys; track key) {
           <button type="button" class="chip" [class.active]="preset() === key" (click)="togglePreset(key)">{{ presetLabels[key] }}</button>
         }
       </div>
 
+      <p class="filter-group-label">Conditions <span class="group-hint">combine freely</span></p>
+      <div class="advanced-presets">
+        @for (key of moreFlags; track key) {
+          <button type="button" class="chip" [class.active]="isFlagActive(key)" (click)="toggleFlag(key)">{{ flagLabels[key] }}</button>
+        }
+      </div>
+
+      <p class="filter-group-label">Ownership</p>
+      <div class="advanced-presets">
+        <select class="sector-select" [value]="ownershipType()" (change)="onOwnershipChange($any($event.target).value)">
+          <option value="">Any ownership</option>
+          @for (option of ownershipOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+
+      <p class="filter-group-label">Ranges</p>
       <div class="range-grid">
         <div class="range-field">
           <span class="range-field-label">Price (TND)</span>
@@ -92,6 +111,54 @@
             <input type="number" placeholder="Min" [value]="marginOfSafetyRange().min" (input)="marginOfSafetyRange.set({ min: $any($event.target).value, max: marginOfSafetyRange().max })" />
             <span>–</span>
             <input type="number" placeholder="Max" [value]="marginOfSafetyRange().max" (input)="marginOfSafetyRange.set({ min: marginOfSafetyRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Profit margin (%)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="profitMarginRange().min" (input)="profitMarginRange.set({ min: $any($event.target).value, max: profitMarginRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="profitMarginRange().max" (input)="profitMarginRange.set({ min: profitMarginRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">EPS (TND)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="epsRange().min" (input)="epsRange.set({ min: $any($event.target).value, max: epsRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="epsRange().max" (input)="epsRange.set({ min: epsRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Book value / share</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="bvpsRange().min" (input)="bvpsRange.set({ min: $any($event.target).value, max: bvpsRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="bvpsRange().max" (input)="bvpsRange.set({ min: bvpsRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Graham fair value (TND)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="grahamFairValueRange().min" (input)="grahamFairValueRange.set({ min: $any($event.target).value, max: grahamFairValueRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="grahamFairValueRange().max" (input)="grahamFairValueRange.set({ min: grahamFairValueRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">
+            Position in 52W range (%)
+            <span class="field-hint">100 = at the low</span>
+          </span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="closeTo52WeekLowRange().min" (input)="closeTo52WeekLowRange.set({ min: $any($event.target).value, max: closeTo52WeekLowRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="closeTo52WeekLowRange().max" (input)="closeTo52WeekLowRange.set({ min: closeTo52WeekLowRange().min, max: $any($event.target).value })" />
           </div>
         </div>
       </div>

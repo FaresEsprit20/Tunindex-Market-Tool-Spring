@@ -1,0 +1,216 @@
+.score-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.score-skeleton-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.score-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.score-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 3px solid var(--color-border);
+
+  &.excellent {
+    border-color: var(--color-positive);
+    background: var(--color-positive-dim);
+  }
+
+  &.good {
+    border-color: var(--color-brand);
+    background: var(--color-brand-dim);
+  }
+
+  &.fair {
+    border-color: var(--color-warning);
+    background: var(--color-warning-dim);
+  }
+
+  &.weak {
+    border-color: var(--color-border-strong);
+    background: var(--color-panel-alt);
+  }
+}
+
+.score-value {
+  font-family: var(--font-mono);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+.score-max {
+  font-size: 9.5px;
+  color: var(--color-text-tertiary);
+  line-height: 1.4;
+}
+
+.score-head-text {
+  min-width: 0;
+}
+
+.verdict-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-bottom: 7px;
+
+  &.strong-buy {
+    background: var(--color-positive-dim);
+    color: var(--color-positive);
+  }
+
+  &.buy {
+    background: var(--color-brand-dim);
+    color: var(--color-brand);
+  }
+
+  &.watch {
+    background: var(--color-warning-dim);
+    color: var(--color-warning);
+  }
+
+  &.hold {
+    background: var(--color-panel-alt);
+    color: var(--color-text-tertiary);
+  }
+}
+
+.score-caption {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.completeness {
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  margin: 5px 0 0;
+}
+
+.completeness-note {
+  color: var(--color-warning);
+}
+
+.component-row {
+  display: grid;
+  grid-template-columns: 112px 32px 1fr 30px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.component-label {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.component-weight {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  text-align: right;
+}
+
+.component-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.component-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.excellent {
+    background: var(--color-positive);
+  }
+
+  &.good {
+    background: var(--color-brand);
+  }
+
+  &.fair {
+    background: var(--color-warning);
+  }
+
+  &.weak {
+    background: var(--color-border-strong);
+  }
+}
+
+.component-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.component-missing {
+  grid-column: 3 / span 2;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--color-text-tertiary);
+}
+
+.rationale-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  li {
+    font-size: 12.5px;
+    color: var(--color-text-secondary);
+    padding-left: 15px;
+    position: relative;
+    line-height: 1.45;
+
+    &::before {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+  }
+
+  &.positive li::before {
+    content: '↑';
+    color: var(--color-positive);
+  }
+
+  &.negative li::before {
+    content: '!';
+    color: var(--color-negative);
+    font-weight: 700;
+  }
+}

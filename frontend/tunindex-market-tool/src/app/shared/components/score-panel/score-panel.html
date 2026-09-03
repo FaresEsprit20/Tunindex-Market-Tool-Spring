@@ -1,0 +1,67 @@
+@if (loading()) {
+  <div class="score-skeleton">
+    <app-skeleton-block height="64px" width="64px" radius="50%" />
+    <div class="score-skeleton-bars">
+      <app-skeleton-block height="14px" width="70%" />
+      <app-skeleton-block height="14px" width="55%" />
+      <app-skeleton-block height="14px" width="62%" />
+    </div>
+  </div>
+} @else if (error()) {
+  <p class="empty-msg">Couldn't score {{ symbol() }} right now.</p>
+} @else if (score(); as s) {
+  <div class="score-head">
+    <div class="score-ring" [class]="scoreClass(s.overallScore)">
+      <span class="score-value">{{ s.overallScore }}</span>
+      <span class="score-max">/100</span>
+    </div>
+    <div class="score-head-text">
+      <span class="verdict-badge" [class]="verdictClass(s.verdict)">{{ verdictLabels[s.verdict] }}</span>
+      <p class="score-caption">
+        Tunindex Score — a fixed weighted rule set over this stock's real published figures.
+      </p>
+      <p class="completeness">
+        Based on {{ s.dataCompleteness }}% of the scorer's inputs.
+        @if (s.dataCompleteness < 70) {
+          <span class="completeness-note">Thin coverage — treat with caution.</span>
+        }
+      </p>
+    </div>
+  </div>
+
+  <div class="components">
+    @for (component of scoreComponents; track component.key) {
+      <div class="component-row">
+        <span class="component-label">{{ component.label }}</span>
+        <span class="component-weight">{{ component.weight }}%</span>
+        @if (componentValue(s, component.key) !== null) {
+          <div class="component-bar">
+            <div
+              class="component-fill"
+              [class]="scoreClass(componentValue(s, component.key)!)"
+              [style.width.%]="componentValue(s, component.key)"
+            ></div>
+          </div>
+          <span class="component-value mono">{{ componentValue(s, component.key) }}</span>
+        } @else {
+          <span class="component-missing">no data</span>
+        }
+      </div>
+    }
+  </div>
+
+  @if (s.reasons.length > 0) {
+    <ul class="rationale-list positive">
+      @for (reason of s.reasons; track reason) {
+        <li>{{ reason }}</li>
+      }
+    </ul>
+  }
+  @if (s.warnings.length > 0) {
+    <ul class="rationale-list negative">
+      @for (warning of s.warnings; track warning) {
+        <li>{{ warning }}</li>
+      }
+    </ul>
+  }
+}

@@ -9,6 +9,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', route: '/app/dashboard', icon: 'M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z' },
   { label: 'Stocks', route: '/app/stocks', icon: 'M3 3v18h18M7 14l4-4 3 3 5-6' },
+  { label: 'Opportunities', route: '/app/opportunities', icon: 'M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.3-6.2-4.6-6.2 4.6 2.4-7.3L2 9.4h7.6z' },
   { label: 'Watchlist', route: '/app/watchlist', icon: 'M12 4.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 20.6l1-5.8-4.3-4.1 5.9-.9z' },
   { label: 'Portfolio', route: '/app/portfolio', icon: 'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM8 5V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1M3 12h18' },
   { label: 'Exchange Rates', route: '/app/exchange-rates', icon: 'M7 8h10M7 8a3 3 0 1 1 0 6h10M7 16h10M17 16a3 3 0 1 0 0-6' },

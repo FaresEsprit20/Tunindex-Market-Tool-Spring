@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
         "com.tunindex.market_tool.api",
@@ -16,6 +17,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @Slf4j
 @EnableJpaAuditing
 @EnableDiscoveryClient
+// Drives AlertEvaluationService, which walks enabled alert rules on a timer.
+@EnableScheduling
 @EntityScan("com.tunindex.market_tool.api.entities")  // ← Only API entities
 @EnableJpaRepositories("com.tunindex.market_tool.api.repository")  // ← Only API repositories
 public class ApiApplication {

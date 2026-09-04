@@ -8,6 +8,9 @@ import { CandlestickChart } from '../../../shared/components/candlestick-chart/c
 import { ScorePanel } from '../../../shared/components/score-panel/score-panel';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { TabbedPanel } from '../../../shared/components/tabbed-panel/tabbed-panel';
+import { Tab } from '../../../shared/components/tabbed-panel/tab';
+import { NewsList } from '../../../shared/components/news-list/news-list';
 
 /**
  * The detail half of the quote-monitor split: whatever row is selected in
@@ -19,7 +22,7 @@ import { EmptyState } from '../../../shared/components/empty-state/empty-state';
  */
 @Component({
   selector: 'app-stock-preview',
-  imports: [DecimalPipe, RouterLink, CandlestickChart, ScorePanel, SkeletonBlock, EmptyState],
+  imports: [DecimalPipe, RouterLink, CandlestickChart, ScorePanel, SkeletonBlock, EmptyState, TabbedPanel, Tab, NewsList],
   templateUrl: './stock-preview.html',
   styleUrl: './stock-preview.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

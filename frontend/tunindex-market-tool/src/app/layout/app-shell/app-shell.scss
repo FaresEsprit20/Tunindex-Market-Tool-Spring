@@ -1,54 +1,72 @@
-// Workspace shell, not a page. The viewport is the frame: nothing outside a
-// panel ever scrolls, so chrome stays put and the data area is whatever is
-// left over. `min-height: 0` appears on every flex/grid child that contains
-// a scroller — without it a flex item refuses to shrink below its content
-// and the inner overflow silently never engages, which is the classic way
-// this layout fails.
+// Stacked masthead over full-width content. The left sidebar is gone: it
+// was spending 224px of every screen on navigation that fits in a 38px
+// strip, and a permanent left rail is the single most "admin console"
+// structural signal there is.
 :host {
-  display: grid;
-  grid-template-columns: 224px 1fr;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
   background: var(--color-bg);
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
 }
 
-.shell-sidebar {
-  height: 100vh;
-  min-height: 0;
-  overflow-y: auto;
-
-  @media (max-width: 900px) {
-    display: none;
-  }
-}
-
-.shell-main {
+.shell-masthead {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.shell-navbar {
+  align-items: center;
+  gap: 16px;
   height: 46px;
   flex-shrink: 0;
+  padding-left: 14px;
+  background: var(--color-panel);
+  border-bottom: 1px solid var(--color-border);
+
+  // The navbar keeps its own frosted treatment and fills the rest of the row.
+  app-navbar {
+    flex: 1;
+    min-width: 0;
+    border-bottom: none;
+    background: transparent;
+    backdrop-filter: none;
+  }
 }
 
-// The routed view is handed a fixed box and told to fit inside it. Pages
-// that opt into `.workspace` (see _panels.scss) tile their panels here and
-// scroll internally; anything else still scrolls as a document, so the
-// conversion can happen page by page rather than in one commit.
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.brand-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--color-brand);
+}
+
+.brand-word {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+}
+
+// The routed view still gets a fixed box it must fit inside; pages that
+// opt into `.workspace` tile within it, everything else scrolls here.
 .shell-content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 12px 14px 14px;
   container-type: size;
+}
+
+@media (max-width: 760px) {
+  .brand-word { display: none; }
 }

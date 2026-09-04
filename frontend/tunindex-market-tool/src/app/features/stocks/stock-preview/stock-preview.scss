@@ -1,6 +1,16 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  min-height: 0;
+}
+
+// The tabs take whatever height is left after the header and price, so a
+// chart gets the full pane instead of a quarter of it.
+.preview-tabs {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -14px -13px;
 }
 
 .preview-skeleton {
@@ -81,4 +91,41 @@
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--color-border);
+}
+
+
+.figure-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.figure {
+  background: var(--color-panel);
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.figure-label {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.figure-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+
+  &.positive { color: var(--color-positive); }
+  &.negative { color: var(--color-negative); }
 }

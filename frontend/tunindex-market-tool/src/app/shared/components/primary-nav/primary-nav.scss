@@ -1,0 +1,132 @@
+:host {
+  display: block;
+  background: var(--color-panel);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 14px;
+  height: 38px;
+  overflow-x: auto;
+  // The section bar must never be the thing that scrolls the page.
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.nav-spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  position: relative;
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0.75;
+  }
+
+  &:hover {
+    color: var(--color-text-primary);
+    background: var(--color-panel-alt);
+    text-decoration: none;
+  }
+
+  // An underline on the active section, the way a masthead marks the page
+  // you are on — not a filled pill, which would put a coloured block in
+  // permanent competition with the P&L figures below it.
+  &.active {
+    color: var(--color-text-primary);
+    font-weight: 600;
+
+    svg {
+      opacity: 1;
+      color: var(--color-brand);
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      bottom: 0;
+      height: 2px;
+      background: var(--color-brand);
+      border-radius: 2px 2px 0 0;
+    }
+  }
+}
+
+.nav-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+
+  &:hover,
+  &.active {
+    color: var(--color-text-primary);
+    text-decoration: none;
+  }
+}
+
+.account-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.account-email {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover {
+    color: var(--color-negative);
+  }
+}
+
+@media (max-width: 760px) {
+  .account-email { display: none; }
+}

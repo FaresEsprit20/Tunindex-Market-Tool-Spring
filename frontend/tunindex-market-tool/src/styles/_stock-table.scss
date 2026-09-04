@@ -258,10 +258,21 @@
   transition: color var(--duration-fast) ease;
 }
 
+// The elastic column. Every other cell is a figure at a fixed width, so
+// when the grid shares a pane with the preview this is the one that gives
+// — a truncated company name costs nothing next to a clipped price.
 .name-cell {
-  max-width: 260px;
+  max-width: 200px;
+  width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 1500px) {
+  .name-cell {
+    max-width: 150px;
+    width: 150px;
+  }
 }
 
 // Plain text, not a pill. A filled chip on every row put 20 coloured

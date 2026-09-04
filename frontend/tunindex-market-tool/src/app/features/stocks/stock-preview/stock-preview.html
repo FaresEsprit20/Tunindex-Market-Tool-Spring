@@ -28,11 +28,32 @@
     }
   </div>
 
-  <app-candlestick-chart [points]="history()" [loading]="historyLoading()" />
+  <app-tabbed-panel storageKey="stock-preview" class="preview-tabs">
+    <ng-template appTab="Chart">
+      <app-candlestick-chart [points]="history()" [loading]="historyLoading()" />
+    </ng-template>
 
-  <div class="preview-score">
-    <app-score-panel [symbol]="s.symbol" />
-  </div>
+    <ng-template appTab="Score">
+      <app-score-panel [symbol]="s.symbol" />
+    </ng-template>
+
+    <ng-template appTab="Key figures">
+      <div class="figure-grid">
+        <div class="figure"><span class="figure-label">P/E</span><span class="figure-value mono">{{ s.peRatio !== null ? (s.peRatio | number: '1.1-1') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Dividend yield</span><span class="figure-value mono">{{ s.dividendYield !== null ? (s.dividendYield | number: '1.1-1') + '%' : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Margin of safety</span><span class="figure-value mono" [class.positive]="(s.marginOfSafety ?? 0) > 0" [class.negative]="(s.marginOfSafety ?? 0) < 0">{{ s.marginOfSafety !== null ? (s.marginOfSafety | number: '1.1-1') + '%' : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Debt / equity</span><span class="figure-value mono">{{ s.debtToEquity !== null ? (s.debtToEquity | number: '1.2-2') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Profit margin</span><span class="figure-value mono">{{ s.profitMargin !== null ? (s.profitMargin | number: '1.1-1') + '%' : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Price / book</span><span class="figure-value mono">{{ s.priceToBook !== null ? (s.priceToBook | number: '1.2-2') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Graham fair value</span><span class="figure-value mono">{{ s.grahamFairValue !== null ? (s.grahamFairValue | number: '1.2-2') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Market cap</span><span class="figure-value mono">{{ (s.marketCap !== null ? (s.marketCap | number) : null) ?? '—' }}</span></div>
+      </div>
+    </ng-template>
+
+    <ng-template appTab="News">
+      <app-news-list [symbol]="s.symbol" [limit]="8" />
+    </ng-template>
+  </app-tabbed-panel>
 } @else {
   <p class="empty-msg">Couldn't load {{ symbol() }}.</p>
 }

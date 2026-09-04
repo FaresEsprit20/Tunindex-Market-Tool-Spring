@@ -106,6 +106,10 @@ public class DataOrchestratorImpl implements DataOrchestrator {
                         if (quote.prevClose() != null) stock.getPriceData().setPrevClose(quote.prevClose());
                         if (quote.dayHigh() != null) stock.getPriceData().setDayHigh(quote.dayHigh());
                         if (quote.dayLow() != null) stock.getPriceData().setDayLow(quote.dayLow());
+                        // Stamped only on success. A symbol whose page 404s
+                        // keeps the fundamentals provider's lagging price, and
+                        // this field is what stops that being presented as today.
+                        stock.getPriceData().setLiveQuoteAt(LocalDateTime.now());
                     }
                     if (stock.getVolumeData() != null && quote.volume() != null) {
                         stock.getVolumeData().setVolume(quote.volume());

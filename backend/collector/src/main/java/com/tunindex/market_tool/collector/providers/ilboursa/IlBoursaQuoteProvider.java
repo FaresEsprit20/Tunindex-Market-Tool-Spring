@@ -13,6 +13,7 @@ import reactor.util.retry.Retry;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -88,27 +89,58 @@ public class IlBoursaQuoteProvider {
         return textOf(children.get(pos));
     }
 
+    /**
+     * Reads a number out of a cell that may also carry a currency label.
+     *
+     * <p>The quote cell is not consistently formatted: some symbols render
+     * "91,15" and others "84,68&nbsp;TND" on the same template. Parsing the
+     * whole string meant {@code new BigDecimal("84.68TND")} threw, {@code
+     * textOf} returned null, and the caller quietly kept the fundamentals
+     * provider's price — which lags a full trading day. Two thirds of the
+     * exchange was going stale this way with nothing in the logs above DEBUG.
+     *
+     * <p>So the digits are extracted rather than assumed: everything outside
+     * the leading numeric run is discarded. A cell with no digits at all
+     * still returns null, which is a real "no value", not a parse failure.
+     */
     private BigDecimal textOf(Element el) {
         if (el == null) return null;
         String raw = stripWhitespace(el.text());
         if (raw.isEmpty()) return null;
+
+        Matcher matcher = LEADING_NUMBER.matcher(raw.replace(",", "."));
+        if (!matcher.find()) {
+            log.debug("No numeric value in quote cell: '{}'", raw);
+            return null;
+        }
         try {
-            return new BigDecimal(raw.replace(",", "."));
+            return new BigDecimal(matcher.group());
         } catch (NumberFormatException e) {
             return null;
         }
     }
 
+    /** Same tolerance as {@link #textOf} — volume cells carry labels too. */
     private Long longOf(Element el) {
         if (el == null) return null;
         String raw = stripWhitespace(el.text());
         if (raw.isEmpty()) return null;
+
+        Matcher matcher = LEADING_NUMBER.matcher(raw);
+        if (!matcher.find()) return null;
         try {
-            return Long.parseLong(raw);
+            return new BigDecimal(matcher.group()).longValue();
         } catch (NumberFormatException e) {
             return null;
         }
     }
+
+    /**
+     * The numeric run at the start of a cell: optional sign, digits, optional
+     * decimal part. Anchored so a trailing currency or unit is dropped but a
+     * cell that merely mentions a number later is not misread.
+     */
+    private static final Pattern LEADING_NUMBER = Pattern.compile("^[+-]?\\d+(?:\\.\\d+)?");
 
     private String stripWhitespace(String raw) {
         return ANY_WHITESPACE.matcher(raw).replaceAll("");

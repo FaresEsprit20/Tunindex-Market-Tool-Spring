@@ -263,6 +263,13 @@ public class StockServiceImpl implements StockService {
 
         // ── BASIC ──────────────────────────────────────────────────────────────
 
+        // Single search box: matches the ticker OR the company name. Kept
+        // separate from the explicit symbol/name filters, which stay exact-
+        // field and AND together like every other filter.
+        if (StringUtils.hasLength(filters.get("search"))) {
+            spec = spec.and(StockSpecification.matchesSymbolOrName(filters.get("search")));
+        }
+
         if (StringUtils.hasLength(filters.get("symbol"))) {
             spec = spec.and(StockSpecification.symbolContains(filters.get("symbol")));
         }

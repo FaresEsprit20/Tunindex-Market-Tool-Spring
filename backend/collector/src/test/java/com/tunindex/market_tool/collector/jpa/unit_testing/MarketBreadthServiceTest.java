@@ -32,15 +32,25 @@ class MarketBreadthServiceTest {
     @InjectMocks
     private MarketBreadthService service;
 
+    /** A name with a live quote read just now — the normal case. */
     private Stock stock(String symbol, SectorType sector, String last, String prev, Long volume) {
+        return stock(symbol, sector, last, prev, volume, LocalDateTime.now());
+    }
+
+    private Stock stock(String symbol, SectorType sector, String last, String prev, Long volume,
+                        LocalDateTime liveQuoteAt) {
         return Stock.builder()
                 .symbol(symbol)
                 .name(symbol + " SA")
                 .sector(sector)
-                .lastUpdate(LocalDateTime.of(2026, 9, 3, 15, 30))
+                // Deliberately fresh even on the stale-quote fixtures: this is
+                // exactly the trap in production, where a failed exchange fetch
+                // still rewrites the row and stamps lastUpdate with now.
+                .lastUpdate(LocalDateTime.now())
                 .priceData(PriceData.builder()
                         .lastPrice(last == null ? null : new BigDecimal(last))
                         .prevClose(prev == null ? null : new BigDecimal(prev))
+                        .liveQuoteAt(liveQuoteAt)
                         .build())
                 .volumeData(VolumeData.builder().volume(volume).build())
                 .build();
@@ -144,6 +154,49 @@ class MarketBreadthServiceTest {
         assertThat(materials.getPriced()).isZero();
         // Nulls sort last so a "no data" row never outranks a real gainer.
         assertThat(sectors.get(sectors.size() - 1).getSector()).isEqualTo("MATERIALS");
+    }
+
+    @Test
+    @DisplayName("a name whose exchange page can no longer be read is excluded from movers")
+    void staleQuoteNeverLeadsTheMovers() {
+        // The real incident: a delisted symbol kept the fundamentals provider's
+        // day-old price, was rewritten with a fresh lastUpdate, and topped the
+        // gainers list at +12.83% on a figure that could never be refreshed.
+        when(stockRepository.findAll()).thenReturn(List.of(
+                stock("REAL", SectorType.BANKING, "102", "100", 10L),
+                stock("DELISTED", SectorType.BANKING, "112.83", "100", 10L,
+                        LocalDateTime.now().minusDays(9))));
+
+        MarketBreadthDto breadth = service.breadth();
+
+        assertThat(breadth.getTopGainers()).extracting("symbol").containsExactly("REAL");
+        assertThat(breadth.getNotPriced()).isEqualTo(1);
+        assertThat(breadth.getAdvancing()).isEqualTo(1);
+        // And it must not drag the average either.
+        assertThat(breadth.getAverageChangePct()).isEqualByComparingTo("2.00");
+    }
+
+    @Test
+    @DisplayName("a name that never had a live quote is unpriced, however fresh its row is")
+    void neverQuotedIsUnpriced() {
+        when(stockRepository.findAll()).thenReturn(List.of(
+                stock("NEVER", SectorType.BANKING, "150", "100", 10L, null)));
+
+        MarketBreadthDto breadth = service.breadth();
+
+        assertThat(breadth.getNotPriced()).isEqualTo(1);
+        assertThat(breadth.getAdvancing()).isZero();
+        assertThat(breadth.getTopGainers()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("asOf reports the freshest live quote, not the freshest row write")
+    void asOfTracksQuoteNotWrite() {
+        LocalDateTime quoted = LocalDateTime.now().minusHours(3);
+        when(stockRepository.findAll()).thenReturn(List.of(
+                stock("A", SectorType.BANKING, "102", "100", 1L, quoted)));
+
+        assertThat(service.breadth().getAsOf()).isEqualTo(quoted);
     }
 
     @Test

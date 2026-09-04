@@ -408,17 +408,11 @@ export class StockList {
     const filters: StockFilters = {};
     const search = this.searchInput().trim();
     if (search) {
-      // Every real symbol in this dataset is a single unspaced token (BIAT,
-      // SFBT, AETEC, …) while every company name contains at least one
-      // space — cheap enough to tell apart without a second round-trip.
-      // Matters because this box is also the landing spot for the navbar's
-      // "search everywhere" box, whose queries are just as often a symbol
-      // as a name.
-      if (/^\S+$/.test(search)) {
-        filters.symbol = search;
-      } else {
-        filters.name = search;
-      }
+      // One field, matched against ticker OR company name server-side.
+      // This used to guess: a query with no space was searched as a symbol,
+      // which meant every one-word company name ("Amen", "Carthage",
+      // "Delice") matched nothing at all.
+      filters.search = search;
     }
     if (this.sector()) {
       filters.sector = this.sector();

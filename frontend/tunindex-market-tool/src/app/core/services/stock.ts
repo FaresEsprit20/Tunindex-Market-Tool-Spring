@@ -17,6 +17,14 @@ import { OpportunityScore, ScoreHistoryPoint } from '../models/opportunity.model
  * every key not listed here is silently ignored server-side, not rejected.
  */
 export interface StockFilters {
+  /**
+   * Free-text box: matched server-side against the ticker OR the company
+   * name. Prefer this over symbol/name for anything a user typed — those two
+   * are exact-field filters and AND together, so putting a company name in
+   * `symbol` (as the list used to, for any query without a space) matches
+   * nothing.
+   */
+  search?: string;
   symbol?: string;
   name?: string;
   exchange?: string;

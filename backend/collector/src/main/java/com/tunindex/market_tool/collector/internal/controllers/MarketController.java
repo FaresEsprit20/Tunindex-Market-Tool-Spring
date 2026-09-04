@@ -6,6 +6,7 @@ import com.tunindex.market_tool.collector.dto.market.UnusualActivityDto;
 import com.tunindex.market_tool.collector.dto.news.MarketNewsDto;
 import com.tunindex.market_tool.collector.services.market.MarketBreadthService;
 import com.tunindex.market_tool.collector.services.market.MarketSessionService;
+import com.tunindex.market_tool.collector.services.market.QuoteRefreshService;
 import com.tunindex.market_tool.collector.services.market.UnusualActivityService;
 import com.tunindex.market_tool.collector.services.news.MarketNewsService;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
@@ -29,6 +30,7 @@ public class MarketController {
     private final MarketNewsService marketNewsService;
     private final MarketBreadthService marketBreadthService;
     private final UnusualActivityService unusualActivityService;
+    private final QuoteRefreshService quoteRefreshService;
 
     @Value("${internal.api.key}")
     private String internalApiKey;
@@ -59,6 +61,31 @@ public class MarketController {
             @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
         validateApiKey(apiKey);
         return unusualActivityService.scan(limit);
+    }
+
+    /**
+     * Symbols whose exchange page we have not read successfully within the
+     * window. These are excluded from breadth and movers, so this endpoint is
+     * how an operator finds out a name has gone dark — rather than noticing a
+     * wrong figure in the UI.
+     */
+    @GetMapping("/stale-quotes")
+    public List<String> staleQuotes(
+            @RequestParam(defaultValue = "30") int olderThanHours,
+            @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        return quoteRefreshService.staleSymbols(java.time.Duration.ofHours(olderThanHours));
+    }
+
+    /**
+     * Forces a quote pass now instead of waiting for the schedule. Blocking
+     * and slow by design — it walks every symbol with a politeness delay.
+     */
+    @PostMapping("/refresh-quotes")
+    public List<String> refreshQuotes(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        quoteRefreshService.refreshNow();
+        return quoteRefreshService.staleSymbols(java.time.Duration.ofHours(30));
     }
 
     private void validateApiKey(String apiKey) {

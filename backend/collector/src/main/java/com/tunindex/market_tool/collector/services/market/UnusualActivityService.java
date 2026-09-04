@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,6 +47,9 @@ public class UnusualActivityService {
 
     private static final int SCALE = 2;
 
+    /** Same staleness ceiling as breadth: see MarketBreadthService. */
+    private static final Duration MAX_QUOTE_AGE = Duration.ofHours(30);
+
     private final StockRepository stockRepository;
 
     @Transactional(readOnly = true)
@@ -53,6 +58,12 @@ public class UnusualActivityService {
 
         for (Stock stock : stockRepository.findAll()) {
             if (stock.getPriceData() == null || stock.getPriceData().getLastPrice() == null) {
+                continue;
+            }
+            // A name we can no longer fetch must not be flagged as doing
+            // something unusual today — its "move" is just an old number.
+            LocalDateTime quoteAt = stock.getPriceData().getLiveQuoteAt();
+            if (quoteAt == null || quoteAt.isBefore(LocalDateTime.now().minus(MAX_QUOTE_AGE))) {
                 continue;
             }
             flagged.addAll(signalsFor(stock));

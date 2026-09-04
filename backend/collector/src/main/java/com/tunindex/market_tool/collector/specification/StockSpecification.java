@@ -24,6 +24,23 @@ public class StockSpecification {
         };
     }
 
+    /**
+     * One box, matching either identifier: a user typing "Amen" means the
+     * company and a user typing "AB" means the ticker, and they will not tell
+     * us which. Previously the client guessed from whether the query
+     * contained a space, so every single-word company name ("Amen",
+     * "Carthage") was searched as a ticker and returned nothing.
+     */
+    public static Specification<Stock> matchesSymbolOrName(String term) {
+        return (root, query, cb) -> {
+            if (term == null || term.isBlank()) return cb.conjunction();
+            String pattern = "%" + term.trim().toUpperCase() + "%";
+            return cb.or(
+                    cb.like(cb.upper(root.get("symbol")), pattern),
+                    cb.like(cb.upper(root.get("name")), pattern));
+        };
+    }
+
     public static Specification<Stock> symbolEquals(String symbol) {
         return (root, query, cb) -> {
             if (symbol == null || symbol.isEmpty()) return cb.conjunction();

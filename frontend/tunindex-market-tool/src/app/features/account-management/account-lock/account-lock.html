@@ -22,7 +22,7 @@
     </div>
 
     @if (!requested()) {
-      <button type="button" class="btn btn-danger" [disabled]="requesting()" (click)="requestUnlock()">
+      <button type="button" class="btn btn-block btn-danger" [disabled]="requesting()" (click)="requestUnlock()">
         {{ requesting() ? 'Sending request…' : 'Request unlock' }}
       </button>
     } @else {

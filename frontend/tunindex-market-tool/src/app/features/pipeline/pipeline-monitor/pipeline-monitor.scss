@@ -167,10 +167,19 @@
   border-radius: var(--radius-md);
   min-height: 40px;
 
+  // An idle worker is capacity, not an event. Rendered as a slim rule so a
+  // ten-worker pool at rest reads as one quiet strip — it was ten full-height
+  // dashed boxes, which filled most of the page with the word "Idle".
   &.idle {
-    border: 1px dashed var(--color-border);
-    color: var(--color-text-tertiary);
-    font-size: 12px;
+    min-height: 0;
+    padding: 0;
+    height: 6px;
+    border: none;
+    border-radius: 3px;
+    background: var(--color-panel-alt);
+    // The label is kept for screen readers but takes no space.
+    font-size: 0;
+    color: transparent;
     justify-content: center;
   }
 

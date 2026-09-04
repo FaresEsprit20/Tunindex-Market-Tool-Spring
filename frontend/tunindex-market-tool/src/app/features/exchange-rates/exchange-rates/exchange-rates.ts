@@ -4,6 +4,7 @@ import { ExchangeRate } from '../../../core/services/exchange-rate';
 import { CurrencyRate, ExchangeRates } from '../../../core/models/exchange-rate.model';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { CountryFlag } from '../../../shared/components/country-flag/country-flag';
 
 /**
  * Live TND exchange rates — see core/services/exchange-rate.ts. Every rate
@@ -13,7 +14,7 @@ import { EmptyState } from '../../../shared/components/empty-state/empty-state';
  */
 @Component({
   selector: 'app-exchange-rates',
-  imports: [DecimalPipe, DatePipe, SkeletonBlock, EmptyState],
+  imports: [DecimalPipe, DatePipe, SkeletonBlock, EmptyState, CountryFlag],
   templateUrl: './exchange-rates.html',
   styleUrl: './exchange-rates.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,54 +37,38 @@ export class ExchangeRatesPage {
   });
 
   /**
-   * Currency code to country flag. Built from the ISO 3166 region letters
-   * inside each currency code (EUR is the exception — a union, not a
-   * country) and rendered as regional-indicator emoji, so there are no
-   * image requests and nothing to 404.
+   * Currency code to ISO 3166 country code, for the inline SVG flag.
+   *
+   * <p>These used to be regional-indicator emoji, which is the one approach
+   * guaranteed to fail here: Windows ships no glyphs for them and renders
+   * the bare letters ("CH", "JP"), which is most of this app's audience.
+   * The SVG component was built for exactly this and simply was not wired in.
    */
-  private static readonly FLAGS: Record<string, string> = {
-    EUR: '🇪🇺',
-    USD: '🇺🇸',
-    GBP: '🇬🇧',
-    CHF: '🇨🇭',
-    JPY: '🇯🇵',
-    CAD: '🇨🇦',
-    CNY: '🇨🇳',
-    AED: '🇦🇪',
-    SAR: '🇸🇦',
-    MAD: '🇲🇦',
-    DZD: '🇩🇿',
-    LYD: '🇱🇾',
-    EGP: '🇪🇬',
-    TRY: '🇹🇷',
-    SEK: '🇸🇪',
-    NOK: '🇳🇴',
-    DKK: '🇩🇰',
-    RUB: '🇷🇺',
-    INR: '🇮🇳',
-    AUD: '🇦🇺',
-    KWD: '🇰🇼',
-    QAR: '🇶🇦',
-    BHD: '🇧🇭',
-    JOD: '🇯🇴',
-    TND: '🇹🇳',
+  private static readonly FLAG_REGIONS: Record<string, string> = {
+    EUR: 'EU',
+    USD: 'US',
+    GBP: 'GB',
+    CHF: 'CH',
+    JPY: 'JP',
+    CAD: 'CA',
+    CNY: 'CN',
+    AED: 'AE',
+    SAR: 'SA',
+    MAD: 'MA',
+    DZD: 'DZ',
+    LYD: 'LY',
+    EGP: 'EG',
+    TND: 'TN',
   };
 
+  /**
+   * Region for a currency. Falls back to the code's first two letters, which
+   * is the country for almost every ISO 4217 code; the flag component draws
+   * a lettered tile for anything it does not have artwork for, so an unknown
+   * currency degrades to a readable label rather than a blank cell.
+   */
   protected flagFor(code: string): string {
-    const known = ExchangeRatesPage.FLAGS[code];
-    if (known) {
-      return known;
-    }
-    // Fall back to the code's first two letters as regional indicators —
-    // correct for most currencies, since the first two letters are the
-    // country. A wrong-looking flag beats a missing cell.
-    const region = code.slice(0, 2).toUpperCase();
-    if (!/^[A-Z]{2}$/.test(region)) {
-      return '🏳️';
-    }
-    return String.fromCodePoint(
-      ...[...region].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65),
-    );
+    return ExchangeRatesPage.FLAG_REGIONS[code] ?? code.slice(0, 2).toUpperCase();
   }
 
   /** Round figures people actually convert, as a ready-reckoner. */

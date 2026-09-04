@@ -15,8 +15,8 @@ public enum AlertType {
     /** Day move in percent, in either direction, exceeds the threshold. */
     DAY_MOVE_EXCEEDS("Daily move exceeds", true),
     /** Tunindex Score crosses up through the threshold. */
-    SCORE_ABOVE("Tunindex Score rises above", true),
-    SCORE_BELOW("Tunindex Score falls below", true),
+    SCORE_ABOVE("Tunidex Score rises above", true),
+    SCORE_BELOW("Tunidex Score falls below", true),
     /** Verdict changes at all, e.g. BUY -> STRONG_BUY. No threshold. */
     VERDICT_CHANGE("Verdict changes", false),
     /** A newly-scraped headline classified NEGATIVE. No threshold. */

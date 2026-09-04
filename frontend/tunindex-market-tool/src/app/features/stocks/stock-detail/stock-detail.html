@@ -56,7 +56,12 @@
           } @else if (chg < 0) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
           }
-          {{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%
+          @if (dayChangeValue(); as delta) {
+            <span class="price-delta">{{ delta > 0 ? '+' : '' }}{{ delta | number: '1.2-2' }}</span>
+          }
+          <span class="price-delta-pct">
+            ({{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%)
+          </span>
         </span>
       }
       <span class="price-vs-close">vs. prev. close {{ s.prevClose !== null ? (s.prevClose | number: '1.2-2') : '—' }}</span>
@@ -189,7 +194,7 @@
   </div>
 
   <div class="panel-card section">
-    <div class="panel-head"><p class="panel-title">Tunindex Score</p></div>
+    <div class="panel-head"><p class="panel-title">Tunidex Score</p></div>
     <div class="panel-body">
       <app-score-panel [symbol]="s.symbol" />
     </div>

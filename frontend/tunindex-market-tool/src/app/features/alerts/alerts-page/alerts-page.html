@@ -123,3 +123,14 @@
   Rules are evaluated a few minutes apart, and a threshold rule fires on the crossing rather than
   every time it's checked — so a price that sits above your level notifies once, not repeatedly.
 </p>
+
+<!-- What actually fired. This page used to end here, with the rules listed
+     and no way to see whether any of them had ever done anything. -->
+<div class="panel-card section">
+  <div class="panel-head">
+    <p class="panel-title">Recent activity</p>
+  </div>
+  <div class="panel-body">
+    <app-activity-feed [limit]="25" />
+  </div>
+</div>

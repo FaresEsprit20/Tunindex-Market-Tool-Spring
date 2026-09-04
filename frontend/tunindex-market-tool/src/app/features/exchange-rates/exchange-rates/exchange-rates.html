@@ -94,7 +94,7 @@
               <tr class="stock-row" [class.active-row]="r.code === selectedCode()" (click)="onSelectCurrency(r.code)">
                 <td>
                   <span class="currency-cell">
-                    <span class="flag" aria-hidden="true">{{ flagFor(r.code) }}</span>
+                    <app-country-flag class="flag" [code]="flagFor(r.code)" [title]="r.name" [width]="22" />
                     <span class="currency-text">
                       <span class="symbol-cell">{{ r.code }}</span>
                       <span class="currency-name">{{ r.name }}</span>

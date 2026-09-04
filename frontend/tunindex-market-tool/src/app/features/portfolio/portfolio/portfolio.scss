@@ -1,4 +1,148 @@
+/* ── Positions table ──────────────────────────────────────────────────────
+   The centrepiece of this page, so it gets the full width and the density
+   of a real blotter: identity, cost, live price, and both P&L horizons on
+   one line, with a totals row underneath. */
+
+.positions-table {
+  // Slightly roomier than the screener grid: there are far fewer rows here
+  // and each one carries two stacked figures in three of its columns.
+  td {
+    padding-top: calc(var(--row-py) + 2px);
+    padding-bottom: calc(var(--row-py) + 2px);
+  }
+
+  // The identity column is the only elastic one; capping the cell alone left
+  // the column itself free to take a share of the free space, which opened a
+  // wide gap between the company name and the first figure.
+  th:first-child,
+  .position-cell {
+    width: 230px;
+    max-width: 230px;
+  }
+
+  .position-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .position-symbol {
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: -0.01em;
+    color: var(--color-text-primary);
+  }
+
+  .position-name {
+    font-size: 10.5px;
+    color: var(--color-text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // Two figures stacked in one cell read as one fact — the price and what it
+  // did today — rather than as two columns the eye has to pair up itself.
+  .price-stack,
+  .pnl-stack {
+    line-height: 1.25;
+  }
+
+  .price-last,
+  .pnl-value {
+    display: block;
+    font-weight: 600;
+  }
+
+  .price-day,
+  .pnl-pct {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 500;
+  }
+
+  .subdued {
+    color: var(--color-text-tertiary);
+  }
+
+  .strong {
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+}
+
+// Weight rendered as a bar behind the number: relative size is a shape
+// question, and eight percentages in a column do not answer it at a glance.
+// A rule beneath the figure, not a block behind it. A tinted box sized to
+// the value sat directly under the number and read as a selection highlight
+// — the eye saw "this row is selected", not "this position is 36% of the
+// book". A baseline rule carries the same magnitude without that collision.
+.weight-cell {
+  min-width: 92px;
+}
+
+// The fixed track the rule is measured against, sitting directly under the
+// figure it describes.
+.weight-wrap {
+  position: relative;
+  display: inline-block;
+  width: 58px;
+  padding-bottom: 6px;
+}
+
+.weight-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-brand);
+  opacity: 0.55;
+  transition: width 0.45s var(--ease-standard);
+}
+
+.weight-text {
+  position: relative;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.totals-row {
+  td {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-top: 2px solid var(--color-border-strong);
+    border-bottom: none;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--color-panel-alt);
+    // Sticks to the bottom of the scroll box so the totals stay visible
+    // while a long book scrolls past them.
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+  }
+
+  td:first-child {
+    color: var(--color-text-tertiary);
+    font-weight: 500;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weight-bar {
+    transition: none;
+  }
+}
+
 .trade-grid {
+  // start, not stretch: the ticket is a short form and has no reason to grow
+  // to the height of a long positions table, which left a tall empty box
+  // beside the only content on the page anyone reads.
+  align-items: start;
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: 16px;

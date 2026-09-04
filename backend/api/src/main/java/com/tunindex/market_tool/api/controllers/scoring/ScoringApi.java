@@ -13,22 +13,22 @@ import java.util.Map;
 
 import static com.tunindex.market_tool.common.utils.constants.Constants.APP_ROOT;
 
-@Tag(name = "Tunindex Scorer", description = "Rule-based buy-opportunity scoring across every tracked stock")
+@Tag(name = "Tunidex Scorer", description = "Rule-based buy-opportunity scoring across every tracked stock")
 public interface ScoringApi {
 
     @GetMapping(value = APP_ROOT + "/opportunities", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Ranked buy opportunities, best Tunindex Score first")
+    @Operation(summary = "Ranked buy opportunities, best Tunidex Score first")
     List<OpportunityScoreResponseDto> opportunities(
             @RequestParam(value = "limit", defaultValue = "20") int limit,
             @RequestParam(value = "minScore", defaultValue = "0") int minScore,
             @RequestParam(value = "includeNews", defaultValue = "true") boolean includeNews);
 
     @GetMapping(value = APP_ROOT + "/score/{symbol}", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "One stock's Tunindex Score with its full component breakdown")
+    @Operation(summary = "One stock's Tunidex Score with its full component breakdown")
     OpportunityScoreResponseDto score(@PathVariable("symbol") String symbol);
 
     @GetMapping(value = APP_ROOT + "/score/{symbol}/history", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "One stock's Tunindex Score over time, one point per trading day")
+    @Operation(summary = "One stock's Tunidex Score over time, one point per trading day")
     List<Map<String, Object>> scoreHistory(
             @PathVariable("symbol") String symbol,
             @RequestParam(value = "days", defaultValue = "90") int days);

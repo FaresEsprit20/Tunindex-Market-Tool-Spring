@@ -298,7 +298,15 @@
 }
 
 .btn {
-  width: 100%;
+  // Sized to its content by default.
+  //
+  // This lived here as `width: 100%` because the file was written for auth
+  // form submits, which do want to fill their card — but `.btn` is a global
+  // class. Every other page that wanted an ordinary button had to write
+  // `width: auto` to undo it (see .reset-btn, .form-submit, .quote-btn), and
+  // the one page that forgot rendered a 1572px-wide "Start pipeline" bar.
+  // Full width is now opt-in via .btn-block.
+  width: auto;
   padding: 11px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
@@ -316,6 +324,13 @@
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  // Fills its container — for a form's primary action, where the button is
+  // meant to span the card it sits in. Opt-in, so an ordinary button
+  // elsewhere is not silently stretched to the width of the page.
+  &.btn-block {
+    width: 100%;
   }
 
   // Presses go down fast and hard; the spring curve on release is what

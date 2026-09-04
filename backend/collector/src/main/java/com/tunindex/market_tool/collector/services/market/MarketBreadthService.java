@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,18 +33,6 @@ public class MarketBreadthService {
 
     private static final int MOVERS_LIMIT = 5;
     private static final int SCALE = 2;
-
-    /**
-     * How old a live quote may be before the name is reported as unpriced
-     * rather than as today's mover.
-     *
-     * <p>Generous on purpose — a full trading day plus a margin — because the
-     * point is not freshness for its own sake, it is to exclude names whose
-     * exchange page we can no longer read at all. Those keep the fundamentals
-     * provider's price, which lags a full session, and one of them led the
-     * gainers list at +12.83% on a figure that could never be refreshed.
-     */
-    private static final Duration MAX_QUOTE_AGE = Duration.ofHours(30);
 
     /**
      * A move counts as unchanged only when it is exactly flat. No epsilon:
@@ -153,7 +140,7 @@ public class MarketBreadthService {
         if (stock.getPriceData() == null) {
             return null;
         }
-        if (!hasFreshQuote(stock)) {
+        if (!QuoteFreshness.isFresh(stock)) {
             return null;
         }
         BigDecimal last = stock.getPriceData().getLastPrice();
@@ -164,17 +151,6 @@ public class MarketBreadthService {
         return last.subtract(prev)
                 .multiply(BigDecimal.valueOf(100))
                 .divide(prev, SCALE, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * Whether we actually read this symbol's exchange page recently enough to
-     * call its price today's. A row that was written by the pipeline but whose
-     * live fetch failed carries a fresh {@code lastUpdate} and a stale price,
-     * so {@code lastUpdate} cannot be used for this — only liveQuoteAt can.
-     */
-    private boolean hasFreshQuote(Stock stock) {
-        LocalDateTime quoteAt = stock.getPriceData().getLiveQuoteAt();
-        return quoteAt != null && quoteAt.isAfter(LocalDateTime.now().minus(MAX_QUOTE_AGE));
     }
 
     /**

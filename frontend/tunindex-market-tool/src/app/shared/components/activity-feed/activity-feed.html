@@ -1,0 +1,68 @@
+@if (items().length === 0) {
+  <p class="feed-empty">
+    Nothing yet. Alerts you create, orders you place and big moves on your watchlist all land here.
+  </p>
+} @else {
+  @if (categories().length > 1) {
+    <div class="feed-tabs" role="tablist" aria-label="Activity type">
+      <button
+        type="button"
+        role="tab"
+        class="feed-tab"
+        [class.active]="filter() === 'ALL'"
+        [attr.aria-selected]="filter() === 'ALL'"
+        (click)="setFilter('ALL')"
+      >
+        All <span class="feed-count">{{ items().length }}</span>
+      </button>
+      @for (category of categories(); track category) {
+        <button
+          type="button"
+          role="tab"
+          class="feed-tab"
+          [class.active]="filter() === category"
+          [attr.aria-selected]="filter() === category"
+          (click)="setFilter(category)"
+        >
+          {{ label(category) }} <span class="feed-count">{{ countFor(category) }}</span>
+        </button>
+      }
+    </div>
+  }
+
+  <ul class="feed-list">
+    @for (item of visible(); track item.id) {
+      <li class="feed-item" [class.unread]="!item.read">
+        <!-- A coloured rail rather than an icon: the tone is the only thing
+             that needs to read at a glance, and eight icons down a column
+             become decoration. -->
+        <span
+          class="feed-rail"
+          [class.positive]="item.tone === 'POSITIVE'"
+          [class.negative]="item.tone === 'NEGATIVE'"
+          aria-hidden="true"
+        ></span>
+
+        <div class="feed-body">
+          <div class="feed-head">
+            <span class="feed-title">{{ item.title }}</span>
+            <span class="feed-time">{{ item.createdAt | date: 'MMM d, HH:mm' }}</span>
+          </div>
+          <p class="feed-text">{{ item.body }}</p>
+          <div class="feed-meta">
+            <span class="feed-category">{{ label(item.category) }}</span>
+            @if (item.symbol) {
+              <a class="feed-symbol mono" [routerLink]="['/app/stocks', item.symbol]">
+                {{ item.symbol }}
+              </a>
+            }
+          </div>
+        </div>
+      </li>
+    }
+  </ul>
+
+  @if (visible().length === 0) {
+    <p class="feed-empty">Nothing in this category yet.</p>
+  }
+}

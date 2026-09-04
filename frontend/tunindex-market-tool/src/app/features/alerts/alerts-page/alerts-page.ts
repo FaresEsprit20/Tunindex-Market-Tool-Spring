@@ -5,6 +5,7 @@ import { Alerts } from '../../../core/services/alerts';
 import { Notification } from '../../../core/services/notification';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
+import { ActivityFeed } from '../../../shared/components/activity-feed/activity-feed';
 
 /**
  * Alert rules: what the user is watching for, and the switchboard for it.
@@ -13,7 +14,7 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
  */
 @Component({
   selector: 'app-alerts-page',
-  imports: [DatePipe, EmptyState, SkeletonBlock],
+  imports: [DatePipe, EmptyState, SkeletonBlock, ActivityFeed],
   templateUrl: './alerts-page.html',
   styleUrl: './alerts-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

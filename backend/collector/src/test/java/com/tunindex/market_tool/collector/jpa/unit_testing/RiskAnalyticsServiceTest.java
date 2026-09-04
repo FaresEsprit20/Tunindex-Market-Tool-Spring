@@ -6,6 +6,7 @@ import com.tunindex.market_tool.collector.entities.PriceHistory;
 import com.tunindex.market_tool.collector.entities.Stock;
 import com.tunindex.market_tool.collector.repository.jpa.PriceHistoryRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
+import com.tunindex.market_tool.collector.services.macro.MacroIndicatorsService;
 import com.tunindex.market_tool.collector.services.risk.RiskAnalyticsService;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
@@ -44,14 +45,20 @@ class RiskAnalyticsServiceTest {
     @Mock
     private StockRepository stockRepository;
 
+    @Mock
+    private MacroIndicatorsService macroIndicatorsService;
+
     @InjectMocks
     private RiskAnalyticsService service;
 
     @BeforeEach
     void setUp() {
-        // Normally injected from market-tool.risk.risk-free-rate-pct; pinned
-        // here so the ratio assertions do not move when the property changes.
-        ReflectionTestUtils.setField(service, "riskFreeRatePct", new BigDecimal("8.0"));
+        // The hurdle normally comes from the central bank's published policy
+        // rate. Pinned to the configured fallback here — with the macro
+        // service returning nothing — so the ratio assertions do not move
+        // when the real rate does.
+        ReflectionTestUtils.setField(service, "fallbackRiskFreeRatePct", new BigDecimal("8.0"));
+        when(macroIndicatorsService.policyRatePct()).thenReturn(Optional.empty());
         when(stockRepository.findBySymbol(any())).thenReturn(Optional.of(Stock.builder().symbol("TEST").build()));
     }
 

@@ -199,6 +199,20 @@ export class Portfolio {
     return (position.marketValue / invested) * 100;
   }
 
+  /**
+   * Bar width relative to the largest holding, so the biggest position fills
+   * the track. Scaling to 100% instead made every bar a sliver — nothing in
+   * a diversified book gets close to the full width, and the comparison
+   * between holdings is the only thing the bar is there to show.
+   */
+  protected weightBarWidth(position: PortfolioPosition, positions: PortfolioPosition[]): number {
+    const largest = Math.max(...positions.map((item) => item.marketValue), 0);
+    if (largest <= 0) {
+      return 0;
+    }
+    return (position.marketValue / largest) * 100;
+  }
+
   protected totalCostBasis(positions: PortfolioPosition[]): number {
     return positions.reduce((sum, item) => sum + this.costBasis(item), 0);
   }

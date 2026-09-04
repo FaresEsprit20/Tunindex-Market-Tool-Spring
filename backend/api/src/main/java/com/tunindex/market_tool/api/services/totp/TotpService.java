@@ -28,7 +28,12 @@ public class TotpService {
     // in either direction, which is standard practice for TOTP verifiers.
     private static final int ALLOWED_DRIFT_STEPS = 1;
     private static final String HMAC_ALGO = "HmacSHA1";
-    private static final String ISSUER = "Tunindex";
+    /**
+     * Shown in the user's authenticator app beside the code. Display text, so
+     * it uses the product spelling; changing it re-labels existing entries the
+     * next time a user re-enrols, but does not invalidate current secrets.
+     */
+    private static final String ISSUER = "Tunidex";
 
     private final SecureRandom secureRandom = new SecureRandom();
     private final Base32 base32 = new Base32();

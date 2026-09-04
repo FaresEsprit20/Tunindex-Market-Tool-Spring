@@ -35,7 +35,25 @@
   <div class="analysis-head section">
     <h1 class="symbol-title">{{ s.symbol }}</h1>
     <p class="company-name">{{ s.name }}</p>
-    <span class="price-tag mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }} {{ s.currency }}</span>
+    <div class="price-block">
+      <span class="price-tag mono">
+        {{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }}
+        <span class="price-tag-currency">{{ s.currency }}</span>
+      </span>
+      @if (dayChange(); as change) {
+        <span
+          class="price-move mono"
+          [class.positive]="change.pct > 0"
+          [class.negative]="change.pct < 0"
+          [title]="'Against the previous close of ' + (s.prevClose | number: '1.2-2') + ' ' + s.currency"
+        >
+          {{ change.delta > 0 ? '+' : '' }}{{ change.delta | number: '1.2-2' }}
+          <span class="price-move-pct">
+            ({{ change.pct > 0 ? '+' : '' }}{{ change.pct | number: '1.2-2' }}%)
+          </span>
+        </span>
+      }
+    </div>
   </div>
 
   <div class="panel-card section">

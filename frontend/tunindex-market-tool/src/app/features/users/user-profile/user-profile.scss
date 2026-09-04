@@ -98,3 +98,12 @@
     padding: 10px 18px;
   }
 }
+
+// The right-hand grid cell: password and two-factor stack together, so
+// security settings read as one group and the column fills.
+.profile-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}

@@ -1,8 +1,12 @@
-@if (pct(); as p) {
+<!-- Explicit null check, not `@if (pct(); as p)`. A position of exactly 0 is
+     a real and meaningful reading — the stock is trading at the bottom of the
+     range — but it is falsy, so the truthiness form sent every stock sitting
+     on its low or its 52-week low into the "no data" branch. -->
+@if (pct() !== null) {
   <div class="range-bar" [class.compact]="compact()">
     <div class="range-track">
-      <div class="range-fill" [style.width.%]="p"></div>
-      <div class="range-marker" [style.left.%]="p"></div>
+      <div class="range-fill" [style.width.%]="pct()"></div>
+      <div class="range-marker" [style.left.%]="pct()"></div>
     </div>
     @if (!compact()) {
       <div class="range-labels">

@@ -134,6 +134,18 @@
     height: 14px;
   }
 
+  // The absolute move leads and the percentage follows in parentheses —
+  // the convention on every quote page, and the order a reader expects.
+  .price-delta {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .price-delta-pct {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+  }
+
   &.positive {
     color: var(--color-positive);
     background: var(--color-positive-dim);

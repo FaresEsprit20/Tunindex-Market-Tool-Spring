@@ -32,6 +32,24 @@ export class Analysis {
   protected readonly loading = signal(false);
   protected readonly error = signal(false);
   protected readonly stock = signal<StockDto | null>(null);
+
+  /**
+   * Day move against the previous close, in both dinars and percent.
+   *
+   * <p>This page showed a bare price and nothing else, which on a page about
+   * a stock's condition is the one omission a reader notices — every quote
+   * page anywhere puts the change right next to the price. Returns null
+   * rather than zero when either side is missing, so an unpriced name reads
+   * as unknown instead of flat.
+   */
+  protected readonly dayChange = computed(() => {
+    const s = this.stock();
+    if (!s || s.lastPrice === null || s.prevClose === null || s.prevClose === 0) {
+      return null;
+    }
+    const delta = s.lastPrice - s.prevClose;
+    return { delta, pct: (delta / s.prevClose) * 100 };
+  });
   protected readonly technical = signal<TechnicalAnalysis | null>(null);
   protected readonly fundamental = signal<FundamentalAnalysis | null>(null);
   protected readonly history = signal<PriceHistoryPoint[]>([]);

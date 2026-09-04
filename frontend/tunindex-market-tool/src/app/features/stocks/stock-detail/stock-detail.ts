@@ -67,6 +67,21 @@ export class StockDetail {
     return ((s.lastPrice - s.prevClose) / s.prevClose) * 100;
   });
 
+  /**
+   * The move in dinars, shown beside the percentage.
+   *
+   * <p>Every quote page worth reading gives both: "-0.92%" tells you the
+   * proportion, "-0.85 TND" tells you what it costs. On a 218-dinar stock
+   * and a 2-dinar stock the same percentage means very different things.
+   */
+  protected readonly dayChangeValue = computed(() => {
+    const s = this.stock();
+    if (!s || s.lastPrice === null || s.prevClose === null) {
+      return null;
+    }
+    return s.lastPrice - s.prevClose;
+  });
+
   constructor() {
     // Angular reuses this component instance when navigating between two
     // /app/stocks/:symbol URLs (same route config, different param) — a

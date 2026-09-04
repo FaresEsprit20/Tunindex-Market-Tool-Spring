@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -39,6 +41,21 @@ public class NotificationServiceImpl implements NotificationService {
      */
     private final Map<Integer, Set<SseEmitter>> streams = new ConcurrentHashMap<>();
 
+    /**
+     * Persists the notification, then pushes it to any open stream <em>after
+     * the transaction commits</em>.
+     *
+     * <p>The push used to happen inline, inside the transaction. That meant a
+     * blocking SSE write to a browser — an arbitrarily slow network operation
+     * — was performed while holding a pooled JDBC connection, and with enough
+     * notifications in flight the Hikari pool emptied and every request in
+     * the service started failing with "Connection is not available". Exactly
+     * the failure mode already documented on AlertEvaluationService.
+     *
+     * <p>Deferring to after-commit also fixes a correctness problem that was
+     * latent: a notification pushed inside a transaction that later rolled
+     * back would have been delivered to the client despite never being saved.
+     */
     @Override
     @Transactional
     public NotificationDto publish(User user, String title, String body, String category, String tone, String symbol) {
@@ -52,7 +69,20 @@ public class NotificationServiceImpl implements NotificationService {
                 .build());
 
         NotificationDto dto = NotificationDto.fromEntity(saved);
-        push(user.getId(), dto);
+        Integer userId = user.getId();
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    push(userId, dto);
+                }
+            });
+        } else {
+            // No transaction in play (a caller that opted out) — nothing to
+            // wait for, and nothing being held.
+            push(userId, dto);
+        }
         return dto;
     }
 

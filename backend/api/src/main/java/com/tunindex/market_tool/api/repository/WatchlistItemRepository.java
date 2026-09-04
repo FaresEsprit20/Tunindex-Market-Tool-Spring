@@ -16,6 +16,18 @@ public interface WatchlistItemRepository extends JpaRepository<WatchlistItem, Lo
 
     List<WatchlistItem> findByUserIdOrderByAddedAtAsc(Integer userId);
 
+    /**
+     * Every watched item with its owner already loaded.
+     *
+     * <p>The {@code user} relation is LAZY, so a plain {@code findAll()}
+     * hands back detached rows whose {@code getUser()} throws the moment the
+     * transaction ends — and the watchlist monitor runs outside one on
+     * purpose, because it makes a blocking HTTP call. The fetch join also
+     * turns what would be an N+1 into a single query.
+     */
+    @Query("select w from WatchlistItem w join fetch w.user order by w.symbol asc")
+    List<WatchlistItem> findAllWithUser();
+
     boolean existsByUserIdAndSymbol(Integer userId, String symbol);
 
     @Modifying

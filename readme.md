@@ -1,4 +1,4 @@
-# Market Tool — Tunisian Stock Market Data Platform
+# Tunidex Market Tool — Tunisian Stock Market Data Platform
 
 [![Java](https://img.shields.io/badge/Java-17-blue.svg)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.13-brightgreen.svg)](https://spring.io/projects/spring-boot)
@@ -10,12 +10,22 @@
 
 ## Overview
 
-Market Tool is a microservices platform that scrapes, enriches, and serves Tunisian Stock Exchange (BVMT) data, wrapped in a full SaaS shell — authentication, user accounts, billing/subscriptions, and notifications (email/SMS). It is built as 10 independent Spring Boot services registered with a Netflix Eureka discovery server, plus an Angular frontend that is currently scaffolded but not yet implemented.
+Tunidex Market Tool is a microservices platform that scrapes, enriches, and serves Tunisian Stock Exchange (BVMT) data, wrapped in a full SaaS shell — authentication, user accounts, billing/subscriptions, and notifications (email/SMS). It is built as 10 independent Spring Boot services registered with a Netflix Eureka discovery server, plus a signals-based Angular 22 frontend covering the full workflow: screening, scoring, risk analysis, a paper-trading portfolio, alerts and a macro dashboard.
+
+**Every figure in the interface is real.** Quotes are scraped from the exchange on a schedule and reconciled against the source; interest rates come from the Banque Centrale de Tunisie; inflation and growth from the World Bank. Nothing is mocked, and a figure the server cannot compute honestly comes back `null` and renders as an em dash rather than a confident zero.
+
+> **On the name:** the product is **Tunidex Market Tool**, and that is what
+> every user-facing string says. Internal identifiers — the Java package
+> `com.tunindex.market_tool`, the `tunindex-api` / `tunindex-collector`
+> databases, and the `frontend/tunindex-market-tool` directory — still carry
+> the older `tunindex` spelling. Renaming those is a package-and-schema
+> migration, not a copy change, so it has been left alone deliberately.
 
 > This document reflects the actual state of the codebase as inspected, not just the original plan. It calls out work-in-progress and known issues explicitly (see [Known Issues](#known-issues--architectural-debt)) rather than presenting the system as finished.
 
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
@@ -28,6 +38,88 @@ Market Tool is a microservices platform that scrapes, enriches, and serves Tunis
 - [Known Issues / Architectural Debt](#known-issues--architectural-debt)
 - [Roadmap](#roadmap)
 - [License](#license)
+
+## Screenshots
+
+All captured from the running application against live BVMT data.
+
+### Dashboard
+
+Market breadth, the macro backdrop, opportunities, news and sector distribution.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Stocks — screener and preview
+
+31 filters, sortable and hideable columns, keyboard navigation, and a detail pane
+that shows the whole market when no row is selected rather than an empty box.
+
+![Stocks](docs/screenshots/stocks.png)
+
+The same screen in dark mode:
+
+![Stocks, dark](docs/screenshots/stocks-dark.png)
+
+### Risk panel
+
+Volatility, drawdown, beta, Sharpe, Sortino and value at risk — computed
+server-side from stored closes, each with the sample it rests on.
+
+![Risk panel](docs/screenshots/risk-panel.png)
+
+### Stock detail
+
+![Stock detail](docs/screenshots/stock-detail.png)
+
+### Analysis
+
+![Analysis](docs/screenshots/analysis.png)
+
+### Opportunities — the Tunidex Scorer
+
+Six weighted components; a name the server cannot currently price is never
+recommended.
+
+![Opportunities](docs/screenshots/opportunities.png)
+
+### Portfolio
+
+Paper trading at real prices. Per position: average cost, live price, day P&L in
+dinars, cost basis, weight and total P&L, with a sticky totals row — then
+concentration, sector exposure, weighted beta and projected dividend income.
+
+![Portfolio](docs/screenshots/portfolio.png)
+
+![Portfolio, dark](docs/screenshots/portfolio-dark.png)
+
+### Alerts and activity
+
+Standing rules, plus the stream of what actually fired — alerts, filled orders
+and watchlist moves.
+
+![Alerts](docs/screenshots/alerts.png)
+
+### Watchlist
+
+![Watchlist](docs/screenshots/watchlist.png)
+
+### Exchange rates
+
+![Exchange rates](docs/screenshots/exchange-rates.png)
+
+### Data pipeline
+
+![Data pipeline](docs/screenshots/data-pipeline.png)
+
+### Account
+
+![Account](docs/screenshots/account.png)
+
+### Sign in / register
+
+![Login](docs/screenshots/login.png)
+
+![Register](docs/screenshots/register.png)
 
 ## Architecture
 
@@ -218,50 +310,73 @@ Plain Netflix Eureka registry. `register-with-eureka=false`, `fetch-registry=fal
 
 ## Frontend (Angular)
 
-`frontend/tunindex-market-tool` is an Angular 22 app generated with the CLI and **not yet implemented**. The folder layout (`core/{guards,interceptors,models,services}`, `features/{auth,dashboard,stocks,users,watchlist,analysis,account-management,market}`, `shared/components/*`) mirrors the backend's domains and gives a clear sense of the planned feature set, but as of this writing:
+`frontend/tunindex-market-tool` is an Angular 22 application built on signals
+and standalone components, with `OnPush` change detection throughout and no
+`zone.js` (`provideZonelessChangeDetection`). Routes lazy-load per feature.
 
-- `app.routes.ts` is an empty `Routes` array.
-- Every model file in `core/models/` is empty.
-- Every service/guard/interceptor/component is a bare stub (e.g. `export class Auth {}`), including one that uses a non-existent `@Service()` decorator instead of `@Injectable()`.
-- `app.html` is still the default `ng new` welcome page.
+**Screens:** dashboard, stock screener with detail preview, stock detail,
+analysis, opportunities, portfolio simulator, watchlist, alerts, exchange
+rates, data pipeline monitor, account settings, and the auth flow
+(sign-in, register, password reset, 2FA).
 
-In short: the scaffolding (component boundaries, routing structure, test files) is in place; none of the actual UI or API integration has been written yet.
+**Notable pieces**
+
+| Area | What it does |
+|---|---|
+| Screener | 31 server-side filters, sortable/hideable columns, frozen identity column, keyboard navigation, density control |
+| Live prices | One server-side poller fans out deltas over SSE; cells flash on tick |
+| Market overview | Breadth bar, movers, diverging sector bars, unusual activity — fills the detail pane when nothing is selected |
+| Risk panel | Volatility, drawdown, beta, Sharpe/Sortino, VaR, with the server's methodology rendered verbatim |
+| Portfolio | Positions blotter with day and total P&L, weight bars, totals row; concentration, sector exposure, weighted beta, projected income |
+| Macro panel | BCT policy rates and World Bank inflation/growth, each with its published period |
+| Activity feed | Alerts, filled orders and watchlist moves in one stream |
+| Command palette | `Ctrl/Cmd-K` global search and navigation |
+
+**Conventions that matter here**
+
+- A value the server could not compute honestly arrives as `null` and renders
+  as `—`. Never `0`, which would read as a measurement.
+- Green and red mean gain and loss, and nothing else. Structural judgements
+  (concentration, volatility bands) use the warning colour instead.
+- Every figure is server-computed. No statistic is recalculated in the client,
+  so two screens cannot disagree about the same number.
 
 ## Testing
 
-| Module | Test coverage |
-|---|---|
-| common | `TestConfig` only (pure library) |
-| collector | Controller integration test, repository test, service unit test |
-| api | **None** |
-| mailing-service | Controller, repository, and service tests (best-covered service) |
-| sms-service | **None** |
-| recaptcha-service | **None** |
-| payment-service | Repository, gateway, and service tests |
-| billing-service | **None** |
-| user-subscription-service | **None** |
-| discovery-server | **None** (nothing to test) |
-| frontend | Every component/service has a `.spec.ts`, but they're the default Angular CLI "should create" stubs — no real assertions yet |
+| Module | Tests | Status |
+|---|---|---|
+| frontend | 130 across 84 files | **all passing** |
+| collector — unit | 52 (`QuoteFreshness`, `IlBoursaQuoteProvider`, `MarketBreadth`, `RiskAnalytics`, `StockService`) | **all passing** |
+| collector — repository | 17 (`StockRepositoryTest`) | **all passing** |
+| collector — controller | 24 (`StockControllerIntegrationTest`) | **failing** — written with `MockMvc` against a WebFlux module, which has no `MockMvc` bean; needs a `WebTestClient` rewrite |
+| common | `TestConfig` only (pure library) | — |
+| api | none | — |
+| mailing-service | controller, repository, service tests | — |
+| payment-service | repository, gateway, service tests | — |
+| sms-service, recaptcha-service, billing-service, user-subscription-service | none | — |
 
-Run backend tests per module:
+The frontend specs assert real behaviour, not `should create` stubs — they
+cover the cases that actually broke in production, such as a stale quote being
+excluded from the movers list and a null statistic rendering as a dash.
 
-```bash
-cd backend/collector
-mvn test
-
-cd backend/mailing-service
-mvn test
-
-cd backend/payment-service
-mvn test
-```
-
-Run the whole reactor:
+Run the collector's passing suites:
 
 ```bash
 cd backend
-mvn clean test
+mvn -pl collector test -Dtest='QuoteFreshnessTest,IlBoursaQuoteProviderTest,MarketBreadthServiceTest,RiskAnalyticsServiceTest,StockServiceImplTest,StockRepositoryTest'
 ```
+
+Frontend:
+
+```bash
+cd frontend/tunindex-market-tool
+npx ng test --watch=false
+```
+
+> The full reactor build (`mvn clean install`) does **not** pass:
+> `billing-service` references a `PromoCodeService` class that does not exist
+> in the repository. Build the modules that run instead:
+> `mvn -pl common,collector,api -am clean install -DskipTests`.
 
 ## Setup & Installation
 
@@ -323,21 +438,77 @@ npm start   # ng serve — shows the default Angular welcome page, no app functi
 
 ## API Usage Examples
 
+The public base path is `tunindex/market/tool/v1/stocks` (from
+`Constants.APP_ROOT`). Everything below is served by the `api` module on
+port 8082 and requires a bearer token unless noted.
+
 ```bash
-# Get a stock by symbol (via the api gateway, proxied to collector)
-curl http://localhost:8082/api/v1/stocks/symbol/BH
+BASE=http://localhost:8082/tunindex/market/tool/v1/stocks
 
-# Filter stocks
-curl -X POST http://localhost:8082/api/v1/stocks/filter \
-  -H "Content-Type: application/json" \
-  -d '{
-    "page": 1,
-    "size": 10,
-    "filters": { "sector": "FINANCIALS", "undervalued": "true" }
-  }'
+# Sign in
+TOKEN=$(curl -s -X POST "$BASE/auth/authenticate"   -H "Content-Type: application/json"   -d '{"login":"you@example.com","password":"...","remember_me":false}'   | jq -r .accessToken)
+```
 
-# Trigger a data refresh for one symbol
-curl -X PUT http://localhost:8082/api/v1/stocks/refresh/BH
+### Market
+
+```bash
+# Trading session state, from the published BVMT timetable
+curl -H "Authorization: Bearer $TOKEN" "$BASE/market/session"
+
+# Advancers/decliners, top movers, sector performance
+curl -H "Authorization: Bearer $TOKEN" "$BASE/market/breadth"
+
+# Names trading unlike themselves today, with the evidence attached
+curl -H "Authorization: Bearer $TOKEN" "$BASE/market/unusual?limit=20"
+
+# Tunisian policy rates (BCT) and inflation/growth (World Bank)
+curl -H "Authorization: Bearer $TOKEN" "$BASE/market/macro"
+```
+
+### Stocks
+
+```bash
+# One symbol
+curl -H "Authorization: Bearer $TOKEN" "$BASE/symbol/BH"
+
+# Screen. `search` matches ticker OR company name, accent-insensitive —
+# prefer it over `symbol`/`name`, which are exact-field filters.
+curl -X POST "$BASE/filter"   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{"page":1,"size":10,"filters":{"search":"societe","undervalued":"true"}}'
+```
+
+### Risk
+
+```bash
+# Volatility, drawdown, beta, Sharpe/Sortino, VaR
+curl -H "Authorization: Bearer $TOKEN" "$BASE/risk/metrics/AB?windowDays=365"
+
+# Pairwise return correlation — the diversification view
+curl -H "Authorization: Bearer $TOKEN" "$BASE/risk/correlation?symbols=AB,BIAT,SFBT"
+```
+
+### Portfolio
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" "$BASE/portfolio"
+
+# Concentration, sector exposure, weighted beta, projected dividend income
+curl -H "Authorization: Bearer $TOKEN" "$BASE/portfolio/analytics"
+
+# Trades execute at the price the server fetches; the client never sends one
+curl -X POST "$BASE/portfolio/buy"   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{"symbol":"BIAT","quantity":10}'
+```
+
+### Operational (collector, internal — needs `X-API-Key`)
+
+```bash
+KEY=...  # internal.api.key
+
+# Symbols whose exchange page could not be read recently. These are excluded
+# from breadth, movers and recommendations; this is how you find out why.
+curl -H "X-API-Key: $KEY" "http://localhost:8081/internal/market/stale-quotes"
+
+# Force a quote pass instead of waiting for the schedule
+curl -X POST -H "X-API-Key: $KEY" "http://localhost:8081/internal/market/refresh-quotes"
 ```
 
 ## Known Issues / Architectural Debt
@@ -350,8 +521,11 @@ These were found while mapping the codebase and are worth fixing before relying 
 4. **Secrets are committed in plaintext** in several `application.properties` files (Gmail SMTP app password, Twilio credentials, reCAPTCHA secret key, and a shared internal `X-API-Key` value used by every service). These should move to environment variables or a secrets manager and be rotated.
 5. **No schema migration tool** — every service uses `ddl-auto=update`; there's no Flyway/Liquibase, so schema drift between environments isn't tracked.
 6. **sms-service phone validation defaults to region "US"**, which will likely mis-validate Tunisian `+216` numbers.
-7. **Frontend is unimplemented** — the Angular app is CLI scaffolding only; no routes, models, or API integration exist yet.
-8. **Test coverage is uneven** — only `collector`, `mailing-service`, and `payment-service` have real tests; `api`, `sms-service`, `recaptcha-service`, `billing-service`, and `user-subscription-service` have none.
+7. **`billing-service` does not compile** — `PaymentGatewayController` injects a `PromoCodeService` that does not exist in the repository, and `SubscriptionPlan` references missing symbols. This breaks the full reactor build; the modules that actually run (`common`, `collector`, `api`, `discovery-server`) build cleanly on their own.
+8. **24 collector integration tests cannot pass as written** — they use `MockMvc`, but the collector depends on `spring-boot-starter-webflux` and has no `MockMvc` bean. They need rewriting against `WebTestClient`.
+9. **Test coverage is uneven** — the frontend and `collector` are well covered; `api` has no tests at all, which is where the portfolio, alerting and notification logic lives.
+10. **Two symbols cannot be priced** — `SITEX` and `SIMPAR` return HTTP 404 from the exchange (delisted or renamed). They are excluded from breadth, movers, unusual activity and recommendations by the `QuoteFreshness` rule, but they still occupy rows in the stock list showing their last known price. They should be marked delisted rather than silently carried.
+11. **Quote refresh is single-source** — if ilboursa.com changes its markup or goes down, quotes freeze. `liveQuoteAt` makes that visible rather than silent (`GET /market/stale-quotes` lists affected symbols), but there is no fallback provider.
 
 ## Roadmap
 
@@ -359,7 +533,10 @@ These were found while mapping the codebase and are worth fixing before relying 
 - Wire up real payment re-charging in auto-renewal
 - Externalize all secrets to environment variables
 - Add Flyway/Liquibase migrations
-- Implement the Angular frontend against the `api` gateway
+- Rewrite the collector's controller tests against `WebTestClient`
+- Add a test suite for the `api` module, starting with portfolio and alert evaluation
+- Add a second quote source so a single site outage cannot freeze prices
+- Mark delisted symbols explicitly instead of carrying their last known price
 - Add an API Gateway (Spring Cloud Gateway) in front of `api`
 - Add circuit breakers (Resilience4j) and distributed tracing (Zipkin)
 - Add metrics monitoring (Prometheus + Grafana)

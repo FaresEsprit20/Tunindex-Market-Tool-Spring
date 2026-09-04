@@ -71,6 +71,52 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           <path d="M12 0v16M0 8h24" stroke="#fff" stroke-width="5" />
           <path d="M12 0v16M0 8h24" stroke="#C8102E" stroke-width="3" />
         }
+        @case ('CH') {
+          <rect width="24" height="16" fill="#D52B1E" />
+          <rect x="10.6" y="3.6" width="2.8" height="8.8" fill="#fff" />
+          <rect x="7.6" y="6.6" width="8.8" height="2.8" fill="#fff" />
+        }
+        @case ('JP') {
+          <rect width="24" height="16" fill="#fff" stroke="var(--color-border)" stroke-width="0.5" />
+          <circle cx="12" cy="8" r="4.6" fill="#BC002D" />
+        }
+        @case ('CA') {
+          <rect width="24" height="16" fill="#fff" />
+          <rect width="6" height="16" fill="#D80621" />
+          <rect x="18" width="6" height="16" fill="#D80621" />
+          <path
+            d="M12 3.6l.85 1.9 1.9-.75-.7 1.95 1.55.3-1.5 1.2.45 1.5-1.9-.55.1 2.1h-1.5l.1-2.1-1.9.55.45-1.5-1.5-1.2 1.55-.3-.7-1.95 1.9.75z"
+            fill="#D80621"
+          />
+        }
+        @case ('CN') {
+          <rect width="24" height="16" fill="#DE2910" />
+          <path d="M4.4 2.4l.75 2.3-1.95-1.42h2.4L3.65 4.7z" fill="#FFDE00" />
+          <circle cx="8.6" cy="2.2" r="0.75" fill="#FFDE00" />
+          <circle cx="10.3" cy="4" r="0.75" fill="#FFDE00" />
+          <circle cx="10.3" cy="6.4" r="0.75" fill="#FFDE00" />
+          <circle cx="8.6" cy="8.1" r="0.75" fill="#FFDE00" />
+        }
+        @case ('AE') {
+          <rect width="24" height="16" fill="#00732F" />
+          <rect y="5.33" width="24" height="5.33" fill="#fff" />
+          <rect y="10.66" width="24" height="5.34" fill="#000" />
+          <rect width="6.5" height="16" fill="#FF0000" />
+        }
+        @case ('SA') {
+          <rect width="24" height="16" fill="#006C35" />
+          <rect x="4" y="5.6" width="16" height="1.5" fill="#fff" />
+          <rect x="5.5" y="8.6" width="13" height="1.1" fill="#fff" />
+          <path d="M18.2 8.4l1.4.9-1.4.9z" fill="#fff" />
+        }
+        @case ('LY') {
+          <rect width="24" height="16" fill="#239E46" />
+          <rect y="3.2" width="24" height="9.6" fill="#000" />
+          <rect y="12.8" width="24" height="3.2" fill="#E70013" />
+          <circle cx="12" cy="8" r="2.4" fill="#fff" />
+          <circle cx="12.9" cy="8" r="1.95" fill="#000" />
+          <path d="M14.05 6.75l.3 1 1.05.03-.85.63.31 1-.86-.6-.86.6.31-1-.85-.63 1.05-.03z" fill="#fff" />
+        }
         @default {
           <rect width="24" height="16" fill="var(--color-panel-alt)" stroke="var(--color-border)" stroke-width="1" />
           <text

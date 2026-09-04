@@ -4,6 +4,7 @@ import com.tunindex.market_tool.api.dto.portfolio.PortfolioPositionDto;
 import com.tunindex.market_tool.api.dto.portfolio.PortfolioSummaryDto;
 import com.tunindex.market_tool.api.dto.portfolio.PortfolioTransactionDto;
 import com.tunindex.market_tool.api.dto.stock.StockResponseDto;
+import com.tunindex.market_tool.api.services.notification.NotificationService;
 import com.tunindex.market_tool.api.entities.PortfolioAccount;
 import com.tunindex.market_tool.api.entities.PortfolioPosition;
 import com.tunindex.market_tool.api.entities.PortfolioTransaction;
@@ -44,6 +45,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     private final PortfolioTransactionRepository portfolioTransactionRepository;
     private final UserRepository userRepository;
     private final WebClient.Builder webClientBuilder;
+    private final NotificationService notificationService;
 
     @Value("${internal.api.key:market-tool-internal-secret-key-2024}")
     private String internalApiKey;
@@ -210,6 +212,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         portfolioTransactionRepository.save(tx);
 
         log.info("Portfolio BUY: user={} symbol={} qty={} price={}", user.getEmail(), symbol, quantity, price);
+        notifyExecution(user, tx, price, quantity);
         return toDto(tx);
     }
 
@@ -262,6 +265,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         portfolioTransactionRepository.save(tx);
 
         log.info("Portfolio SELL: user={} symbol={} qty={} price={} realizedPnl={}", user.getEmail(), symbol, quantity, price, realizedPnl);
+        notifyExecution(user, tx, price, quantity);
         return toDto(tx);
     }
 
@@ -298,6 +302,46 @@ public class PortfolioServiceImpl implements PortfolioService {
         } catch (DataIntegrityViolationException ex) {
             return portfolioAccountRepository.findByUserId(user.getId())
                     .orElseThrow(() -> ex);
+        }
+    }
+
+    /**
+     * Tells the user their order filled.
+     *
+     * <p>Deliberately after the transaction has been written, and deliberately
+     * unable to fail the trade: a notification that cannot be delivered is a
+     * far smaller problem than a trade that appears to have been rejected
+     * because the notification threw. The trade is the record of truth; this
+     * is a courtesy on top of it.
+     */
+    private void notifyExecution(User user, PortfolioTransaction tx, BigDecimal price, BigDecimal quantity) {
+        try {
+            boolean buy = "BUY".equals(tx.getSide().name());
+            BigDecimal total = price.multiply(quantity).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+            String body = (buy ? "Bought " : "Sold ") + quantity.stripTrailingZeros().toPlainString()
+                    + " " + tx.getSymbol() + " at " + price + " TND — " + total + " TND total";
+
+            if (!buy && tx.getRealizedPnl() != null) {
+                BigDecimal pnl = tx.getRealizedPnl();
+                body += pnl.signum() >= 0
+                        ? ". Realised gain " + pnl + " TND."
+                        : ". Realised loss " + pnl.abs() + " TND.";
+            }
+
+            notificationService.publish(
+                    user,
+                    (buy ? "Buy" : "Sell") + " order filled · " + tx.getSymbol(),
+                    body,
+                    "TRADE",
+                    // A sale that lost money is flagged, so a losing exit is
+                    // not reported in the same tone as a winning one.
+                    !buy && tx.getRealizedPnl() != null && tx.getRealizedPnl().signum() < 0
+                            ? "NEGATIVE"
+                            : "POSITIVE",
+                    tx.getSymbol());
+        } catch (RuntimeException ex) {
+            log.warn("Could not publish execution notification for {}: {}", tx.getSymbol(), ex.getMessage());
         }
     }
 

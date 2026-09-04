@@ -129,14 +129,14 @@ public class AlertEvaluationService {
                 OpportunityScoreResponseDto score = score(symbol, scoreCache);
                 yield crossedUp(rule, score == null ? null : BigDecimal.valueOf(score.getOverallScore()),
                         String.format("%s scores above %s", symbol, plain(rule.getThreshold())),
-                        score == null ? "" : String.format("Tunindex Score %d — %s.", score.getOverallScore(), verdictText(score)),
+                        score == null ? "" : String.format("Tunidex Score %d — %s.", score.getOverallScore(), verdictText(score)),
                         "POSITIVE");
             }
             case SCORE_BELOW -> {
                 OpportunityScoreResponseDto score = score(symbol, scoreCache);
                 yield crossedDown(rule, score == null ? null : BigDecimal.valueOf(score.getOverallScore()),
                         String.format("%s scores below %s", symbol, plain(rule.getThreshold())),
-                        score == null ? "" : String.format("Tunindex Score %d — %s.", score.getOverallScore(), verdictText(score)),
+                        score == null ? "" : String.format("Tunidex Score %d — %s.", score.getOverallScore(), verdictText(score)),
                         "NEGATIVE");
             }
             case NEAR_52W_LOW -> {
@@ -159,7 +159,7 @@ public class AlertEvaluationService {
                 boolean improved = encoded.compareTo(previous) > 0;
                 fire(rule,
                         String.format("%s is now %s", symbol, verdictText(score)),
-                        String.format("Its verdict %s. Tunindex Score %d.",
+                        String.format("Its verdict %s. Tunidex Score %d.",
                                 improved ? "improved" : "weakened", score.getOverallScore()),
                         improved ? "POSITIVE" : "NEGATIVE");
                 yield true;

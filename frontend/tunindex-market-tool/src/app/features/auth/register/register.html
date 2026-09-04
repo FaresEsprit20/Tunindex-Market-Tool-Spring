@@ -39,7 +39,7 @@
             type="email"
             formControlName="email"
             autocomplete="email"
-            placeholder="you@tunindex.tn"
+            placeholder="you@tunidex.tn"
           />
         </div>
         @if (form.controls.email.invalid && form.controls.email.touched) {
@@ -164,7 +164,7 @@
         </span>
       </label>
 
-      <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      <button type="submit" class="btn btn-block btn-primary" [disabled]="submitting()">
         {{ submitting() ? 'Creating account…' : 'Create account' }}
       </button>
 

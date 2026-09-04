@@ -9,6 +9,7 @@ import com.tunindex.market_tool.collector.entities.StockNews;
 import com.tunindex.market_tool.collector.repository.jpa.PriceHistoryRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockNewsRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
+import com.tunindex.market_tool.collector.services.market.QuoteFreshness;
 import com.tunindex.market_tool.collector.services.analysis.TechnicalAnalysisCalculator;
 import com.tunindex.market_tool.collector.services.news.NewsSentimentClassifier;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
@@ -56,6 +57,14 @@ public class OpportunityServiceImpl implements OpportunityService {
         log.info("🏹 Scoring {} stocks for buy opportunities (minScore={})", stocks.size(), minScore);
 
         return stocks.stream()
+                // Never recommend a name we cannot currently price. A symbol
+                // whose exchange page has gone (delisted, renamed) keeps its
+                // last known price forever, which makes it look permanently
+                // cheap and permanently "at its 52-week low" — SIMPAR was
+                // surfacing as a STRONG BUY on exactly that frozen data.
+                // Scoring a specific symbol on request still works; this only
+                // governs what we put in front of someone unprompted.
+                .filter(QuoteFreshness::isFresh)
                 .map(stock -> scoreStock(stock, includeNews))
                 .filter(score -> score.getOverallScore() >= minScore)
                 .sorted(Comparator
@@ -77,7 +86,22 @@ public class OpportunityServiceImpl implements OpportunityService {
                         "Stock not found with symbol: " + symbol,
                         ErrorCodes.STOCK_NOT_FOUND,
                         List.of("symbol: " + symbol)));
-        return scoreStock(stock, true);
+
+        OpportunityScoreDto score = scoreStock(stock, true);
+
+        // An explicit request is still answered — the caller asked for this
+        // symbol specifically — but a score computed on a price we can no
+        // longer refresh has to say so, or it reads as a live assessment.
+        if (!QuoteFreshness.isFresh(stock)) {
+            Long hours = QuoteFreshness.hoursSinceQuote(stock);
+            String age = hours == null
+                    ? "We have never obtained a live quote for this symbol"
+                    : "The last live quote was " + hours + " hours ago";
+            score.getWarnings().add(age
+                    + " — its exchange page could not be read, so every price-based"
+                    + " figure below is frozen and this score is not current.");
+        }
+        return score;
     }
 
     private OpportunityScoreDto scoreStock(Stock stock, boolean includeNews) {

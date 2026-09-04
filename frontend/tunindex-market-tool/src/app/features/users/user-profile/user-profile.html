@@ -75,6 +75,10 @@
       </form>
     </div>
 
+    <!-- One grid cell holding both security cards. As three siblings in a
+         two-column grid, the third wrapped under Profile and left the right
+         column emptier than before. -->
+    <div class="profile-column">
     <div class="panel-card">
       <div class="panel-head"><p class="panel-title">Change password</p></div>
       <form class="panel-body form-body" [formGroup]="passwordForm" (ngSubmit)="savePassword()" novalidate>
@@ -95,13 +99,15 @@
         </button>
       </form>
     </div>
-  </div>
 
-  <div class="panel-card section">
-    <div class="panel-head">
-      <p class="panel-title">Two-factor authentication</p>
-      <span class="signal-badge" [class.positive]="twoFactorEnabled()" [class.neutral]="!twoFactorEnabled()">
-        {{ twoFactorEnabled() ? 'Enabled' : 'Disabled' }}
+    <!-- Security settings sit together in the right column. This card used to
+         run full-width underneath, which left the column above it ending
+         early and a third of the page empty. -->
+    <div class="panel-card">
+      <div class="panel-head">
+        <p class="panel-title">Two-factor authentication</p>
+        <span class="signal-badge" [class.positive]="twoFactorEnabled()" [class.neutral]="!twoFactorEnabled()">
+          {{ twoFactorEnabled() ? 'Enabled' : 'Disabled' }}
       </span>
     </div>
     <div class="panel-body">
@@ -182,6 +188,8 @@
           </button>
         </div>
       }
+    </div>
+    </div>
     </div>
   </div>
 }

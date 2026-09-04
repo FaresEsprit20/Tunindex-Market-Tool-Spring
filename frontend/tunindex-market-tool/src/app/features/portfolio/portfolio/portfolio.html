@@ -66,6 +66,141 @@
     />
   </div>
 
+  <!-- Positions lead, full width. They were sharing a row with the trade
+       ticket, which is a three-field form: the table was squeezed into a
+       column while a 200px-tall empty box sat beside it. -->
+  <!-- Positions -->
+  <div class="panel-card">
+    <div class="panel-head"><p class="panel-title">Positions</p></div>
+    @if (s.positions.length === 0) {
+      <p class="empty-msg">No open positions yet — place a trade to get started.</p>
+    } @else {
+      <div class="table-scroll">
+        <table class="stock-table positions-table">
+          <thead>
+            <tr>
+              <th>Position</th>
+              <th class="num">Qty</th>
+              <th class="num">Avg cost</th>
+              <th class="num">Last</th>
+              <th class="num">Day P&amp;L</th>
+              <th>30D</th>
+              <th class="num">Cost basis</th>
+              <th class="num">Market value</th>
+              <th class="num">Weight</th>
+              <th class="num">Total P&amp;L</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of s.positions; track p.symbol) {
+              <tr class="stock-row" (click)="selectSymbolForTrade(p.symbol)">
+                <td class="position-cell">
+                  <span class="position-symbol mono">{{ p.symbol }}</span>
+                  <span class="position-name">{{ p.name }}</span>
+                </td>
+                <td class="num mono">{{ p.quantity | number: '1.0-2' }}</td>
+                <td class="num mono">{{ p.avgCostBasis | number: '1.3-3' }}</td>
+                <td class="num mono price-stack">
+                  <span class="price-last">{{ p.currentPrice | number: '1.3-3' }}</span>
+                  @if (p.dayChangePct !== null) {
+                    <span
+                      class="price-day"
+                      [class.positive]="p.dayChangePct > 0"
+                      [class.negative]="p.dayChangePct < 0"
+                    >
+                      {{ p.dayChangePct > 0 ? '+' : '' }}{{ p.dayChangePct | number: '1.2-2' }}%
+                    </span>
+                  }
+                </td>
+                <!-- The cash figure, not just the percentage: "-1.30%" does
+                     not say whether that is three dinars or three hundred. -->
+                <td class="num mono">
+                  @if (dayPnl(p); as d) {
+                    <span [class.positive]="d > 0" [class.negative]="d < 0">
+                      {{ d > 0 ? '+' : '' }}{{ d | number: '1.2-2' }}
+                    </span>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="spark-cell"><app-sparkline [points]="sparkFor(p.symbol)" /></td>
+                <td class="num mono subdued">{{ costBasis(p) | number: '1.2-2' }}</td>
+                <td class="num mono strong">{{ p.marketValue | number: '1.2-2' }}</td>
+                <td class="num weight-cell">
+                  @if (weightPct(p, s.positions); as w) {
+                    <!-- Figure and rule share a fixed-width box. Sizing the
+                         rule against the cell let it resolve against the whole
+                         column, so it ran out under Market Value and read as
+                         belonging to that number instead of to this one. -->
+                    <span class="weight-wrap">
+                      <span class="weight-text mono">{{ w | number: '1.1-1' }}%</span>
+                      <span
+                        class="weight-bar"
+                        [style.width.%]="weightBarWidth(p, s.positions)"
+                      ></span>
+                    </span>
+                  }
+                </td>
+                <td class="num mono pnl-stack">
+                  <span
+                    class="pnl-value"
+                    [class.positive]="p.unrealizedPnl >= 0"
+                    [class.negative]="p.unrealizedPnl < 0"
+                  >
+                    {{ p.unrealizedPnl >= 0 ? '+' : '' }}{{ p.unrealizedPnl | number: '1.2-2' }}
+                  </span>
+                  <span
+                    class="pnl-pct"
+                    [class.positive]="p.unrealizedPnlPct >= 0"
+                    [class.negative]="p.unrealizedPnlPct < 0"
+                  >
+                    {{ p.unrealizedPnlPct >= 0 ? '+' : '' }}{{ p.unrealizedPnlPct | number: '1.2-2' }}%
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+          <!-- Totals in a real tfoot so the row stays attached to the table
+               when it scrolls horizontally, and reads as a summary rather
+               than another holding. -->
+          <tfoot>
+            <tr class="totals-row">
+              <td>{{ s.positions.length }} position{{ s.positions.length === 1 ? '' : 's' }}</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td class="num mono">
+                <span
+                  [class.positive]="totalDayPnl(s.positions) > 0"
+                  [class.negative]="totalDayPnl(s.positions) < 0"
+                >
+                  {{ totalDayPnl(s.positions) > 0 ? '+' : ''
+                  }}{{ totalDayPnl(s.positions) | number: '1.2-2' }}
+                </span>
+              </td>
+              <td></td>
+              <td class="num mono subdued">{{ totalCostBasis(s.positions) | number: '1.2-2' }}</td>
+              <td class="num mono strong">{{ s.totalMarketValue | number: '1.2-2' }}</td>
+              <td class="num mono subdued">100%</td>
+              <td class="num mono">
+                <span
+                  class="pnl-value"
+                  [class.positive]="s.totalUnrealizedPnl >= 0"
+                  [class.negative]="s.totalUnrealizedPnl < 0"
+                >
+                  {{ s.totalUnrealizedPnl >= 0 ? '+' : ''
+                  }}{{ s.totalUnrealizedPnl | number: '1.2-2' }}
+                </span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    }
+  </div>
+
+  <!-- Ticket and exposure share the row underneath. Both are secondary to
+       the holdings, and pairing them means neither leaves a dead column. -->
   <div class="trade-grid section">
     <!-- Trade ticket -->
     <div class="panel-card">
@@ -178,135 +313,13 @@
       </div>
     </div>
 
-    <!-- Positions -->
+    <!-- Exposure. Describes the same positions the table above listed,
+         at the level above individual rows. -->
     <div class="panel-card">
-      <div class="panel-head"><p class="panel-title">Positions</p></div>
-      @if (s.positions.length === 0) {
-        <p class="empty-msg">No open positions yet — place a trade to get started.</p>
-      } @else {
-        <div class="table-scroll">
-          <table class="stock-table positions-table">
-            <thead>
-              <tr>
-                <th>Position</th>
-                <th class="num">Qty</th>
-                <th class="num">Avg cost</th>
-                <th class="num">Last</th>
-                <th class="num">Day P&amp;L</th>
-                <th>30D</th>
-                <th class="num">Cost basis</th>
-                <th class="num">Market value</th>
-                <th class="num">Weight</th>
-                <th class="num">Total P&amp;L</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of s.positions; track p.symbol) {
-                <tr class="stock-row" (click)="selectSymbolForTrade(p.symbol)">
-                  <td class="position-cell">
-                    <span class="position-symbol mono">{{ p.symbol }}</span>
-                    <span class="position-name">{{ p.name }}</span>
-                  </td>
-                  <td class="num mono">{{ p.quantity | number: '1.0-2' }}</td>
-                  <td class="num mono">{{ p.avgCostBasis | number: '1.3-3' }}</td>
-                  <td class="num mono price-stack">
-                    <span class="price-last">{{ p.currentPrice | number: '1.3-3' }}</span>
-                    @if (p.dayChangePct !== null) {
-                      <span
-                        class="price-day"
-                        [class.positive]="p.dayChangePct > 0"
-                        [class.negative]="p.dayChangePct < 0"
-                      >
-                        {{ p.dayChangePct > 0 ? '+' : '' }}{{ p.dayChangePct | number: '1.2-2' }}%
-                      </span>
-                    }
-                  </td>
-                  <!-- The cash figure, not just the percentage: "-1.30%" does
-                       not say whether that is three dinars or three hundred. -->
-                  <td class="num mono">
-                    @if (dayPnl(p); as d) {
-                      <span [class.positive]="d > 0" [class.negative]="d < 0">
-                        {{ d > 0 ? '+' : '' }}{{ d | number: '1.2-2' }}
-                      </span>
-                    } @else {
-                      —
-                    }
-                  </td>
-                  <td class="spark-cell"><app-sparkline [points]="sparkFor(p.symbol)" /></td>
-                  <td class="num mono subdued">{{ costBasis(p) | number: '1.2-2' }}</td>
-                  <td class="num mono strong">{{ p.marketValue | number: '1.2-2' }}</td>
-                  <td class="num weight-cell">
-                    @if (weightPct(p, s.positions); as w) {
-                      <span class="weight-bar" [style.width.%]="w"></span>
-                      <span class="weight-text mono">{{ w | number: '1.1-1' }}%</span>
-                    }
-                  </td>
-                  <td class="num mono pnl-stack">
-                    <span
-                      class="pnl-value"
-                      [class.positive]="p.unrealizedPnl >= 0"
-                      [class.negative]="p.unrealizedPnl < 0"
-                    >
-                      {{ p.unrealizedPnl >= 0 ? '+' : '' }}{{ p.unrealizedPnl | number: '1.2-2' }}
-                    </span>
-                    <span
-                      class="pnl-pct"
-                      [class.positive]="p.unrealizedPnlPct >= 0"
-                      [class.negative]="p.unrealizedPnlPct < 0"
-                    >
-                      {{ p.unrealizedPnlPct >= 0 ? '+' : '' }}{{ p.unrealizedPnlPct | number: '1.2-2' }}%
-                    </span>
-                  </td>
-                </tr>
-              }
-            </tbody>
-            <!-- Totals in a real tfoot so the row stays attached to the table
-                 when it scrolls horizontally, and reads as a summary rather
-                 than another holding. -->
-            <tfoot>
-              <tr class="totals-row">
-                <td>{{ s.positions.length }} position{{ s.positions.length === 1 ? '' : 's' }}</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td class="num mono">
-                  <span
-                    [class.positive]="totalDayPnl(s.positions) > 0"
-                    [class.negative]="totalDayPnl(s.positions) < 0"
-                  >
-                    {{ totalDayPnl(s.positions) > 0 ? '+' : ''
-                    }}{{ totalDayPnl(s.positions) | number: '1.2-2' }}
-                  </span>
-                </td>
-                <td></td>
-                <td class="num mono subdued">{{ totalCostBasis(s.positions) | number: '1.2-2' }}</td>
-                <td class="num mono strong">{{ s.totalMarketValue | number: '1.2-2' }}</td>
-                <td class="num mono subdued">100%</td>
-                <td class="num mono">
-                  <span
-                    class="pnl-value"
-                    [class.positive]="s.totalUnrealizedPnl >= 0"
-                    [class.negative]="s.totalUnrealizedPnl < 0"
-                  >
-                    {{ s.totalUnrealizedPnl >= 0 ? '+' : ''
-                    }}{{ s.totalUnrealizedPnl | number: '1.2-2' }}
-                  </span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      }
-    </div>
-  </div>
-
-  <!-- Exposure. Sits between the holdings table and the trade history
-       because it describes the same positions the table just listed, at the
-       level above individual rows. -->
-  <div class="panel-card section">
-    <div class="panel-head"><p class="panel-title">Exposure &amp; risk</p></div>
-    <div class="panel-body">
-      <app-portfolio-analytics />
+      <div class="panel-head"><p class="panel-title">Exposure &amp; risk</p></div>
+      <div class="panel-body">
+        <app-portfolio-analytics />
+      </div>
     </div>
   </div>
 

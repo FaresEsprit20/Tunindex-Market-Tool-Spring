@@ -11,6 +11,8 @@ import { WatchlistStar } from '../../../shared/components/watchlist-star/watchli
 import { Sparkline } from '../../../shared/components/sparkline/sparkline';
 import { exchangeCountry } from '../../../core/constants/exchange-flags';
 import { PriceStream } from '../../../core/services/price-stream';
+import { SplitPane } from '../../../shared/components/split-pane/split-pane';
+import { StockPreview } from '../stock-preview/stock-preview';
 import { CountryFlag } from '../../../shared/components/country-flag/country-flag';
 
 // Rows are now ~24px, so a page shows a useful slice of the exchange
@@ -166,7 +168,7 @@ const TABLE_COLUMNS: TableColumn[] = [
 
 @Component({
   selector: 'app-stock-list',
-  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, Sparkline, CountryFlag],
+  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, Sparkline, CountryFlag, SplitPane, StockPreview],
   templateUrl: './stock-list.html',
   styleUrl: './stock-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -209,6 +211,14 @@ export class StockList {
 
   /** Row the keyboard is on, as an index into rows(). -1 = none. */
   protected readonly activeRow = signal(-1);
+
+  /**
+   * Symbol shown in the preview pane. Selection, not navigation: a single
+   * click keeps you in the list, which is the whole point of the split —
+   * comparing two stocks used to cost a round trip through the detail page.
+   * Enter and the Open button still navigate.
+   */
+  protected readonly selectedSymbol = signal<string | null>(null);
   protected readonly sortField = signal<SortField>('symbol');
   protected readonly sortDirection = signal<'ASC' | 'DESC'>('ASC');
 
@@ -528,21 +538,25 @@ export class StockList {
       case 'ArrowDown':
         event.preventDefault();
         this.activeRow.set(Math.min(this.activeRow() + 1, count - 1));
+        this.syncSelectionToActiveRow();
         this.scrollActiveIntoView();
         break;
       case 'ArrowUp':
         event.preventDefault();
         this.activeRow.set(Math.max(this.activeRow() - 1, 0));
+        this.syncSelectionToActiveRow();
         this.scrollActiveIntoView();
         break;
       case 'Home':
         event.preventDefault();
         this.activeRow.set(0);
+        this.syncSelectionToActiveRow();
         this.scrollActiveIntoView();
         break;
       case 'End':
         event.preventDefault();
         this.activeRow.set(count - 1);
+        this.syncSelectionToActiveRow();
         this.scrollActiveIntoView();
         break;
       case 'Enter': {
@@ -553,6 +567,14 @@ export class StockList {
         }
         break;
       }
+    }
+  }
+
+  /** Keeps the preview in step with keyboard movement through the grid. */
+  private syncSelectionToActiveRow(): void {
+    const row = this.rows()[this.activeRow()];
+    if (row) {
+      this.selectedSymbol.set(row.symbol);
     }
   }
 
@@ -591,6 +613,13 @@ export class StockList {
    */
   protected readonly transitioningSymbol = signal<string | null>(null);
 
+  /** Single click / arrow keys: preview it without leaving the grid. */
+  protected selectStock(symbol: string, index: number): void {
+    this.selectedSymbol.set(symbol);
+    this.activeRow.set(index);
+  }
+
+  /** Enter, double-click, or the preview's own link: go to the full page. */
   protected openStock(symbol: string): void {
     this.transitioningSymbol.set(symbol);
     void this.router.navigate(['/app/stocks', symbol]);

@@ -192,8 +192,8 @@
   </div>
 }
 
-  <div class="workspace-row">
-    <div class="panel-card fill">
+  <app-split-pane class="workspace-row" storageKey="stocks" [initialRatio]="0.63" [minRatio]="0.3">
+    <div paneA class="panel-card fill">
       <div
         class="table-scroll"
         tabindex="0"
@@ -244,7 +244,13 @@
           <tr><td [attr.colspan]="visibleColumnCount()" class="empty-cell">No stocks match these filters.</td></tr>
         } @else {
           @for (stock of rows(); track stock.id; let idx = $index) {
-            <tr class="stock-row" [class.active]="activeRow() === idx" (click)="openStock(stock.symbol)">
+            <tr
+              class="stock-row"
+              [class.active]="activeRow() === idx"
+              [class.selected]="selectedSymbol() === stock.symbol"
+              (click)="selectStock(stock.symbol, idx)"
+              (dblclick)="openStock(stock.symbol)"
+            >
               <td class="star-col"><app-watchlist-star [symbol]="stock.symbol" /></td>
               <td class="symbol-cell" [style.view-transition-name]="transitioningSymbol() === stock.symbol ? 'stock-symbol' : null"><app-country-flag class="row-flag" [code]="exchangeCountry(stock.exchange)" [width]="15" [title]="stock.exchange ?? ''" />{{ stock.symbol }}</td>
               @if (isColumnVisible('Name')) {<td class="name-cell">{{ stock.name }}</td>}
@@ -300,5 +306,11 @@
         </div>
       }
     </div>
-  </div>
+
+    <div paneB class="panel-card fill preview-panel">
+      <div class="panel-body">
+        <app-stock-preview [symbol]="selectedSymbol()" />
+      </div>
+    </div>
+  </app-split-pane>
 </div>

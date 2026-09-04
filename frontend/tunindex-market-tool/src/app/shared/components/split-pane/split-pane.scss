@@ -1,0 +1,87 @@
+:host {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+// Pane A is sized by flex-basis (the ratio); pane B simply takes the rest,
+// so the two can never disagree about the total.
+.pane-a {
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+.pane-b {
+  flex: 1;
+}
+
+.divider {
+  flex: 0 0 9px;
+  position: relative;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  outline: none;
+  // Sits above panel edges so the whole strip is grabbable rather than
+  // just the hairline drawn inside it.
+  z-index: 5;
+  touch-action: none;
+
+  &:hover .grip,
+  &.dragging .grip {
+    background: var(--color-brand);
+    width: 3px;
+  }
+
+  &:focus-visible .grip {
+    background: var(--color-brand);
+    width: 3px;
+  }
+
+  &.dragging {
+    // While dragging, the cursor must not flicker as it crosses children.
+    cursor: col-resize;
+  }
+}
+
+.grip {
+  width: 1px;
+  height: 100%;
+  background: var(--color-border);
+  border-radius: 2px;
+  transition: background-color var(--duration-fast) ease, width var(--duration-fast) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grip { transition: none; }
+}
+
+// Below the split threshold the two panes stack and the divider retires:
+// a 9px drag target is not usable on a phone, and a side-by-side layout
+// isn't either.
+@media (max-width: 1100px) {
+  :host {
+    flex-direction: column;
+  }
+
+  .pane-a {
+    flex-basis: auto !important;
+    flex-shrink: 1;
+  }
+
+  .divider {
+    display: none;
+  }
+}

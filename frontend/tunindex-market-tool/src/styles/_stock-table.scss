@@ -167,6 +167,18 @@
 
 // Keyboard-focused row. Uses the same inset rail as hover so the two
 // states read as one idea rather than competing highlights.
+// Selected (shown in the preview) vs active (keyboard focus). They usually
+// coincide, but a click selects without moving keyboard focus, so both
+// states have to be expressible at once.
+.stock-row.selected {
+  background: var(--color-brand-dim);
+}
+
+.stock-row.selected td.symbol-cell,
+.stock-row.selected td.star-col {
+  background: color-mix(in srgb, var(--color-brand) 8%, var(--color-panel));
+}
+
 .stock-row.active {
   background: var(--color-panel-alt);
   box-shadow: inset 2px 0 0 var(--color-brand);

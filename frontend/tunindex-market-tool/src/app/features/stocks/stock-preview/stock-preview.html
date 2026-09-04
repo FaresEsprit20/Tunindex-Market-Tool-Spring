@@ -1,0 +1,38 @@
+@if (!symbol()) {
+  <app-empty-state
+    title="No stock selected"
+    message="Pick a row — or use ↑ ↓ in the grid — to preview it here without leaving the list."
+  />
+} @else if (loading() && !stock()) {
+  <div class="preview-skeleton">
+    <app-skeleton-block height="26px" width="55%" />
+    <app-skeleton-block height="150px" />
+    <app-skeleton-block height="90px" />
+  </div>
+} @else if (stock(); as s) {
+  <div class="preview-head">
+    <div class="preview-id">
+      <span class="preview-symbol mono">{{ s.symbol }}</span>
+      <span class="preview-name">{{ s.name }}</span>
+    </div>
+    <a [routerLink]="['/app/stocks', s.symbol]" class="open-full">Open full page →</a>
+  </div>
+
+  <div class="preview-price">
+    <span class="price mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }}</span>
+    <span class="currency">{{ s.currency }}</span>
+    @if (dayChangePct(s); as chg) {
+      <span class="change mono" [class.positive]="chg > 0" [class.negative]="chg < 0">
+        {{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%
+      </span>
+    }
+  </div>
+
+  <app-candlestick-chart [points]="history()" [loading]="historyLoading()" />
+
+  <div class="preview-score">
+    <app-score-panel [symbol]="s.symbol" />
+  </div>
+} @else {
+  <p class="empty-msg">Couldn't load {{ symbol() }}.</p>
+}

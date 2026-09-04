@@ -40,6 +40,11 @@
   }
 </div>
 
+<!-- Centre of the masthead. Previously empty space between the search box
+     and the utility cluster; the exchange clock is the one fact worth that
+     position, since it governs whether anything else on screen can be acted on. -->
+<app-session-clock class="navbar-session" />
+
 <div class="navbar-right">
   <div class="market-status" [title]="freshnessLabel()">
     @if (freshness() === 'live') {

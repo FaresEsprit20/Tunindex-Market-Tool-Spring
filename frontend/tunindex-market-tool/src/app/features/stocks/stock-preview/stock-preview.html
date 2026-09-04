@@ -1,8 +1,11 @@
 @if (!symbol()) {
-  <app-empty-state
-    title="No stock selected"
-    message="Pick a row — or use ↑ ↓ in the grid — to preview it here without leaving the list."
-  />
+  <!-- Nothing selected is the pane's most common state, so it shows the
+       market instead of an apology. The hint stays, but as a one-line
+       footnote under real content rather than a card in an empty box. -->
+  <app-market-pulse />
+  <p class="preview-hint">
+    Pick a row — or use ↑ ↓ in the grid — to preview a stock here.
+  </p>
 } @else if (loading() && !stock()) {
   <div class="preview-skeleton">
     <app-skeleton-block height="26px" width="55%" />
@@ -48,6 +51,10 @@
         <div class="figure"><span class="figure-label">Graham fair value</span><span class="figure-value mono">{{ s.grahamFairValue !== null ? (s.grahamFairValue | number: '1.2-2') : '—' }}</span></div>
         <div class="figure"><span class="figure-label">Market cap</span><span class="figure-value mono">{{ (s.marketCap !== null ? (s.marketCap | number) : null) ?? '—' }}</span></div>
       </div>
+    </ng-template>
+
+    <ng-template appTab="Risk">
+      <app-risk-panel [symbol]="s.symbol" />
     </ng-template>
 
     <ng-template appTab="News">

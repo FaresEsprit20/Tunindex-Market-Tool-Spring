@@ -121,11 +121,22 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         );
     }
 
+    /**
+     * Paths the limiter does not count.
+     *
+     * <p>The price stream is here because it is one long-lived SSE connection
+     * per session, not a repeatable request: counting it means an unlucky
+     * ordering during a page-load burst rejects the stream and the user
+     * silently loses live quotes for the rest of the session. It cannot be
+     * used to amplify load — the server pushes on its own schedule regardless
+     * of how many times a client connects.
+     */
     private boolean shouldExclude(HttpServletRequest request) {
         return Arrays.asList(
                 "/public/**",
                 "/health",
-                "/actuator/**"
+                "/actuator/**",
+                "/**/prices/stream"
         ).stream().anyMatch(pattern -> pathMatcher.match(pattern, request.getRequestURI()));
     }
 

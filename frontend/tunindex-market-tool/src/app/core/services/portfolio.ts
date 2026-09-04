@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { PortfolioSummary, PortfolioTransaction } from '../models/portfolio.model';
+import { PortfolioAnalytics } from '../models/portfolio-analytics.model';
 
 /**
  * IBKR-style paper trading simulator, scoped to Tunisian (BVMT) stocks.
@@ -16,6 +17,15 @@ export class Portfolio {
 
   getPortfolio(): Observable<PortfolioSummary> {
     return this.http.get<PortfolioSummary>(`${API_BASE_URL}/portfolio`);
+  }
+
+  /**
+   * Structural view of the book: concentration, sector exposure, weighted
+   * beta and projected income. Separate from getPortfolio because it costs a
+   * reference-data lookup the summary does not need.
+   */
+  getAnalytics(): Observable<PortfolioAnalytics> {
+    return this.http.get<PortfolioAnalytics>(`${API_BASE_URL}/portfolio/analytics`);
   }
 
   getTransactions(): Observable<PortfolioTransaction[]> {

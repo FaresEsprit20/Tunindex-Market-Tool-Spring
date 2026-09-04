@@ -7,10 +7,11 @@ import { Stock } from '../../../core/services/stock';
 import { CandlestickChart } from '../../../shared/components/candlestick-chart/candlestick-chart';
 import { ScorePanel } from '../../../shared/components/score-panel/score-panel';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
-import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { MarketPulse } from '../../../shared/components/market-pulse/market-pulse';
 import { TabbedPanel } from '../../../shared/components/tabbed-panel/tabbed-panel';
 import { Tab } from '../../../shared/components/tabbed-panel/tab';
 import { NewsList } from '../../../shared/components/news-list/news-list';
+import { RiskPanel } from '../../../shared/components/risk-panel/risk-panel';
 
 /**
  * The detail half of the quote-monitor split: whatever row is selected in
@@ -22,7 +23,7 @@ import { NewsList } from '../../../shared/components/news-list/news-list';
  */
 @Component({
   selector: 'app-stock-preview',
-  imports: [DecimalPipe, RouterLink, CandlestickChart, ScorePanel, SkeletonBlock, EmptyState, TabbedPanel, Tab, NewsList],
+  imports: [DecimalPipe, RouterLink, CandlestickChart, ScorePanel, SkeletonBlock, MarketPulse, TabbedPanel, Tab, NewsList, RiskPanel],
   templateUrl: './stock-preview.html',
   styleUrl: './stock-preview.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

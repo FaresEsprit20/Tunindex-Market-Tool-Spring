@@ -1,0 +1,114 @@
+@if (loading()) {
+  <div class="pa-loading">
+    <span class="pa-loading-bar"></span>
+    <span class="pa-loading-bar"></span>
+  </div>
+} @else if (failed()) {
+  <p class="pa-note">Portfolio analytics are unavailable right now.</p>
+} @else if (analytics(); as a) {
+  @if (a.positionCount === 0) {
+    <p class="pa-note">
+      Buy something and this fills with concentration, sector exposure and projected income.
+    </p>
+  } @else {
+    <div class="pa-stats">
+      <div class="pa-stat">
+        <span class="pa-stat-label">Concentration</span>
+        <span class="pa-stat-value" [class]="concentrationTone(a.concentrationLabel)">
+          {{ concentrationText(a.concentrationLabel) }}
+        </span>
+        <span class="pa-stat-hint">
+          behaves like {{ a.effectivePositions | number: '1.1-1' }} equal positions
+        </span>
+      </div>
+
+      <div class="pa-stat">
+        <span class="pa-stat-label">Largest holding</span>
+        <span class="pa-stat-value mono">{{ a.largestPositionPct | number: '1.1-1' }}%</span>
+        <span class="pa-stat-hint">{{ a.largestPositionSymbol }}</span>
+      </div>
+
+      <div class="pa-stat">
+        <span class="pa-stat-label">Largest sector</span>
+        <span class="pa-stat-value mono">{{ a.largestSectorPct | number: '1.1-1' }}%</span>
+        <span class="pa-stat-hint">{{ a.largestSectorName }}</span>
+      </div>
+
+      <div class="pa-stat">
+        <span class="pa-stat-label">Projected income</span>
+        <span class="pa-stat-value mono">{{ a.projectedAnnualIncome | number: '1.0-0' }}</span>
+        <span class="pa-stat-hint">
+          TND/yr · {{ a.portfolioYieldPct | number: '1.2-2' }}% yield
+        </span>
+      </div>
+
+      <div class="pa-stat">
+        <span class="pa-stat-label">Weighted beta</span>
+        <span class="pa-stat-value mono">
+          {{ a.weightedBeta !== null ? (a.weightedBeta | number: '1.2-2') : '—' }}
+        </span>
+        <span class="pa-stat-hint">{{ a.betaCoveragePct | number: '1.0-0' }}% of book covered</span>
+      </div>
+
+      <div class="pa-stat">
+        <span class="pa-stat-label">Cash</span>
+        <span class="pa-stat-value mono">{{ a.cashWeightPct | number: '1.1-1' }}%</span>
+        <span class="pa-stat-hint">{{ a.cashBalance | number: '1.0-0' }} TND uninvested</span>
+      </div>
+    </div>
+
+    <div class="pa-breakdown">
+      <div class="pa-tabs" role="tablist" aria-label="Exposure breakdown">
+        <button
+          type="button"
+          role="tab"
+          class="pa-tab"
+          [class.active]="breakdown() === 'sector'"
+          [attr.aria-selected]="breakdown() === 'sector'"
+          (click)="setBreakdown('sector')"
+        >
+          By sector
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="pa-tab"
+          [class.active]="breakdown() === 'position'"
+          [attr.aria-selected]="breakdown() === 'position'"
+          (click)="setBreakdown('position')"
+        >
+          By holding
+        </button>
+      </div>
+
+      <ul class="pa-weights">
+        @for (row of rows(); track row.key; let i = $index) {
+          <li class="pa-weight-row">
+            <span class="pa-weight-label" [title]="row.label ?? row.key">
+              {{ row.label ?? row.key }}
+            </span>
+            <span class="pa-weight-track">
+              <span
+                class="pa-weight-fill"
+                [style.width.%]="barWidth(row)"
+                [style.background]="hueFor(i)"
+              ></span>
+            </span>
+            <span class="pa-weight-pct mono">{{ row.weightPct | number: '1.1-1' }}%</span>
+            <span class="pa-weight-value mono">{{ row.marketValue | number: '1.0-0' }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <!-- Written server-side and rendered verbatim, so the caveats a figure
+         needs travel with the figure instead of being restated here. -->
+    @if (a.observations.length > 0) {
+      <ul class="pa-observations">
+        @for (note of a.observations; track note) {
+          <li>{{ note }}</li>
+        }
+      </ul>
+    }
+  }
+}

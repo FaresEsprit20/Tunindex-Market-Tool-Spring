@@ -22,6 +22,13 @@ public interface StockRepository extends JpaRepository<Stock, Long>, JpaSpecific
     Optional<Stock> findBySymbol(String symbol);
 
     /**
+     * Batch lookup for callers holding a set of symbols — the portfolio and
+     * watchlist views both need reference data for every name they show, and
+     * one query beats N round trips through the internal API.
+     */
+    List<Stock> findBySymbolIn(List<String> symbols);
+
+    /**
      * Find a single stock by its unique symbol and exchange combination
      */
     Optional<Stock> findBySymbolAndExchange(String symbol, String exchange);

@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -30,6 +31,16 @@ public class StockDataController {
         validateApiKey(apiKey);
         log.info("Collector: Getting stock by symbol: {}", symbol);
         return stockService.findBySymbol(symbol);
+    }
+
+    @GetMapping("/by-symbols")
+    public List<StockDto> getBySymbols(
+            @RequestParam String symbols,
+            @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+
+        validateApiKey(apiKey);
+        log.info("Collector: Batch stock lookup for: {}", symbols);
+        return stockService.findBySymbols(Arrays.asList(symbols.split(",")));
     }
 
     @GetMapping("/symbol/{symbol}/exchange/{exchange}")

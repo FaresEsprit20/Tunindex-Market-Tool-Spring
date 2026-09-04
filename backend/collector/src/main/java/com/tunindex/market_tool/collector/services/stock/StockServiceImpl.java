@@ -58,6 +58,35 @@ public class StockServiceImpl implements StockService {
                 });
     }
 
+    /**
+     * Reference data for a set of symbols in one query.
+     *
+     * <p>Unknown symbols are simply absent from the result rather than raising:
+     * callers pass a user's holdings or watchlist, and one delisted name should
+     * not fail the whole lookup. The caller compares sizes if it cares.
+     */
+    @Override
+    public List<StockDto> findBySymbols(List<String> symbols) {
+        if (symbols == null || symbols.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> normalised = symbols.stream()
+                .filter(StringUtils::hasLength)
+                .map(symbol -> symbol.trim().toUpperCase())
+                .distinct()
+                .toList();
+
+        if (normalised.isEmpty()) {
+            return List.of();
+        }
+
+        log.info("🔍 Finding {} stocks by symbol batch", normalised.size());
+        return stockRepository.findBySymbolIn(normalised).stream()
+                .map(StockDto::fromEntity)
+                .toList();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public StockDto findBySymbolAndExchange(String symbol, String exchange) {

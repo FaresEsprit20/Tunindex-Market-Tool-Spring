@@ -1,0 +1,214 @@
+@if (loading()) {
+  <div class="pulse-loading">
+    <span class="pulse-loading-bar"></span>
+    <span class="pulse-loading-bar"></span>
+    <span class="pulse-loading-bar"></span>
+  </div>
+} @else if (failed()) {
+  <p class="pulse-failed">Market summary is unavailable right now.</p>
+} @else if (breadth(); as data) {
+  <div class="pulse">
+    @if (!compact()) {
+      <header class="pulse-head">
+        <h2 class="pulse-title">Market pulse</h2>
+        @if (data.asOf) {
+          <span class="pulse-asof">as of {{ data.asOf | date: 'HH:mm' }}</span>
+        }
+      </header>
+    }
+
+    <!-- Breadth: the one figure that says what kind of day it is. -->
+    <section class="pulse-section">
+      @if (breadthSplit(); as split) {
+        <div class="breadth-head">
+          <div class="breadth-avg">
+            <span
+              class="breadth-avg-value mono"
+              [class.positive]="(data.averageChangePct ?? 0) > 0"
+              [class.negative]="(data.averageChangePct ?? 0) < 0"
+            >
+              {{ (data.averageChangePct ?? 0) > 0 ? '+' : ''
+              }}{{ data.averageChangePct | number: '1.2-2' }}%
+            </span>
+            <span class="breadth-avg-label">average move</span>
+          </div>
+          <div class="breadth-counts">
+            <span class="count up mono">{{ data.advancing }}</span>
+            <span class="count-sep">/</span>
+            <span class="count flat mono">{{ data.unchanged }}</span>
+            <span class="count-sep">/</span>
+            <span class="count down mono">{{ data.declining }}</span>
+          </div>
+        </div>
+
+        <!-- Widths are shares of the priced names, so the bar always fills. -->
+        <div
+          class="breadth-bar"
+          role="img"
+          [attr.aria-label]="
+            data.advancing +
+            ' advancing, ' +
+            data.unchanged +
+            ' unchanged, ' +
+            data.declining +
+            ' declining'
+          "
+        >
+          <span class="seg up" [style.width.%]="split.advancingPct"></span>
+          <span class="seg flat" [style.width.%]="split.unchangedPct"></span>
+          <span class="seg down" [style.width.%]="split.decliningPct"></span>
+        </div>
+
+        <p class="breadth-note">
+          {{ split.priced }} of {{ data.total }} priced
+          @if (data.notPriced > 0) {
+            <span class="muted">· {{ data.notPriced }} without a quote</span>
+          }
+        </p>
+      } @else {
+        <p class="breadth-note">No name could be priced — nothing to summarise yet.</p>
+      }
+    </section>
+
+    <!-- Movers, one list at a time: three short lists side by side would be
+         three things to read where the user wants one. -->
+    <section class="pulse-section">
+      <div class="movers-tabs" role="tablist" aria-label="Movers">
+        <button
+          type="button"
+          role="tab"
+          class="movers-tab"
+          [class.active]="moversView() === 'gainers'"
+          [attr.aria-selected]="moversView() === 'gainers'"
+          (click)="setView('gainers')"
+        >
+          Gainers
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="movers-tab"
+          [class.active]="moversView() === 'losers'"
+          [attr.aria-selected]="moversView() === 'losers'"
+          (click)="setView('losers')"
+        >
+          Losers
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="movers-tab"
+          [class.active]="moversView() === 'active'"
+          [attr.aria-selected]="moversView() === 'active'"
+          (click)="setView('active')"
+        >
+          Most active
+        </button>
+      </div>
+
+      @if (movers().length === 0) {
+        <p class="movers-empty">
+          @switch (moversView()) {
+            @case ('gainers') {
+              Nothing closed higher today.
+            }
+            @case ('losers') {
+              Nothing closed lower today.
+            }
+            @default {
+              No volume reported today.
+            }
+          }
+        </p>
+      } @else {
+        <ul class="movers-list">
+          @for (mover of movers(); track mover.symbol) {
+            <li class="mover-row">
+              <a [routerLink]="['/app/stocks', mover.symbol]" class="mover-link">
+                <span class="mover-symbol mono">{{ mover.symbol }}</span>
+                <span class="mover-name">{{ mover.name }}</span>
+                @if (moversView() === 'active') {
+                  <span class="mover-figure mono">{{ mover.volume | number }}</span>
+                } @else {
+                  <span class="mover-figure mono">{{ mover.lastPrice | number: '1.2-2' }}</span>
+                }
+                <span
+                  class="mover-change mono"
+                  [class.positive]="mover.changePct > 0"
+                  [class.negative]="mover.changePct < 0"
+                >
+                  {{ mover.changePct > 0 ? '+' : '' }}{{ mover.changePct | number: '1.2-2' }}%
+                </span>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <!-- Sectors, best to worst, on a scale set by the widest move in the set. -->
+    <section class="pulse-section">
+      <h3 class="pulse-subtitle">Sectors</h3>
+      <ul class="sector-list">
+        @for (sector of data.sectorPerformance; track sector.sector) {
+          <li class="sector-row">
+            <span class="sector-name">{{ readable(sector.sector) }}</span>
+            <!-- Diverging from a centre axis: a sector that fell should read as
+                 falling from the shape alone, before the colour or the number
+                 is processed. Left-anchored bars make -1% and +1% look alike. -->
+            <span class="sector-track">
+              <span class="sector-axis" aria-hidden="true"></span>
+              @if (sector.averageChangePct !== null) {
+                <span
+                  class="sector-fill"
+                  [class.up]="sector.averageChangePct > 0"
+                  [class.down]="sector.averageChangePct < 0"
+                  [style.width.%]="sectorWidth(sector)"
+                ></span>
+              }
+            </span>
+            @if (sector.averageChangePct === null) {
+              <span class="sector-value muted mono">no data</span>
+            } @else {
+              <span
+                class="sector-value mono"
+                [class.positive]="sector.averageChangePct > 0"
+                [class.negative]="sector.averageChangePct < 0"
+              >
+                {{ sector.averageChangePct > 0 ? '+' : ''
+                }}{{ sector.averageChangePct | number: '1.2-2' }}%
+              </span>
+            }
+            <span class="sector-count mono">{{ sector.priced }}/{{ sector.total }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <!-- Names behaving unlike themselves. Rendered last because it is the
+         most speculative content here: every row states its own evidence so
+         the reader can dismiss it. -->
+    @if (unusual().length > 0) {
+      <section class="pulse-section">
+        <h3 class="pulse-subtitle">Unusual activity</h3>
+        <ul class="unusual-list">
+          @for (row of unusual(); track row.symbol + row.signal) {
+            <li class="unusual-row">
+              <a [routerLink]="['/app/stocks', row.symbol]" class="unusual-link">
+                <span class="unusual-symbol mono">{{ row.symbol }}</span>
+                <span
+                  class="unusual-tag"
+                  [class.bullish]="isBullishSignal(row.signal)"
+                  [class.bearish]="isBearishSignal(row.signal)"
+                >
+                  {{ signalLabel(row.signal) }}
+                </span>
+                <span class="unusual-detail">{{ row.detail }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+}

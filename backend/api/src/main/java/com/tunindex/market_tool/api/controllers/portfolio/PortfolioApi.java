@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.api.controllers.portfolio;
 
+import com.tunindex.market_tool.api.dto.portfolio.PortfolioAnalyticsDto;
 import com.tunindex.market_tool.api.dto.portfolio.PortfolioSummaryDto;
 import com.tunindex.market_tool.api.dto.portfolio.PortfolioTransactionDto;
 import com.tunindex.market_tool.api.dto.portfolio.TradeRequestDto;
@@ -19,6 +20,10 @@ public interface PortfolioApi {
     @GetMapping(value = APP_ROOT + "/portfolio", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Get the current user's simulated portfolio: cash, positions, live P&L")
     PortfolioSummaryDto getPortfolio(Authentication authentication);
+
+    @GetMapping(value = APP_ROOT + "/portfolio/analytics", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Concentration, sector exposure, weighted beta and projected dividend income")
+    PortfolioAnalyticsDto getAnalytics(Authentication authentication);
 
     @GetMapping(value = APP_ROOT + "/portfolio/transactions", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Get the current user's simulated trade history")

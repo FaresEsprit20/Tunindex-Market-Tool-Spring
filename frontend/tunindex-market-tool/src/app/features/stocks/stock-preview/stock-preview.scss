@@ -129,3 +129,15 @@
   &.positive { color: var(--color-positive); }
   &.negative { color: var(--color-negative); }
 }
+
+// Sits under the market summary that fills this pane when nothing is picked.
+// Deliberately quiet: it explains an interaction, and should never compete
+// with the live figures above it.
+.preview-hint {
+  margin: 0;
+  padding: 0 16px 16px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}

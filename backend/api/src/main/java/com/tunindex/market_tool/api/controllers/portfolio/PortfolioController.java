@@ -1,8 +1,10 @@
 package com.tunindex.market_tool.api.controllers.portfolio;
 
+import com.tunindex.market_tool.api.dto.portfolio.PortfolioAnalyticsDto;
 import com.tunindex.market_tool.api.dto.portfolio.PortfolioSummaryDto;
 import com.tunindex.market_tool.api.dto.portfolio.PortfolioTransactionDto;
 import com.tunindex.market_tool.api.dto.portfolio.TradeRequestDto;
+import com.tunindex.market_tool.api.services.portfolio.PortfolioAnalyticsService;
 import com.tunindex.market_tool.api.services.portfolio.PortfolioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,10 +19,16 @@ import java.util.List;
 public class PortfolioController implements PortfolioApi {
 
     private final PortfolioService portfolioService;
+    private final PortfolioAnalyticsService portfolioAnalyticsService;
 
     @Override
     public PortfolioSummaryDto getPortfolio(Authentication authentication) {
         return portfolioService.getPortfolio(authentication);
+    }
+
+    @Override
+    public PortfolioAnalyticsDto getAnalytics(Authentication authentication) {
+        return portfolioAnalyticsService.analytics(authentication);
     }
 
     @Override

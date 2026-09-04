@@ -10,6 +10,8 @@ public interface StockService {
 
     // ========== BASIC CRUD ==========
     StockDto findBySymbol(String symbol);
+
+    List<StockDto> findBySymbols(List<String> symbols);
     StockDto findBySymbolAndExchange(String symbol, String exchange);
 
     // ========== FILTERING (Unified method with all specifications) ==========

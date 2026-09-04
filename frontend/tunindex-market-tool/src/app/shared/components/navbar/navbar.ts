@@ -9,13 +9,14 @@ import { Stock } from '../../../core/services/stock';
 import { StockDto } from '../../../core/models/stock.model';
 import { PulseDot } from '../pulse-dot/pulse-dot';
 import { NotificationBell } from '../notification-bell/notification-bell';
+import { SessionClock } from '../session-clock/session-clock';
 
 const RESULT_LIMIT = 6;
 const FRESHNESS_REFRESH_INTERVAL_MS = 60_000;
 
 @Component({
   selector: 'app-navbar',
-  imports: [PulseDot, NotificationBell],
+  imports: [PulseDot, NotificationBell, SessionClock],
   templateUrl: './navbar.html',
   styleUrl: './navbar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

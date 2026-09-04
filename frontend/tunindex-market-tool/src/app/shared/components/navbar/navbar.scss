@@ -24,6 +24,25 @@
   position: relative;
   width: 320px;
   max-width: 40vw;
+  flex-shrink: 0;
+}
+
+// The clock takes the slack in the middle so the masthead reads as three
+// balanced groups — identity, market state, controls — instead of two
+// clusters pinned to opposite edges with a void between them.
+.navbar-session {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+// Below this the three groups no longer fit; the clock is the one that
+// yields, because the ticker underneath still carries live prices.
+@media (max-width: 900px) {
+  .navbar-session {
+    display: none;
+  }
 }
 
 .search-dropdown {

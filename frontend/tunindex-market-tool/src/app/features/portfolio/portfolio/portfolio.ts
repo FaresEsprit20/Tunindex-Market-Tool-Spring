@@ -11,6 +11,7 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { StatTile } from '../../../shared/components/stat-tile/stat-tile';
 import { Sparkline } from '../../../shared/components/sparkline/sparkline';
 import { OpportunityScore, VERDICT_LABELS, Verdict } from '../../../core/models/opportunity.model';
+import { PortfolioAnalyticsPanel } from '../portfolio-analytics/portfolio-analytics';
 
 /**
  * IBKR-style paper trading simulator scoped to Tunisian (BVMT) stocks.
@@ -19,7 +20,7 @@ import { OpportunityScore, VERDICT_LABELS, Verdict } from '../../../core/models/
  */
 @Component({
   selector: 'app-portfolio',
-  imports: [DecimalPipe, DatePipe, EmptyState, SkeletonBlock, StatTile, Sparkline],
+  imports: [DecimalPipe, DatePipe, EmptyState, SkeletonBlock, StatTile, Sparkline, PortfolioAnalyticsPanel],
   templateUrl: './portfolio.html',
   styleUrl: './portfolio.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

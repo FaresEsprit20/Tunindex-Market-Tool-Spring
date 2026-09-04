@@ -1,0 +1,97 @@
+@if (loading()) {
+  <div class="risk-loading">
+    <span class="risk-loading-bar"></span>
+    <span class="risk-loading-bar"></span>
+  </div>
+} @else if (failed()) {
+  <p class="risk-note">Risk statistics are unavailable for {{ symbol() }}.</p>
+} @else if (metrics(); as m) {
+  @if (insufficient()) {
+    <p class="risk-note">
+      Not enough stored history for {{ m.symbol }} to measure risk
+      ({{ m.observations }} trading days).
+    </p>
+  } @else {
+    <div class="risk-headline">
+      <div class="risk-hero">
+        <span class="risk-hero-value mono" [class]="volatilityBand(m.annualisedVolatilityPct)">
+          {{ m.annualisedVolatilityPct | number: '1.1-1' }}%
+        </span>
+        <span class="risk-hero-label">
+          annualised volatility
+          <span class="risk-band">{{ volatilityLabel(m.annualisedVolatilityPct) }}</span>
+        </span>
+      </div>
+      <div class="risk-hero right">
+        <span class="risk-hero-value mono negative">
+          {{ m.maxDrawdownPct | number: '1.1-1' }}%
+        </span>
+        <span class="risk-hero-label">deepest fall</span>
+      </div>
+    </div>
+
+    <dl class="risk-grid">
+      <div class="risk-item">
+        <dt>Beta</dt>
+        <dd class="mono">{{ m.beta !== null ? (m.beta | number: '1.2-2') : '—' }}</dd>
+        @if (m.beta !== null) {
+          <span class="risk-hint">{{ betaLabel(m.beta) }}</span>
+        }
+      </div>
+      <div class="risk-item">
+        <dt>R²</dt>
+        <dd class="mono">{{ m.varianceExplained !== null ? (m.varianceExplained | number: '1.2-2') : '—' }}</dd>
+        <span class="risk-hint">explained by market</span>
+      </div>
+      <div class="risk-item">
+        <dt>Sharpe</dt>
+        <dd class="mono" [class.positive]="(m.sharpeRatio ?? 0) > 1">
+          {{ m.sharpeRatio !== null ? (m.sharpeRatio | number: '1.2-2') : '—' }}
+        </dd>
+        <span class="risk-hint">vs {{ m.riskFreeRatePct | number: '1.1-1' }}% risk-free</span>
+      </div>
+      <div class="risk-item">
+        <dt>Sortino</dt>
+        <dd class="mono" [class.positive]="(m.sortinoRatio ?? 0) > 1">
+          {{ m.sortinoRatio !== null ? (m.sortinoRatio | number: '1.2-2') : '—' }}
+        </dd>
+        <span class="risk-hint">downside only</span>
+      </div>
+      <div class="risk-item">
+        <dt>1-day VaR 95%</dt>
+        <dd class="mono negative">{{ m.valueAtRisk95Pct | number: '1.2-2' }}%</dd>
+        <span class="risk-hint">worse on 1 day in 20</span>
+      </div>
+      <div class="risk-item">
+        <dt>Tail loss</dt>
+        <dd class="mono negative">{{ m.conditionalVar95Pct | number: '1.2-2' }}%</dd>
+        <span class="risk-hint">average of those days</span>
+      </div>
+      <div class="risk-item">
+        <dt>Best / worst day</dt>
+        <dd class="mono">
+          <span class="positive">+{{ m.bestDayPct | number: '1.1-1' }}%</span>
+          <span class="risk-slash">/</span>
+          <span class="negative">{{ m.worstDayPct | number: '1.1-1' }}%</span>
+        </dd>
+      </div>
+      <div class="risk-item">
+        <dt>Days up</dt>
+        <dd class="mono">{{ m.positiveDaysPct | number: '1.0-0' }}%</dd>
+        <span class="risk-hint">of {{ m.observations }} sessions</span>
+      </div>
+    </dl>
+
+    <button type="button" class="risk-method-toggle" (click)="toggleMethodology()">
+      {{ showMethodology() ? 'Hide' : 'How these are computed' }}
+    </button>
+
+    @if (showMethodology()) {
+      <ul class="risk-methodology">
+        @for (line of m.methodology; track line) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    }
+  }
+}

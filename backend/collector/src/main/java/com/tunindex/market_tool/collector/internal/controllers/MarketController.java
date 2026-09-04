@@ -1,8 +1,12 @@
 package com.tunindex.market_tool.collector.internal.controllers;
 
+import com.tunindex.market_tool.collector.dto.market.MarketBreadthDto;
 import com.tunindex.market_tool.collector.dto.market.MarketSessionDto;
+import com.tunindex.market_tool.collector.dto.market.UnusualActivityDto;
 import com.tunindex.market_tool.collector.dto.news.MarketNewsDto;
+import com.tunindex.market_tool.collector.services.market.MarketBreadthService;
 import com.tunindex.market_tool.collector.services.market.MarketSessionService;
+import com.tunindex.market_tool.collector.services.market.UnusualActivityService;
 import com.tunindex.market_tool.collector.services.news.MarketNewsService;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
@@ -23,6 +27,8 @@ public class MarketController {
 
     private final MarketSessionService marketSessionService;
     private final MarketNewsService marketNewsService;
+    private final MarketBreadthService marketBreadthService;
+    private final UnusualActivityService unusualActivityService;
 
     @Value("${internal.api.key}")
     private String internalApiKey;
@@ -39,6 +45,20 @@ public class MarketController {
             @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
         validateApiKey(apiKey);
         return marketNewsService.getMarketNews(Math.min(Math.max(limit, 1), 50));
+    }
+
+    @GetMapping("/breadth")
+    public MarketBreadthDto breadth(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        return marketBreadthService.breadth();
+    }
+
+    @GetMapping("/unusual")
+    public List<UnusualActivityDto> unusual(
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        return unusualActivityService.scan(limit);
     }
 
     private void validateApiKey(String apiKey) {

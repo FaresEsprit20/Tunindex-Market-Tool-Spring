@@ -1,7 +1,9 @@
 package com.tunindex.market_tool.api.controllers.market;
 
+import com.tunindex.market_tool.api.dto.market.MarketBreadthResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketNewsResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketSessionResponseDto;
+import com.tunindex.market_tool.api.dto.market.UnusualActivityResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +56,33 @@ public class MarketController {
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<MarketNewsResponseDto>>() {})
                 .timeout(Duration.ofSeconds(30))
+                .block();
+    }
+
+    @GetMapping(value = APP_ROOT + "/market/breadth", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Advancers, decliners, top movers and sector performance across the whole market")
+    public MarketBreadthResponseDto breadth() {
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/breadth")
+                .header("X-API-Key", internalApiKey)
+                .retrieve()
+                .bodyToMono(MarketBreadthResponseDto.class)
+                .timeout(Duration.ofSeconds(15))
+                .block();
+    }
+
+    @GetMapping(value = APP_ROOT + "/market/unusual", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Names trading unlike themselves today: volume spikes, range breaks, outsized moves")
+    public List<UnusualActivityResponseDto> unusual(
+            @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/unusual?limit={limit}", limit)
+                .header("X-API-Key", internalApiKey)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<UnusualActivityResponseDto>>() {})
+                .timeout(Duration.ofSeconds(15))
                 .block();
     }
 }

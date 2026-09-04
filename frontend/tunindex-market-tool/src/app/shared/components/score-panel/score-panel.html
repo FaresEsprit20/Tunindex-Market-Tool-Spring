@@ -17,6 +17,21 @@
       <p class="score-caption">
         Tunindex Score — a fixed weighted rule set over this stock's real published figures.
       </p>
+      @if (historyPoints().length >= 2) {
+        <div class="score-trend">
+          <app-sparkline [points]="historyPoints()" />
+          <span
+            class="trend-delta"
+            [class.positive]="(historyDelta() ?? 0) > 0"
+            [class.negative]="(historyDelta() ?? 0) < 0"
+          >{{ (historyDelta() ?? 0) > 0 ? '+' : '' }}{{ historyDelta() }} over {{ historyPoints().length }} days</span>
+        </div>
+      } @else {
+        <p class="score-trend-empty">
+          Score history starts today — a trend appears once a second day is recorded.
+        </p>
+      }
+
       <p class="completeness">
         Based on {{ s.dataCompleteness }}% of the scorer's inputs.
         @if (s.dataCompleteness < 70) {

@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { OpportunityScore, SCORE_COMPONENTS, VERDICT_LABELS, Verdict } from '../../../core/models/opportunity.model';
 import { Stock } from '../../../core/services/stock';
 import { SkeletonBlock } from '../skeleton-block/skeleton-block';
 import { ScoreRing } from '../score-ring/score-ring';
+import { Sparkline } from '../sparkline/sparkline';
+import { ScoreHistoryPoint } from '../../../core/models/opportunity.model';
 import { RouterLink } from '@angular/router';
 import { reasonToFilter } from '../../../core/utils/reason-filters';
 
@@ -13,7 +15,7 @@ import { reasonToFilter } from '../../../core/utils/reason-filters';
  */
 @Component({
   selector: 'app-score-panel',
-  imports: [SkeletonBlock, ScoreRing, RouterLink],
+  imports: [SkeletonBlock, ScoreRing, RouterLink, Sparkline],
   templateUrl: './score-panel.html',
   styleUrl: './score-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,6 +39,17 @@ export class ScorePanel {
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
   protected readonly score = signal<OpportunityScore | null>(null);
+  protected readonly history = signal<ScoreHistoryPoint[]>([]);
+
+  /** Score series for the sparkline. */
+  protected readonly historyPoints = computed(() => this.history().map((p) => p.overallScore));
+
+  /** Change since the first recorded day, or null with fewer than two points. */
+  protected readonly historyDelta = computed(() => {
+    const points = this.historyPoints();
+    if (points.length < 2) return null;
+    return points[points.length - 1] - points[0];
+  });
 
   constructor() {
     effect(() => {
@@ -45,6 +58,11 @@ export class ScorePanel {
 
       this.loading.set(true);
       this.error.set(false);
+      this.stockService.getScoreHistory(symbol, 90).subscribe({
+        next: (points) => this.history.set(points),
+        error: () => this.history.set([]),
+      });
+
       this.stockService.getScore(symbol).subscribe({
         next: (res) => {
           this.score.set(res);

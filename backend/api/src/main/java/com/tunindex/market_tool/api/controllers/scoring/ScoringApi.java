@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.tunindex.market_tool.common.utils.constants.Constants.APP_ROOT;
 
@@ -25,4 +26,10 @@ public interface ScoringApi {
     @GetMapping(value = APP_ROOT + "/score/{symbol}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "One stock's Tunindex Score with its full component breakdown")
     OpportunityScoreResponseDto score(@PathVariable("symbol") String symbol);
+
+    @GetMapping(value = APP_ROOT + "/score/{symbol}/history", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "One stock's Tunindex Score over time, one point per trading day")
+    List<Map<String, Object>> scoreHistory(
+            @PathVariable("symbol") String symbol,
+            @RequestParam(value = "days", defaultValue = "90") int days);
 }

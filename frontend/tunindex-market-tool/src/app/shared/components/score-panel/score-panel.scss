@@ -228,3 +228,30 @@
     text-decoration-color: var(--color-brand);
   }
 }
+
+
+.score-trend {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 7px;
+}
+
+.trend-delta {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+
+  &.positive { color: var(--color-positive); }
+  &.negative { color: var(--color-negative); }
+}
+
+// Stated rather than hidden: an empty trend is a fact about how long the
+// app has been recording, not a failure, and saying so beats a blank space.
+.score-trend-empty {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin: 7px 0 0;
+  line-height: 1.45;
+}

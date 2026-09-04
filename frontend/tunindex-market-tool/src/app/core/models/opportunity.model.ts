@@ -48,3 +48,12 @@ export const SCORE_COMPONENTS = [
   { key: 'momentumScore', label: 'Momentum', weight: 10 },
   { key: 'newsScore', label: 'News', weight: 5 },
 ] as const satisfies ReadonlyArray<{ key: keyof OpportunityScore; label: string; weight: number }>;
+
+
+/** One day's recorded score, from the score_snapshots table. */
+export interface ScoreHistoryPoint {
+  date: string;
+  overallScore: number;
+  verdict: Verdict;
+  closePrice: number | null;
+}

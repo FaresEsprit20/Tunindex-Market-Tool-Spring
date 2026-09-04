@@ -10,6 +10,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -50,6 +51,18 @@ public class ScoringController implements ScoringApi {
                 .retrieve()
                 .bodyToMono(OpportunityScoreResponseDto.class)
                 .timeout(Duration.ofSeconds(25))
+                .block();
+    }
+
+    @Override
+    public List<Map<String, Object>> scoreHistory(String symbol, int days) {
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/history/{symbol}?days={days}", symbol, days)
+                .header("X-API-Key", internalApiKey)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
+                .timeout(Duration.ofSeconds(15))
                 .block();
     }
 }

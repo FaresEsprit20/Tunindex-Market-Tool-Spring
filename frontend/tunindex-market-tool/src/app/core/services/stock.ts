@@ -9,7 +9,7 @@ import { PriceHistoryPoint } from '../models/price-history.model';
 import { FundamentalAnalysis, TechnicalAnalysis } from '../models/analysis.model';
 import { StockNews } from '../models/stock-news.model';
 import { NewsImpact } from '../models/news-impact.model';
-import { OpportunityScore } from '../models/opportunity.model';
+import { OpportunityScore, ScoreHistoryPoint } from '../models/opportunity.model';
 
 /**
  * Keys accepted by the backend's filters map (collector's StockServiceImpl
@@ -158,6 +158,18 @@ export class Stock {
     return this.http.get<OpportunityScore[]>(`${API_BASE_URL}/opportunities`, {
       params: { limit, minScore },
     });
+  }
+
+  /**
+   * The stock's score over time, one point per day the snapshot ran.
+   * Accumulates forward only — see ScoringController.snapshot on the
+   * collector for why there is no backfill.
+   */
+  getScoreHistory(symbol: string, days = 90): Observable<ScoreHistoryPoint[]> {
+    return this.http.get<ScoreHistoryPoint[]>(
+      `${API_BASE_URL}/score/${encodeURIComponent(symbol)}/history`,
+      { params: { days } },
+    );
   }
 
   /** One stock's Tunindex Score with its component breakdown. */

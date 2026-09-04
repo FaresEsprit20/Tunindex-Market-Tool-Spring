@@ -1,9 +1,11 @@
 package com.tunindex.market_tool.collector.internal.controllers;
 
+import com.tunindex.market_tool.collector.dto.macro.MacroSnapshotDto;
 import com.tunindex.market_tool.collector.dto.market.MarketBreadthDto;
 import com.tunindex.market_tool.collector.dto.market.MarketSessionDto;
 import com.tunindex.market_tool.collector.dto.market.UnusualActivityDto;
 import com.tunindex.market_tool.collector.dto.news.MarketNewsDto;
+import com.tunindex.market_tool.collector.services.macro.MacroIndicatorsService;
 import com.tunindex.market_tool.collector.services.market.MarketBreadthService;
 import com.tunindex.market_tool.collector.services.market.MarketSessionService;
 import com.tunindex.market_tool.collector.services.market.QuoteRefreshService;
@@ -31,6 +33,7 @@ public class MarketController {
     private final MarketBreadthService marketBreadthService;
     private final UnusualActivityService unusualActivityService;
     private final QuoteRefreshService quoteRefreshService;
+    private final MacroIndicatorsService macroIndicatorsService;
 
     @Value("${internal.api.key}")
     private String internalApiKey;
@@ -64,6 +67,16 @@ public class MarketController {
     }
 
     /**
+     * Tunisian policy rates and national accounts — the backdrop every
+     * valuation on this platform is implicitly quoted against.
+     */
+    @GetMapping("/macro")
+    public Mono<MacroSnapshotDto> macro(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        return macroIndicatorsService.snapshot();
+    }
+
+    /**
      * Symbols whose exchange page we have not read successfully within the
      * window. These are excluded from breadth and movers, so this endpoint is
      * how an operator finds out a name has gone dark — rather than noticing a
@@ -82,10 +95,11 @@ public class MarketController {
      * and slow by design — it walks every symbol with a politeness delay.
      */
     @PostMapping("/refresh-quotes")
-    public List<String> refreshQuotes(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+    public Mono<QuoteRefreshService.RefreshResult> refreshQuotes(
+            @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
         validateApiKey(apiKey);
-        quoteRefreshService.refreshNow();
-        return quoteRefreshService.staleSymbols(java.time.Duration.ofHours(30));
+        // Returned as a Mono, not blocked on: this runs on the event loop.
+        return quoteRefreshService.refreshNow();
     }
 
     private void validateApiKey(String apiKey) {

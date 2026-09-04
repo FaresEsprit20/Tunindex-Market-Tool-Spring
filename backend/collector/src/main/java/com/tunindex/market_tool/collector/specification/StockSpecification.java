@@ -4,6 +4,7 @@ import com.tunindex.market_tool.collector.entities.Stock;
 import com.tunindex.market_tool.common.entities.enums.OwnershipType;
 import com.tunindex.market_tool.common.entities.enums.SectorType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Expression;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
@@ -31,14 +32,60 @@ public class StockSpecification {
      * contained a space, so every single-word company name ("Amen",
      * "Carthage") was searched as a ticker and returned nothing.
      */
+    /**
+     * Accented characters and their plain equivalents, as two aligned strings
+     * for SQL {@code translate}. Both cases are listed because the comparison
+     * happens before {@code upper} would help.
+     */
+    private static final String ACCENTED =
+            "àáâãäåçèéêë"
+            + "ìíîïñòóôõö"
+            + "ùúûüýÿ"
+            + "ÀÁÂÃÄÅÇÈÉÊË"
+            + "ÌÍÎÏÑÒÓÔÕÖ"
+            + "ÙÚÛÜÝ";
+    private static final String PLAIN =
+            "aaaaaaceeee" + "iiiinooooo" + "uuuuyy"
+            + "AAAAAACEEEE" + "IIIINOOOOO" + "UUUUY";
+
+    /**
+     * One box, matching either identifier and ignoring accents.
+     *
+     * <p>Two separate defects motivated this. First, the client used to guess
+     * from whether the query contained a space — so every single-word company
+     * name ("Amen", "Carthage") was searched as a ticker and matched nothing.
+     * Second, 38 of the 69 listed companies carry accents, and "Société"
+     * appears in most of them; a user typing "Societe" got no results at all.
+     *
+     * <p>Accents are folded with SQL {@code translate} rather than a stored
+     * normalised column: no schema change, no backfill to go stale, and no
+     * dependency on the {@code unaccent} extension being installed. The table
+     * is small enough that giving up the index on {@code name} costs nothing
+     * measurable here — it would not be the right trade at a larger scale.
+     */
     public static Specification<Stock> matchesSymbolOrName(String term) {
         return (root, query, cb) -> {
             if (term == null || term.isBlank()) return cb.conjunction();
-            String pattern = "%" + term.trim().toUpperCase() + "%";
+
+            String pattern = "%" + fold(term.trim()).toUpperCase() + "%";
+            Expression<String> foldedName = cb.function(
+                    "translate", String.class,
+                    root.get("name"), cb.literal(ACCENTED), cb.literal(PLAIN));
+
             return cb.or(
                     cb.like(cb.upper(root.get("symbol")), pattern),
-                    cb.like(cb.upper(root.get("name")), pattern));
+                    cb.like(cb.upper(foldedName), pattern));
         };
+    }
+
+    /** Same folding applied to the query term, so both sides match. */
+    private static String fold(String value) {
+        StringBuilder folded = new StringBuilder(value.length());
+        for (char character : value.toCharArray()) {
+            int index = ACCENTED.indexOf(character);
+            folded.append(index >= 0 ? PLAIN.charAt(index) : character);
+        }
+        return folded.toString();
     }
 
     public static Specification<Stock> symbolEquals(String symbol) {

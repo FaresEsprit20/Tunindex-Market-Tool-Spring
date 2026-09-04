@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.api.controllers.market;
 
+import com.tunindex.market_tool.api.dto.macro.MacroSnapshotResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketBreadthResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketNewsResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketSessionResponseDto;
@@ -83,6 +84,21 @@ public class MarketController {
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<UnusualActivityResponseDto>>() {})
                 .timeout(Duration.ofSeconds(15))
+                .block();
+    }
+
+    @GetMapping(value = APP_ROOT + "/market/macro", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Tunisian policy rates and national accounts — the macro backdrop for the market")
+    public MacroSnapshotResponseDto macro() {
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/macro")
+                .header("X-API-Key", internalApiKey)
+                .retrieve()
+                .bodyToMono(MacroSnapshotResponseDto.class)
+                // Longer than the quote endpoints: this may hit two external
+                // publishers on a cold cache.
+                .timeout(Duration.ofSeconds(45))
                 .block();
     }
 }

@@ -4,7 +4,7 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { MarketBreadth } from '../../../core/models/market-breadth.model';
 import { Market } from '../../../core/services/market';
-import { MarketPulse } from './market-pulse';
+import { MarketOverview } from './market-pulse';
 
 function breadth(overrides: Partial<MarketBreadth> = {}): MarketBreadth {
   return {
@@ -32,19 +32,19 @@ function breadth(overrides: Partial<MarketBreadth> = {}): MarketBreadth {
   };
 }
 
-describe('MarketPulse', () => {
-  let fixture: ComponentFixture<MarketPulse>;
+describe('MarketOverview', () => {
+  let fixture: ComponentFixture<MarketOverview>;
 
   async function setup(service: Partial<Market>) {
     await TestBed.configureTestingModule({
-      imports: [MarketPulse],
+      imports: [MarketOverview],
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
         { provide: Market, useValue: { getUnusualActivity: () => of([]), ...service } },
       ],
     }).compileComponents();
-    fixture = TestBed.createComponent(MarketPulse);
+    fixture = TestBed.createComponent(MarketOverview);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();

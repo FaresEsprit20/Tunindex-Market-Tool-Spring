@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { MarketNewsItem, MarketSession } from '../models/market.model';
 import { MarketBreadth, UnusualActivity } from '../models/market-breadth.model';
+import { MacroSnapshot } from '../models/macro.model';
 
 @Injectable({ providedIn: 'root' })
 export class Market {
@@ -34,5 +35,14 @@ export class Market {
   /** Names trading unlike themselves today, ranked by how far out of line. */
   getUnusualActivity(limit = 20): Observable<UnusualActivity[]> {
     return this.http.get<UnusualActivity[]>(`${API_BASE_URL}/market/unusual`, { params: { limit } });
+  }
+
+  /**
+   * Policy rates and national accounts for Tunisia. Cached server-side for
+   * hours — these move monthly at most, so there is nothing to gain from
+   * polling and the publishers are small public sites.
+   */
+  getMacro(): Observable<MacroSnapshot> {
+    return this.http.get<MacroSnapshot>(`${API_BASE_URL}/market/macro`);
   }
 }

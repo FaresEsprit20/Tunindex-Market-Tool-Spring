@@ -7,6 +7,7 @@ import { MarketPulse } from '../market-pulse/market-pulse';
 import { MarketNews } from '../market-news/market-news';
 import { MarketStatus } from '../../market/market-status/market-status';
 import { TopOpportunities } from '../top-opportunities/top-opportunities';
+import { MacroPanel } from '../../../shared/components/macro-panel/macro-panel';
 
 @Component({
   selector: 'app-dashboard',
@@ -19,6 +20,7 @@ import { TopOpportunities } from '../top-opportunities/top-opportunities';
     MarketNews,
     MarketStatus,
     TopOpportunities,
+    MacroPanel,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',

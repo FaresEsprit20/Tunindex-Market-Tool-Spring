@@ -5,6 +5,7 @@ import com.tunindex.market_tool.collector.dto.risk.CorrelationPairDto;
 import com.tunindex.market_tool.collector.dto.risk.RiskMetricsDto;
 import com.tunindex.market_tool.collector.repository.jpa.PriceHistoryRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
+import com.tunindex.market_tool.collector.services.macro.MacroIndicatorsService;
 import com.tunindex.market_tool.collector.entities.PriceHistory;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
@@ -65,16 +66,26 @@ public class RiskAnalyticsService {
 
     private final PriceHistoryRepository priceHistoryRepository;
     private final StockRepository stockRepository;
+    private final MacroIndicatorsService macroIndicatorsService;
 
     /**
-     * Annual risk-free rate in percent, used as the hurdle in Sharpe and
-     * Sortino. Configurable because it is a real-world input we do not scrape:
-     * the default tracks the Tunisian money-market rate, and whatever value is
-     * in force is echoed back on the response so a ratio is never shown
-     * without the rate it was computed against.
+     * Fallback risk-free rate, used only when the central bank's published
+     * policy rate is unavailable. Whatever rate ends up being used is echoed
+     * back on the response so a ratio is never presented without the hurdle
+     * it was measured against.
      */
-    @Value("${market-tool.risk.risk-free-rate-pct:8.0}")
-    private BigDecimal riskFreeRatePct;
+    @Value("${market-tool.risk.risk-free-rate-pct:7.0}")
+    private BigDecimal fallbackRiskFreeRatePct;
+
+    /**
+     * The hurdle for Sharpe and Sortino: Tunisia's actual policy rate when we
+     * have read it from the central bank, the configured fallback otherwise.
+     * Using a hardcoded constant here was quietly wrong — it was set to 8.0%
+     * while the BCT's published rate is 7.0%, which biased every ratio.
+     */
+    private BigDecimal riskFreeRate() {
+        return macroIndicatorsService.policyRatePct().orElse(fallbackRiskFreeRatePct);
+    }
 
     @Transactional(readOnly = true)
     public RiskMetricsDto riskMetrics(String symbol, int windowDays) {
@@ -104,7 +115,7 @@ public class RiskAnalyticsService {
                     .observations(Math.max(history.size() - 1, 0))
                     .periodStart(history.isEmpty() ? null : history.get(0).getTradeDate())
                     .periodEnd(history.isEmpty() ? null : history.get(history.size() - 1).getTradeDate())
-                    .riskFreeRatePct(riskFreeRatePct)
+                    .riskFreeRatePct(riskFreeRate())
                     .methodology(methodology)
                     .build();
         }
@@ -127,8 +138,9 @@ public class RiskAnalyticsService {
 
         BetaResult beta = betaAgainstMarket(normalised, history);
 
-        Double sharpe = ratio(annualisedReturn, volatility);
-        Double sortino = ratio(annualisedReturn, downside);
+        BigDecimal riskFree = riskFreeRate();
+        Double sharpe = ratio(annualisedReturn, volatility, riskFree);
+        Double sortino = ratio(annualisedReturn, downside, riskFree);
 
         List<Double> sorted = new ArrayList<>(returns);
         Collections.sort(sorted);
@@ -140,8 +152,10 @@ public class RiskAnalyticsService {
         methodology.add("Beta is measured against an equal-weighted index of every BVMT name we hold "
                 + "history for — the exchange publishes TUNINDEX itself, but we do not collect its levels, "
                 + "so this proxy is what the number actually describes.");
-        methodology.add("Sharpe and Sortino use a " + riskFreeRatePct + "% annual risk-free rate "
-                + "(configurable server-side, not scraped).");
+        methodology.add("Sharpe and Sortino use a " + riskFree + "% annual risk-free rate"
+                + (macroIndicatorsService.policyRatePct().isPresent()
+                        ? " — the policy rate published by the Banque Centrale de Tunisie."
+                        : ", the configured fallback (the central bank's published rate was unavailable)."));
         methodology.add("Value at risk is the historical 5th percentile of daily returns over this window, "
                 + "not a modelled or normal-distribution estimate.");
         if (beta.observations < MIN_BETA_OBSERVATIONS) {
@@ -165,7 +179,7 @@ public class RiskAnalyticsService {
                 .varianceExplained(beta.observations >= MIN_BETA_OBSERVATIONS ? round(beta.rSquared, SCALE) : null)
                 .sharpeRatio(sharpe == null ? null : round(sharpe, SCALE))
                 .sortinoRatio(sortino == null ? null : round(sortino, SCALE))
-                .riskFreeRatePct(riskFreeRatePct)
+                .riskFreeRatePct(riskFree)
                 .valueAtRisk95Pct(round(var95, PCT_SCALE))
                 .conditionalVar95Pct(round(cvar95, PCT_SCALE))
                 .bestDayPct(round(Collections.max(returns) * 100, PCT_SCALE))
@@ -473,11 +487,11 @@ public class RiskAnalyticsService {
         return Math.sqrt(sum / returns.size());
     }
 
-    private Double ratio(double annualisedReturn, double denominator) {
+    private Double ratio(double annualisedReturn, double denominator, BigDecimal riskFree) {
         if (denominator == 0) {
             return null;
         }
-        return (annualisedReturn - riskFreeRatePct.doubleValue()) / denominator;
+        return (annualisedReturn - riskFree.doubleValue()) / denominator;
     }
 
     /** Nearest-rank percentile over an already-sorted ascending list. */

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Stock } from '../../../core/services/stock';
+import { Market } from '../../../core/services/market';
 import { AnimatedNumber } from '../../../shared/components/animated-number/animated-number';
 
 interface PulseStats {
@@ -7,15 +7,22 @@ interface PulseStats {
   advancing: number;
   declining: number;
   unchanged: number;
-  totalMarketCap: number;
+  /** Shares traded across every priced name today. */
+  totalVolume: number;
 }
 
 /**
  * "Pulse" = genuine aggregates over every tracked stock's real lastPrice vs
- * prevClose (same source data as Top Movers) — not a market index feed,
- * which BVMT doesn't expose here. The line graphic below it is a fixed
- * decorative flourish (same technique as the login hero), not a chart of
- * this data — it carries no axis or values, so it can't misread as one.
+ * prevClose — not a market index feed, which BVMT doesn't expose here. The
+ * line graphic below it is a fixed decorative flourish (same technique as the
+ * login hero), not a chart of this data — it carries no axis or values, so it
+ * can't misread as one.
+ *
+ * <p>These figures come from GET /market/breadth rather than being recomputed
+ * here from the stock list. Two independent implementations of "advancing"
+ * had already drifted apart: this one counted every row, including symbols
+ * whose exchange page we can no longer read at all, so the dashboard and the
+ * stocks page disagreed about how many names were up.
  */
 @Component({
   selector: 'app-market-pulse',
@@ -25,7 +32,7 @@ interface PulseStats {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketPulse {
-  private readonly stockService = inject(Stock);
+  private readonly market = inject(Market);
 
   protected readonly loading = signal(true);
   private readonly stats = signal<PulseStats | null>(null);
@@ -33,36 +40,17 @@ export class MarketPulse {
   protected readonly pulse = computed(() => this.stats());
 
   constructor() {
-    this.stockService.filter({ page: 1, size: 100, sortField: 'symbol', sortDirection: 'ASC' }).subscribe({
-      next: (res) => {
-        let advancing = 0;
-        let declining = 0;
-        let unchanged = 0;
-        let changeSum = 0;
-        let changeCount = 0;
-        let totalMarketCap = 0;
-
-        for (const s of res.content) {
-          if (s.marketCap !== null) {
-            totalMarketCap += s.marketCap;
-          }
-          if (s.lastPrice === null || s.prevClose === null || s.prevClose === 0) {
-            continue;
-          }
-          const pct = ((s.lastPrice - s.prevClose) / s.prevClose) * 100;
-          changeSum += pct;
-          changeCount++;
-          if (pct > 0) advancing++;
-          else if (pct < 0) declining++;
-          else unchanged++;
-        }
-
+    this.market.getBreadth().subscribe({
+      next: (breadth) => {
         this.stats.set({
-          avgChangePct: changeCount > 0 ? changeSum / changeCount : 0,
-          advancing,
-          declining,
-          unchanged,
-          totalMarketCap,
+          avgChangePct: breadth.averageChangePct ?? 0,
+          advancing: breadth.advancing,
+          declining: breadth.declining,
+          unchanged: breadth.unchanged,
+          // Volume, not market cap: the breadth endpoint reports session
+          // activity, and summing a partial set of market caps produced a
+          // headline figure that silently omitted every name without one.
+          totalVolume: breadth.totalVolume ?? 0,
         });
         this.loading.set(false);
       },

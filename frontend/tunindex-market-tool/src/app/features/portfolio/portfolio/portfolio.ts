@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Notification } from '../../../core/services/notification';
 import { Portfolio as PortfolioService } from '../../../core/services/portfolio';
 import { Stock } from '../../../core/services/stock';
-import { PortfolioSummary, PortfolioTransaction } from '../../../core/models/portfolio.model';
+import { PortfolioPosition, PortfolioSummary, PortfolioTransaction } from '../../../core/models/portfolio.model';
 import { StockDto } from '../../../core/models/stock.model';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
@@ -163,6 +163,48 @@ export class Portfolio {
     this.quoteScore.set(null);
     this.quoteSpark.set([]);
     this.quoteError.set(false);
+  }
+
+  /**
+   * Day profit in dinars for one position. The API gives a day percentage
+   * per position and a total in currency, but not the per-row cash figure —
+   * and "-1.30%" does not tell you whether that is three dinars or three
+   * hundred, which is the thing a holder actually reacts to.
+   */
+  protected dayPnl(position: PortfolioPosition): number | null {
+    if (position.dayChangeValue !== null && position.dayChangeValue !== undefined) {
+      return position.dayChangeValue;
+    }
+    if (position.prevClose === null || position.currentPrice === null) {
+      return null;
+    }
+    return (position.currentPrice - position.prevClose) * position.quantity;
+  }
+
+  /** What was paid for the whole position, against which P&L is measured. */
+  protected costBasis(position: PortfolioPosition): number {
+    return position.avgCostBasis * position.quantity;
+  }
+
+  /**
+   * Share of the invested book. Computed against the positions total rather
+   * than total portfolio value: cash is not an exposure, and including it
+   * would make every weight shrink as the account sits idle.
+   */
+  protected weightPct(position: PortfolioPosition, positions: PortfolioPosition[]): number | null {
+    const invested = positions.reduce((sum, item) => sum + item.marketValue, 0);
+    if (invested === 0) {
+      return null;
+    }
+    return (position.marketValue / invested) * 100;
+  }
+
+  protected totalCostBasis(positions: PortfolioPosition[]): number {
+    return positions.reduce((sum, item) => sum + this.costBasis(item), 0);
+  }
+
+  protected totalDayPnl(positions: PortfolioPosition[]): number {
+    return positions.reduce((sum, item) => sum + (this.dayPnl(item) ?? 0), 0);
   }
 
   protected selectSymbolForTrade(symbol: string): void {

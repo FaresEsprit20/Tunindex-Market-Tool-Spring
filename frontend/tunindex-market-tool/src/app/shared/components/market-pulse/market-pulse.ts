@@ -18,13 +18,13 @@ import { Market } from '../../../core/services/market';
  * something, so there is always something true to show there.
  */
 @Component({
-  selector: 'app-market-pulse',
+  selector: 'app-market-overview',
   imports: [DatePipe, DecimalPipe, RouterLink],
   templateUrl: './market-pulse.html',
   styleUrl: './market-pulse.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MarketPulse {
+export class MarketOverview {
   /** Suppresses the heading when the host already provides one. */
   readonly compact = input(false);
 
@@ -74,7 +74,7 @@ export class MarketPulse {
   }
 
   protected signalLabel(signal: string): string {
-    return MarketPulse.SIGNAL_LABELS[signal] ?? signal;
+    return MarketOverview.SIGNAL_LABELS[signal] ?? signal;
   }
 
   /** Down-signals get the negative treatment; everything else is neutral. */

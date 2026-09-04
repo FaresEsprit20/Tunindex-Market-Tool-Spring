@@ -50,8 +50,11 @@
           <span class="breakdown-label">Unchanged</span>
         </div>
         <div class="breakdown-item cap">
-          <span class="breakdown-count"><app-animated-number [value]="p.totalMarketCap" [durationMs]="1100" /></span>
-          <span class="breakdown-label">Total market cap (TND)</span>
+          <span class="breakdown-count"><app-animated-number [value]="p.totalVolume" [durationMs]="1100" /></span>
+          <!-- Shares traded, not market cap: we hold a market cap for only
+               part of the list, so summing it produced a "total" that quietly
+               left names out. Volume is complete for every priced name. -->
+          <span class="breakdown-label">Shares traded today</span>
         </div>
       </div>
     } @else {

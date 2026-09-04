@@ -10,9 +10,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -81,55 +86,82 @@ public class QuoteRefreshService {
             return;
         }
 
-        refreshNow();
+        refreshNow().subscribe();
     }
 
     /**
-     * Runs a pass regardless of the session state. This is what a human
-     * pressing "refresh" gets: the schedule's throttles exist to be polite to
-     * the exchange site, not to refuse an explicit request.
+     * Runs a pass regardless of the session state — what a human pressing
+     * "refresh" gets. The schedule's throttles exist to be polite to the
+     * exchange, not to refuse an explicit request.
+     *
+     * <p>Fully reactive, with no {@code block()} anywhere: this is called from
+     * a controller running on a Netty event loop, where blocking throws
+     * outright. It cost a whole refresh pass to learn that — every symbol
+     * failed with "blocking is not supported in thread reactor-http-nio".
+     *
+     * <p>{@code concatMap} rather than {@code flatMap}: one request at a time,
+     * spaced by a delay. The exchange runs a small public server and a
+     * 69-way fan-out would be abusive.
      */
-    public void refreshNow() {
+    public Mono<RefreshResult> refreshNow() {
         lastPassAt = LocalDateTime.now();
-        List<String> symbols = trackedSymbols();
-        if (symbols.isEmpty()) {
-            return;
-        }
 
-        AtomicInteger updated = new AtomicInteger();
-        List<String> unreachable = new ArrayList<>();
+        return Mono.fromCallable(this::trackedSymbols)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(symbols -> {
+                    if (symbols.isEmpty()) {
+                        return Mono.just(new RefreshResult(0, List.of()));
+                    }
+                    List<String> unreachable = Collections.synchronizedList(new ArrayList<>());
+                    AtomicInteger updated = new AtomicInteger();
 
-        for (String symbol : symbols) {
-            try {
-                IlBoursaQuoteProvider.LiveQuote quote = quoteProvider.fetchQuote(symbol)
-                        .block(Duration.ofSeconds(25));
+                    return Flux.fromIterable(symbols)
+                            .concatMap(symbol -> quoteProvider.fetchQuote(symbol)
+                                    .filter(quote -> quote.lastPrice() != null)
+                                    // fromCallable, not fromRunnable: a Runnable
+                                    // completes empty, which made the outcome
+                                    // indistinguishable from "no quote" and had
+                                    // every symbol reported unreachable even
+                                    // when it had just been written.
+                                    .flatMap(quote -> Mono.fromCallable(() -> {
+                                                applyQuote(symbol, quote);
+                                                return Boolean.TRUE;
+                                            })
+                                            // The write touches the database, so
+                                            // it is pushed off the event loop.
+                                            .subscribeOn(Schedulers.boundedElastic()))
+                                    // The provider turns any failure — a 404 for
+                                    // a delisted name included — into an empty
+                                    // Mono, so absence means "no live quote".
+                                    .defaultIfEmpty(Boolean.FALSE)
+                                    .onErrorResume(error -> {
+                                        log.debug("Quote refresh failed for {}: {}", symbol, error.getMessage());
+                                        return Mono.just(Boolean.FALSE);
+                                    })
+                                    .doOnNext(applied -> {
+                                        if (Boolean.TRUE.equals(applied)) {
+                                            updated.incrementAndGet();
+                                        } else {
+                                            unreachable.add(symbol);
+                                        }
+                                    })
+                                    .then(Mono.delay(Duration.ofMillis(DELAY_BETWEEN_SYMBOLS_MS)))
+                                    .then())
+                            .then(Mono.fromSupplier(() -> new RefreshResult(updated.get(), List.copyOf(unreachable))))
+                            .doOnNext(result -> {
+                                if (result.unreachable().isEmpty()) {
+                                    log.info("Quote refresh complete: {}/{} symbols updated",
+                                            result.updated(), symbols.size());
+                                } else {
+                                    log.warn("Quote refresh complete: {}/{} updated; no live quote for {}",
+                                            result.updated(), symbols.size(), result.unreachable());
+                                }
+                            });
+                });
+    }
 
-                if (quote == null || quote.lastPrice() == null) {
-                    // The provider swallows errors into an empty Mono, so a
-                    // 404 for a delisted or renamed symbol arrives here as a
-                    // null. We record it rather than writing anything: the
-                    // stored row keeps its old values AND its old
-                    // liveQuoteAt, which is what marks it stale downstream.
-                    unreachable.add(symbol);
-                    continue;
-                }
-
-                applyQuote(symbol, quote);
-                updated.incrementAndGet();
-            } catch (RuntimeException ex) {
-                unreachable.add(symbol);
-                log.debug("Quote refresh failed for {}: {}", symbol, ex.getMessage());
-            }
-
-            sleepBetweenSymbols();
-        }
-
-        if (unreachable.isEmpty()) {
-            log.info("Quote refresh complete: {}/{} symbols updated", updated.get(), symbols.size());
-        } else {
-            log.warn("Quote refresh complete: {}/{} updated; no live quote for {}",
-                    updated.get(), symbols.size(), unreachable);
-        }
+    /** Outcome of one pass, so a caller can report it rather than guess. */
+    public record RefreshResult(int updated, List<String> unreachable) {
     }
 
     /** Whether enough time has passed to justify a pass while the market is shut. */

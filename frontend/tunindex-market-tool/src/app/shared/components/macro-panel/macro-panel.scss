@@ -1,0 +1,171 @@
+:host {
+  display: block;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px 16px;
+}
+
+.macro-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-left: 10px;
+  // A left rail rather than a card: six bordered boxes in a row would read as
+  // six separate objects competing for attention, when this is one reading.
+  border-left: 2px solid var(--color-border);
+}
+
+// The policy rate is the hurdle every other asset is measured against, so it
+// gets the accent rail and a larger figure. Exactly one item is emphasised.
+.macro-item.headline {
+  border-left-color: var(--color-brand);
+
+  .macro-value {
+    font-size: 20px;
+    color: var(--color-text-primary);
+  }
+}
+
+.macro-item.annual {
+  border-left-style: dashed;
+}
+
+.macro-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+}
+
+.macro-tag {
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-alt);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--color-text-tertiary);
+}
+
+.macro-value {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.macro-unit {
+  font-size: 0.62em;
+  font-weight: 600;
+  margin-left: 1px;
+  color: var(--color-text-tertiary);
+}
+
+.macro-period {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.macro-real {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+
+  strong {
+    font-variant-numeric: tabular-nums;
+    margin: 0 2px;
+
+    &.positive {
+      color: var(--color-positive);
+    }
+
+    &.negative {
+      color: var(--color-negative);
+    }
+  }
+}
+
+.macro-real-note {
+  color: var(--color-text-tertiary);
+}
+
+.macro-sources {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+
+  a {
+    color: var(--color-text-tertiary);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-brand);
+      text-decoration: underline;
+    }
+  }
+}
+
+.macro-sep {
+  margin: 0 4px;
+}
+
+.macro-warn {
+  margin-left: 4px;
+  color: var(--color-warning);
+}
+
+.macro-note {
+  margin: 0;
+  padding: 16px 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.macro-loading {
+  display: flex;
+  gap: 12px;
+}
+
+.macro-loading-bar {
+  flex: 1;
+  height: 58px;
+  border-radius: var(--radius-md);
+  background: var(--color-panel-alt);
+  animation: macro-shimmer 1.4s ease-in-out infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.12s;
+  }
+}
+
+@keyframes macro-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macro-loading-bar {
+    animation: none;
+  }
+}

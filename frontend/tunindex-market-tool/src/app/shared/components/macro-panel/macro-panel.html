@@ -1,0 +1,68 @@
+@if (loading()) {
+  <div class="macro-loading">
+    <span class="macro-loading-bar"></span>
+    <span class="macro-loading-bar"></span>
+  </div>
+} @else if (failed()) {
+  <p class="macro-note">Macro indicators are unavailable right now.</p>
+} @else if (macro(); as m) {
+  @if (m.rates.length === 0 && m.economy.length === 0) {
+    <p class="macro-note">No macro data could be read from the published sources.</p>
+  } @else {
+    <div class="macro-grid">
+      @for (rate of m.rates; track rate.key) {
+        <div class="macro-item" [class.headline]="isHeadline(rate)" [title]="rate.note ?? ''">
+          <span class="macro-label">{{ rate.label }}</span>
+          <span class="macro-value mono">
+            {{ rate.value | number: '1.2-2' }}<span class="macro-unit">{{ rate.unit }}</span>
+          </span>
+          <span class="macro-period">{{ rate.periodLabel }}</span>
+        </div>
+      }
+
+      @for (item of m.economy; track item.key) {
+        <div class="macro-item annual" [title]="item.note ?? ''">
+          <span class="macro-label">
+            {{ item.label }}
+            <!-- Marked because these are annual and can lag the rates above
+                 by a year; reading them as current would be a real error. -->
+            <span class="macro-tag">annual</span>
+          </span>
+          <span class="macro-value mono">
+            {{ item.value | number: '1.2-2' }}<span class="macro-unit">{{ item.unit }}</span>
+          </span>
+          <span class="macro-period">{{ item.periodLabel }}</span>
+        </div>
+      }
+    </div>
+
+    @if (realRate(); as real) {
+      <p class="macro-real">
+        Real policy rate
+        <strong class="mono" [class.positive]="real > 0" [class.negative]="real < 0">
+          {{ real > 0 ? '+' : '' }}{{ real | number: '1.2-2' }}%
+        </strong>
+        <span class="macro-real-note">
+          @if (real > 0) {
+            — cash beats inflation, so equities have a real hurdle to clear.
+          } @else {
+            — cash loses value in real terms, which pushes savers toward equities.
+          }
+        </span>
+      </p>
+    }
+
+    <p class="macro-sources">
+      @for (rate of m.rates.slice(0, 1); track rate.key) {
+        <a [href]="rate.sourceUrl" target="_blank" rel="noopener noreferrer">{{ rate.source }}</a>
+      }
+      @for (item of m.economy.slice(0, 1); track item.key) {
+        <span class="macro-sep">·</span>
+        <a [href]="item.sourceUrl" target="_blank" rel="noopener noreferrer">{{ item.source }}</a>
+      }
+      @if (m.unavailable.length > 0) {
+        <span class="macro-warn">· {{ m.unavailable.join(', ') }} unreachable</span>
+      }
+    </p>
+  }
+}

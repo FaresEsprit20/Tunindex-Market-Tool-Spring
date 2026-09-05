@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
 @Slf4j
 @Service
 public class ProxyRotationService {
@@ -19,8 +18,7 @@ public class ProxyRotationService {
     private final List<ProxyConfig> proxyPool = new ArrayList<>();
     private final AtomicInteger currentIndex = new AtomicInteger(0);
     
-
-
+    @Value("${scraper.proxy.enabled:false}")
     private boolean proxyEnabled;
 
     @Value("${scraper.proxy.host:127.0.0.1}")

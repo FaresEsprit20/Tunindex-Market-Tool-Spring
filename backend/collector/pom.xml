@@ -13,6 +13,11 @@
     <artifactId>collector</artifactId>
     <packaging>jar</packaging>
 
+    <properties>
+        <netty-tcnative.version>2.0.62.Final</netty-tcnative.version>
+    </properties>
+
+
     <dependencies>
         <!-- Common module -->
         <dependency>
@@ -25,6 +30,25 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+
+
+        <!-- Stealth dependencies -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-boringssl-static</artifactId>
+            <version>${netty-tcnative.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.aayushatharva.brotli4j</groupId>
+            <artifactId>brotli4j</artifactId>
+            <version>1.16.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.3-jre</version>
         </dependency>
 
         <!-- Spring Boot WebFlux for reactive HTTP client -->

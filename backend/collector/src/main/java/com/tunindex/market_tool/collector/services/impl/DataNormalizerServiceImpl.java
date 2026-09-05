@@ -179,6 +179,7 @@ public class DataNormalizerServiceImpl implements DataNormalizerService {
         } else if (sectorLower.contains("util")) {
             return SectorType.UTILITIES;
         } else {
+            log.warn("Unmapped sector '{}', defaulting to OTHER", sector);
             return SectorType.OTHER;
         }
     }

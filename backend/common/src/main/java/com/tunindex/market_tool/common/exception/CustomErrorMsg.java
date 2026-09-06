@@ -18,6 +18,7 @@ public class CustomErrorMsg {
 
     private String message;
 
+    @Builder.Default
     private List<String> errors = new ArrayList<>();
 
     public CustomErrorMsg() {}

@@ -32,8 +32,12 @@ public class DotenvInitializer implements ApplicationContextInitializer<Configur
 
             propertySources.addFirst(new MapPropertySource("dotenv", dotenvProperties));
             System.out.println("✅ .env file loaded successfully");
+            
+            // Check if spring.datasource.url is already in environment
+            System.out.println("DEBUG: spring.datasource.url in environment = " + environment.getProperty("spring.datasource.url"));
 
         } catch (Exception e) {
+        // ... existing code ...
             System.out.println("⚠️ .env file not found, using system environment variables");
         }
     }

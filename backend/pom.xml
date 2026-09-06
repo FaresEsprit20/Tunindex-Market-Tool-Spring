@@ -92,9 +92,9 @@
 
             <!-- Database -->
             <dependency>
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>${postgresql.version}</version>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <scope>runtime</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

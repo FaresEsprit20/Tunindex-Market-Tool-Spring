@@ -23,6 +23,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories("com.tunindex.market_tool.api.repository")  // ← Only API repositories
 public class ApiApplication {
 
+    @org.springframework.context.annotation.Bean
+    public org.springframework.boot.CommandLineRunner printProperties(org.springframework.core.env.Environment env) {
+        return args -> {
+            System.out.println("DEBUG: spring.datasource.url = " + env.getProperty("spring.datasource.url"));
+        };
+    }
+
+
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(ApiApplication.class);
         app.addInitializers(new DotenvInitializer());

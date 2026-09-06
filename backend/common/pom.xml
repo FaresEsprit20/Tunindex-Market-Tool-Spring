@@ -72,8 +72,8 @@
 
         <!-- PostgreSQL (scope provided - each service will add runtime) -->
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>provided</scope>
         </dependency>
 

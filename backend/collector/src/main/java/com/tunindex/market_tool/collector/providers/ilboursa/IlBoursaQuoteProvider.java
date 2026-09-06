@@ -1,14 +1,15 @@
 package com.tunindex.market_tool.collector.providers.ilboursa;
 
+import com.google.common.net.HttpHeaders;
+import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
 import java.math.BigDecimal;
@@ -36,20 +37,18 @@ public class IlBoursaQuoteProvider {
     // plain ASCII-space replace silently fails to remove.
     private static final Pattern ANY_WHITESPACE = Pattern.compile("[\\s\\u00A0]+");
 
-    private final WebClient webClient;
+    private final SeleniumService seleniumService;
+
 
     public record LiveQuote(BigDecimal lastPrice, BigDecimal open, BigDecimal prevClose,
                              BigDecimal dayHigh, BigDecimal dayLow, Long volume) {
     }
 
     public Mono<LiveQuote> fetchQuote(String symbol) {
-        return webClient.get()
-                .uri(BASE_URL + symbol)
-                .header(HttpHeaders.ACCEPT_ENCODING, "identity")
-                .retrieve()
-                .bodyToMono(String.class)
+        return Mono.fromCallable(() -> seleniumService.getPageSource(BASE_URL + symbol))
+                .subscribeOn(Schedulers.boundedElastic())
                 .map(html -> parse(symbol, html))
-                .timeout(Duration.ofSeconds(20))
+                .timeout(Duration.ofSeconds(60))
                 .retryWhen(Retry.backoff(2, Duration.ofSeconds(2)))
                 .doOnError(e -> log.warn("ilboursa live quote failed for {}: {}", symbol, e.getMessage()))
                 .onErrorResume(e -> Mono.empty());

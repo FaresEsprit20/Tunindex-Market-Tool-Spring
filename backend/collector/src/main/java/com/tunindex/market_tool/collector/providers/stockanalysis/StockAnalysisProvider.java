@@ -23,6 +23,9 @@ import com.tunindex.market_tool.collector.services.enricher.DataEnricherService;
 import com.tunindex.market_tool.collector.services.normalizer.DataNormalizerService;
 import com.tunindex.market_tool.collector.services.parser.DataParserService;
 
+import reactor.core.scheduler.Schedulers;
+import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
+
 import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -38,6 +41,8 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private final DataEnricherService enricher;
     private final WebClient webClient;
     private final PipelineStatusService pipelineStatus;
+    private final SeleniumService seleniumService;
+
 
     @Override
     public String getProviderName() {
@@ -109,18 +114,11 @@ public class StockAnalysisProvider implements MarketDataProvider {
     }
 
     private Mono<String> fetchPage(String url) {
-        return webClient.get()
-                .uri(url)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Accept-Encoding", "identity")
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(30))
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
+        return Mono.fromCallable(() -> seleniumService.getPageSource(url))
+                .subscribeOn(Schedulers.boundedElastic())
+                .timeout(Duration.ofSeconds(60))
                 .onErrorResume(e -> {
-                    log.error("❌ Failed to fetch page: {} - {}", url, e.getMessage());
+                    log.error("❌ Failed to fetch page via Selenium: {} - {}", url, e.getMessage());
                     return Mono.empty();
                 });
     }

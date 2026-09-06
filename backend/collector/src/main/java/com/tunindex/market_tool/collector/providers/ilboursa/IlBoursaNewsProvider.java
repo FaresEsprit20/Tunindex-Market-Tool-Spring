@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.collector.providers.ilboursa;
 
+import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -29,12 +30,15 @@ import java.util.List;
 public class IlBoursaNewsProvider {
 
     private static final String BASE_URL = "https://www.ilboursa.com/marches/news_valeur?s=";
+    private final SeleniumService seleniumService;
+
     private static final String ARTICLE_BASE_URL = "https://www.ilboursa.com/marches/";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm");
 
     private final WebClient webClient;
 
-    public IlBoursaNewsProvider(WebClient webClient) {
+    public IlBoursaNewsProvider(SeleniumService seleniumService, WebClient webClient) {
+        this.seleniumService = seleniumService;
         this.webClient = webClient;
     }
 

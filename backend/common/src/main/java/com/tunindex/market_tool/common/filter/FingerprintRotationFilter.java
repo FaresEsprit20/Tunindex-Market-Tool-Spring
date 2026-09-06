@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.collector.filter;
+package com.tunindex.market_tool.common.filter;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.ClientRequest;
@@ -67,7 +67,7 @@ public class FingerprintRotationFilter implements ExchangeFilterFunction {
                     "\"Google Chrome\";v=\"130\", \"Chromium\";v=\"130\", \"Not_A Brand\";v=\"99\"");
             })
             .build();
-
+        
         return next.exchange(modifiedRequest);
     }
 

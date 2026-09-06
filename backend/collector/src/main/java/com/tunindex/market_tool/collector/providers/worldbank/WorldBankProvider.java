@@ -2,6 +2,7 @@ package com.tunindex.market_tool.collector.providers.worldbank;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.tunindex.market_tool.collector.dto.macro.MacroIndicatorDto;
+import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -28,6 +29,8 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class WorldBankProvider {
+
+    private final SeleniumService seleniumService;
 
     private static final String BASE =
             "https://api.worldbank.org/v2/country/TUN/indicator/%s?format=json&per_page=10&mrv=10";

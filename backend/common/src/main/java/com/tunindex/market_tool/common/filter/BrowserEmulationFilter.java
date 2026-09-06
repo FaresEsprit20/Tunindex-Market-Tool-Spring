@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.collector.filter;
+package com.tunindex.market_tool.common.filter;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.ClientRequest;

@@ -1,5 +1,6 @@
 package com.tunindex.market_tool.collector.providers.ilboursa;
 
+import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -28,6 +29,7 @@ import java.util.List;
  * about it. Note the date here is a four-digit year (dd/MM/yyyy), unlike
  * the two-digit year on the per-stock pages.
  */
+
 @Slf4j
 @Component
 public class IlBoursaMarketNewsProvider {
@@ -35,9 +37,12 @@ public class IlBoursaMarketNewsProvider {
     private static final String URL = "https://www.ilboursa.com/marches/actualites_bourse_tunis";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
+    private final SeleniumService seleniumService;
+
     private final WebClient webClient;
 
-    public IlBoursaMarketNewsProvider(WebClient webClient) {
+    public IlBoursaMarketNewsProvider(SeleniumService seleniumService, WebClient webClient) {
+        this.seleniumService = seleniumService;
         this.webClient = webClient;
     }
 

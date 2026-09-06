@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.collector.providers.bct;
 
 import com.tunindex.market_tool.collector.dto.macro.MacroIndicatorDto;
+import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
 import java.math.BigDecimal;
@@ -29,6 +31,7 @@ import java.util.regex.Pattern;
  * the bank reorders the block or comments a line out (two of the six rates on
  * that page are already commented out).
  */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -36,6 +39,7 @@ public class BctRatesProvider {
 
     private static final String URL = "https://www.bct.gov.tn/bct/siteprod/index.jsp";
     private static final String SOURCE = "Banque Centrale de Tunisie";
+    private final SeleniumService seleniumService;
 
     /**
      * Label fragment -> what we call it. Matched case-insensitively against
@@ -61,13 +65,10 @@ public class BctRatesProvider {
     private final WebClient webClient;
 
     public Mono<List<MacroIndicatorDto>> fetchRates() {
-        return webClient.get()
-                .uri(URL)
-                .header(HttpHeaders.ACCEPT_ENCODING, "identity")
-                .retrieve()
-                .bodyToMono(String.class)
+        return Mono.fromCallable(() -> seleniumService.getPageSource(URL))
+                .subscribeOn(Schedulers.boundedElastic())
                 .map(this::parse)
-                .timeout(Duration.ofSeconds(25))
+                .timeout(Duration.ofSeconds(60))
                 .retryWhen(Retry.backoff(2, Duration.ofSeconds(2)))
                 .doOnError(e -> log.warn("BCT rates fetch failed: {}", e.getMessage()))
                 .onErrorResume(e -> Mono.empty());

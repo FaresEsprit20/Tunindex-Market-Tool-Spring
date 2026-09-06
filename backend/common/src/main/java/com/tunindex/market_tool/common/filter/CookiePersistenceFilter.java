@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.collector.filter;
+package com.tunindex.market_tool.common.filter;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -30,7 +30,7 @@ public class CookiePersistenceFilter implements ExchangeFilterFunction {
                 }
             })
             .build();
-
+        
         return next.exchange(modifiedRequest)
             .doOnNext(response -> {
                 response.cookies().forEach((name, values) -> {

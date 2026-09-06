@@ -3,6 +3,7 @@ package com.tunindex.market_tool.common.handler;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http2.DefaultHttp2SettingsFrame;
 import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.codec.http2.Http2SettingsFrame;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +21,7 @@ public class Http2SettingsHandler extends ChannelDuplexHandler {
         settings.maxFrameSize(16384);
         settings.headerTableSize(4096);
         
-        ctx.writeAndFlush(new Http2SettingsFrame(settings));
+        ctx.writeAndFlush(new DefaultHttp2SettingsFrame(settings));
         log.debug("📡 Sent HTTP/2 settings frame matching Chrome behavior");
         
         super.channelActive(ctx);

@@ -7,12 +7,14 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.codec.AbstractDataBufferDecoder;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
+import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType;
 import reactor.core.publisher.Flux;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 public class BrotliDecoder extends AbstractDataBufferDecoder<byte[]> {
@@ -29,7 +31,7 @@ public class BrotliDecoder extends AbstractDataBufferDecoder<byte[]> {
     }
 
     public BrotliDecoder() {
-        super(List.of(MediaType.APPLICATION_OCTET_STREAM));
+        super(MediaType.APPLICATION_OCTET_STREAM);
     }
 
     @Override
@@ -42,14 +44,7 @@ public class BrotliDecoder extends AbstractDataBufferDecoder<byte[]> {
     }
 
     @Override
-    public Flux<byte[]> decode(ResolvableType elementType, 
-                               DataBuffer dataBuffer, 
-                               int offset, 
-                               MimeType mimeType) {
-        return Flux.fromIterable(decodeDataBuffer(dataBuffer));
-    }
-
-    private List<byte[]> decodeDataBuffer(DataBuffer dataBuffer) {
+    protected byte[] decodeDataBuffer(DataBuffer dataBuffer, ResolvableType elementType, @Nullable MimeType mimeType, @Nullable Map<String, Object> hints) {
         try {
             byte[] input = new byte[dataBuffer.readableByteCount()];
             dataBuffer.read(input);
@@ -68,11 +63,11 @@ public class BrotliDecoder extends AbstractDataBufferDecoder<byte[]> {
                 log.debug("✅ Brotli decompressed: {} bytes -> {} bytes", 
                     input.length, outputStream.size());
                 
-                return List.of(outputStream.toByteArray());
+                return outputStream.toByteArray();
             }
         } catch (Exception e) {
             log.error("❌ Error decoding Brotli data", e);
-            return List.of(new byte[0]);
+            return new byte[0];
         }
     }
 

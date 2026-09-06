@@ -27,7 +27,7 @@
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <!-- Dependency versions -->
         <jsoup.version>1.17.2</jsoup.version>
-        <selenium.version>4.31.0</selenium.version>
+        <selenium.version>4.48.0</selenium.version>
         <webdrivermanager.version>5.9.2</webdrivermanager.version>
         <springdoc.version>2.1.0</springdoc.version>
     </properties>

@@ -29,7 +29,15 @@ public class SeleniumService {
             driver.get(url);
             return driver.getPageSource();
         } finally {
-            driver.quit();
+            if (driver != null) {
+                try {
+                    driver.quit();
+                } catch (org.openqa.selenium.WebDriverException e) {
+                    log.warn("WebDriverException during quit: {}", e.getMessage());
+                } catch (Exception e) {
+                    log.error("General exception during quit: {}", e.getMessage());
+                }
+            }
         }
     }
 }

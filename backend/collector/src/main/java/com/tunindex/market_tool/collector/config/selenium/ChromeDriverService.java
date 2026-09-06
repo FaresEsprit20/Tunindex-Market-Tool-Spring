@@ -313,6 +313,8 @@ public class ChromeDriverService {
             try {
                 log.info("Closing ChromeDriver...");
                 driver.quit();
+            } catch (org.openqa.selenium.WebDriverException e) {
+                log.warn("WebDriverException during cleanup quit: {}", e.getMessage());
             } catch (Exception e) {
                 log.warn("Error closing driver: {}", e.getMessage());
             } finally {

@@ -160,7 +160,7 @@ public class WebClientConfig {
         headers.add(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br, zstd");
         headers.add(HttpHeaders.CACHE_CONTROL, "no-cache");
         headers.add(HttpHeaders.PRAGMA, "no-cache");
-        headers.add(HttpHeaders.UPGRADE_INSECURE_REQUESTS, "1");
+        headers.add("Upgrade-Insecure-Requests", "1");
         headers.add(HttpHeaders.CONNECTION, "keep-alive");
         headers.add("Priority", "u=0, i");
         headers.add("Sec-Ch-Ua", "\"Google Chrome\";v=\"130\", \"Chromium\";v=\"130\", \"Not_A Brand\";v=\"99\"");

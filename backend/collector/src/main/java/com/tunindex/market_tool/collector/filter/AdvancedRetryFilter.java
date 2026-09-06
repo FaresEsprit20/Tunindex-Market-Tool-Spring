@@ -46,10 +46,10 @@ public class AdvancedRetryFilter implements ExchangeFilterFunction {
                 .maxBackoff(Duration.ofSeconds(30))
                 .jitter(0.5)
                 .doBeforeRetry(retrySpec -> {
-                    log.warn("🔄 Retry attempt {} after failure", retrySpec.iteration());
+                    log.warn("🔄 Retry attempt {} after failure", retrySpec.totalRetries());
                     try {
                         // Add jitter to retry delay
-                        long delay = (long) Math.pow(2, retrySpec.iteration()) * 1000;
+                        long delay = (long) Math.pow(2, retrySpec.totalRetries()) * 1000;
                         delay += ThreadLocalRandom.current().nextInt(500);
                         Thread.sleep(Math.min(delay, 30000));
                     } catch (InterruptedException ignored) {}

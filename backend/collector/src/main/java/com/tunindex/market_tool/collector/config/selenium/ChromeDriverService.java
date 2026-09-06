@@ -3,6 +3,7 @@ package com.tunindex.market_tool.collector.config.selenium;
 
 
 import io.github.bonigarcia.wdm.WebDriverManager;
+import jakarta.annotation.PreDestroy;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
@@ -14,6 +15,8 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -22,7 +25,11 @@ import java.util.Random;
 
 @Getter
 @Slf4j
+@Service
 public class ChromeDriverService {
+
+    @Value("${market-tool.browser.version}")
+    private String browserVersion;
 
     private ChromeDriver driver;
     private volatile boolean isHealthy = true;
@@ -52,9 +59,9 @@ public class ChromeDriverService {
     private void createNewDriver() {
         log.info("🚀 Initializing ChromeDriver...");
 
-        // Use Chrome 152 to match your installed browser
+        // Use configured version
         WebDriverManager.chromedriver()
-                .browserVersion("152")
+                .browserVersion(browserVersion)
                 .setup();
 
         ChromeOptions options = new ChromeOptions();
@@ -301,6 +308,8 @@ public class ChromeDriverService {
                             "    return getParameter(parameter);" +
                             "};"
             );
+    @PreDestroy
+
 
             log.debug("Advanced stealth JavaScript executed successfully");
         } catch (Exception e) {

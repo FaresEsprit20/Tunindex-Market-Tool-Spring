@@ -5,15 +5,23 @@ import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 
 @Service
 @Slf4j
 public class SeleniumService {
 
-    public SeleniumService() {
-        WebDriverManager.chromedriver().setup();
+    @Value("${market-tool.browser.version}")
+    private String browserVersion;
+
+    @PostConstruct
+    public void init() {
+        WebDriverManager.chromedriver()
+                .browserVersion(browserVersion)
+                .setup();
     }
 
     public String getPageSource(String url) {
@@ -22,7 +30,7 @@ public class SeleniumService {
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-gpu");
-        options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36");
+        options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" + browserVersion + ".0.0.0 Safari/537.36");
 
         WebDriver driver = new ChromeDriver(options);
         try {

@@ -1,4 +1,4 @@
-package com.tunindex.market_tool.collector.handler;
+package com.tunindex.market_tool.common.handler;
 
 import com.aayushatharva.brotli4j.Brotli4jLoader;
 import com.aayushatharva.brotli4j.decoder.BrotliInputStream;

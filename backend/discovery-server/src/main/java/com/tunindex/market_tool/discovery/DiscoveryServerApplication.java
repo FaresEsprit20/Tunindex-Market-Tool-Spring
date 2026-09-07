@@ -15,4 +15,5 @@ public class DiscoveryServerApplication {
         System.out.println("📍 Dashboard: http://localhost:8761");
         System.out.println("========================================");
     }
+
 }

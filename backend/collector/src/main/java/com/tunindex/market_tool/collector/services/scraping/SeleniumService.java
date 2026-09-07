@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 
+import java.time.Duration;
+
 @Service
 @Slf4j
 public class SeleniumService {
@@ -33,6 +35,8 @@ public class SeleniumService {
         options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" + browserVersion + ".0.0.0 Safari/537.36");
 
         WebDriver driver = new ChromeDriver(options);
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofDays(1));
+        driver.manage().timeouts().scriptTimeout(Duration.ofDays(1));
         try {
             driver.get(url);
             return driver.getPageSource();

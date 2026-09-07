@@ -127,8 +127,8 @@ public class ChromeDriverService {
         options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation", "enable-logging"});
 
         driver = new ChromeDriver(options);
-        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(90));
-        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(60));
+        driver.manage().timeouts().pageLoadTimeout(java.time.Duration.ofDays(1));
+        driver.manage().timeouts().scriptTimeout(java.time.Duration.ofDays(1));
         driver.manage().deleteAllCookies();
 
         executeAdvancedStealthJavaScript();

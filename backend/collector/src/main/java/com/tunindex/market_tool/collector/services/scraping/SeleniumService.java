@@ -52,16 +52,25 @@ public class SeleniumService {
             return driver.getPageSource();
         } catch (Exception e) {
             log.error("Error during Selenium scraping of {}: {}", url, e.getMessage());
-            throw e; // Rethrow to let the provider handle it via onErrorResume
+            throw e; 
         } finally {
             if (driver != null) {
-                try {
-                    driver.quit();
-                } catch (Exception e) {
-                    log.warn("WebDriverException during quit: {}", e.getMessage());
-                    // On Windows, if quit() fails, the process often remains. 
-                    // This is a simple attempt to log it; deeper cleanup would require OS-specific commands.
-                }
+                // Perform cleanup in a separate thread so it cannot block the request thread
+                WebDriver driverToQuit = driver;
+                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    try {
+                        driverToQuit.quit();
+                    } catch (Exception e) {
+                        log.warn("Graceful quit failed, attempting forceful shutdown: {}", e.getMessage());
+                        // Fallback: If graceful quit fails, the process is likely hung.
+                        // This is a last-resort approach for Windows.
+                        try {
+                            Runtime.getRuntime().exec("taskkill /F /IM chromedriver.exe /T");
+                        } catch (Exception ex) {
+                            log.error("Forceful shutdown failed: {}", ex.getMessage());
+                        }
+                    }
+                });
             }
             semaphore.release();
         }

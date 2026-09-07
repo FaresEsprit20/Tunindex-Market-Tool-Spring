@@ -154,7 +154,7 @@ public class ChromeDriverService {
             driver.get(url);
 
             // Wait for page to load
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(45));
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(90));
             wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
 
             // Random wait for initial content (3-8 seconds)

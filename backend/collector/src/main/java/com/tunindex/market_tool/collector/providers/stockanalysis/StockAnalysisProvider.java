@@ -7,6 +7,7 @@ import com.tunindex.market_tool.collector.dto.investingcom.EnrichedStockData;
 import com.tunindex.market_tool.collector.dto.investingcom.RawStockData;
 import com.tunindex.market_tool.collector.services.status.PipelineStatusService;
 import com.tunindex.market_tool.common.dto.pipeline.PipelinePhase;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -32,7 +33,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class StockAnalysisProvider implements MarketDataProvider {
 
@@ -42,6 +42,23 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private final WebClient webClient;
     private final PipelineStatusService pipelineStatus;
     private final SeleniumService seleniumService;
+
+    @Value("${market-tool.scraping.request-timeout:60}")
+    private long requestTimeout;
+
+    public StockAnalysisProvider(DataParserService dataParserService,
+                                DataNormalizerService normalizer,
+                                DataEnricherService enricher,
+                                WebClient webClient,
+                                PipelineStatusService pipelineStatus,
+                                SeleniumService seleniumService) {
+        this.dataParserService = dataParserService;
+        this.normalizer = normalizer;
+        this.enricher = enricher;
+        this.webClient = webClient;
+        this.pipelineStatus = pipelineStatus;
+        this.seleniumService = seleniumService;
+    }
 
 
     @Override
@@ -116,7 +133,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private Mono<String> fetchPage(String url) {
         return Mono.fromCallable(() -> seleniumService.getPageSource(url))
                 .subscribeOn(Schedulers.boundedElastic())
-                .timeout(Duration.ofSeconds(60))
+                .timeout(Duration.ofSeconds(requestTimeout))
                 .onErrorResume(e -> {
                     log.error("❌ Failed to fetch page via Selenium: {} - {}", url, e.getMessage());
                     return Mono.empty();

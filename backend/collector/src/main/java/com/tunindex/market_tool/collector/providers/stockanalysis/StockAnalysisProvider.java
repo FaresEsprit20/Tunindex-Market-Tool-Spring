@@ -121,7 +121,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
                                 pipelineStatus.workerFinished(Thread.currentThread().getName(), symbol, PipelinePhase.FETCHING, false);
                                 return Mono.empty();
                             });
-                }, 5)
+                }, 2)
                 .doOnComplete(() -> log.info("✅ Completed fetching all {} stocks from StockAnalysis", stocks.size()));
     }
 

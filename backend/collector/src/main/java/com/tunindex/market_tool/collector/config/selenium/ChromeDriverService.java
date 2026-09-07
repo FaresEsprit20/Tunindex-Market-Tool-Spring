@@ -308,14 +308,13 @@ public class ChromeDriverService {
                             "    return getParameter(parameter);" +
                             "};"
             );
-    @PreDestroy
-
-
             log.debug("Advanced stealth JavaScript executed successfully");
         } catch (Exception e) {
             log.warn("Advanced stealth JavaScript failed: {}", e.getMessage());
         }
     }
+
+    @PreDestroy
 
     public void cleanup() {
         if (driver != null) {

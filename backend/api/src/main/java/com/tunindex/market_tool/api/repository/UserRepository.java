@@ -24,7 +24,21 @@ public interface UserRepository extends JpaRepository<User, Integer>, JpaSpecifi
 
     boolean existsByLoginName(String loginName);
 
-    @Query("select u from User u join u.roles r where u.numTel = :numTel and r.roleName = 'CUSTOMER'")
+    /**
+     * Finds a user by phone number, whatever role they hold.
+     *
+     * <p>This used to join roles and filter on {@code 'CUSTOMER'} — a value
+     * that is not in {@link com.tunindex.market_tool.api.entities.enums.UserRole},
+     * which is {@code {USER, ADMIN}}. Hibernate validates enum literals
+     * against the column's permitted values, so the query threw before it
+     * could run and every registration failed with a 500: the sign-up path
+     * calls this to check for a duplicate phone number.
+     *
+     * <p>The role filter is gone rather than corrected to {@code USER},
+     * because both callers are duplicate-phone checks and an administrator
+     * holding that number is just as much a conflict.
+     */
+    @Query("select u from User u where u.numTel = :numTel")
     Optional<User> findUserByNumTel(@Param("numTel") String numTel);
 
     boolean existsByEmail(String email);

@@ -1,0 +1,54 @@
+@if (loading()) {
+  <div class="cb-loading">
+    <span class="cb-loading-cell"></span>
+    <span class="cb-loading-cell"></span>
+    <span class="cb-loading-cell"></span>
+    <span class="cb-loading-cell"></span>
+    <span class="cb-loading-cell"></span>
+  </div>
+} @else if (failed() || quotes().length === 0) {
+  <p class="cb-note">Commodity and crypto prices are unavailable right now.</p>
+} @else {
+  <div class="cb-strip">
+    @for (quote of metals(); track quote.key) {
+      <div class="cb-item" [title]="basisLabel(quote)">
+        <span class="cb-label">{{ quote.label }}</span>
+        <span class="cb-price mono">
+          <span class="cb-ccy">$</span>{{ quote.price | number: digitsFor(quote) }}
+        </span>
+        <span
+          class="cb-change mono"
+          [class.positive]="(quote.changePct ?? 0) > 0"
+          [class.negative]="(quote.changePct ?? 0) < 0"
+        >
+          {{ (quote.changePct ?? 0) > 0 ? '+' : '' }}{{ quote.changePct | number: '1.2-2' }}%
+        </span>
+      </div>
+    }
+
+    @if (metals().length > 0 && crypto().length > 0) {
+      <span class="cb-divider" aria-hidden="true"></span>
+    }
+
+    @for (quote of crypto(); track quote.key) {
+      <div class="cb-item" [title]="basisLabel(quote)">
+        <span class="cb-label">
+          {{ quote.label }}
+          <!-- Marked because this is a rolling window, not a close-to-close
+               move like the metals beside it. -->
+          <span class="cb-tag">24h</span>
+        </span>
+        <span class="cb-price mono">
+          <span class="cb-ccy">$</span>{{ quote.price | number: digitsFor(quote) }}
+        </span>
+        <span
+          class="cb-change mono"
+          [class.positive]="(quote.changePct ?? 0) > 0"
+          [class.negative]="(quote.changePct ?? 0) < 0"
+        >
+          {{ (quote.changePct ?? 0) > 0 ? '+' : '' }}{{ quote.changePct | number: '1.2-2' }}%
+        </span>
+      </div>
+    }
+  </div>
+}

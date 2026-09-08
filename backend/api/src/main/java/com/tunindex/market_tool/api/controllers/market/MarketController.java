@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.api.controllers.market;
 
 import com.tunindex.market_tool.api.dto.macro.MacroSnapshotResponseDto;
+import com.tunindex.market_tool.api.dto.macro.MarketQuoteResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketBreadthResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketNewsResponseDto;
 import com.tunindex.market_tool.api.dto.market.MarketSessionResponseDto;
@@ -99,6 +100,21 @@ public class MarketController {
                 // Longer than the quote endpoints: this may hit two external
                 // publishers on a cold cache.
                 .timeout(Duration.ofSeconds(45))
+                .block();
+    }
+
+    @GetMapping(value = APP_ROOT + "/market/commodities", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Metals and major crypto pairs, each with its daily change")
+    public List<MarketQuoteResponseDto> commodities() {
+        return webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/commodities")
+                .header("X-API-Key", internalApiKey)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<MarketQuoteResponseDto>>() {})
+                // Generous: a cold cache walks several external providers with
+                // deliberate pacing between calls.
+                .timeout(Duration.ofSeconds(90))
                 .block();
     }
 }

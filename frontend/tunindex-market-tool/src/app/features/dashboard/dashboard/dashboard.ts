@@ -8,6 +8,7 @@ import { MarketNews } from '../market-news/market-news';
 import { MarketStatus } from '../../market/market-status/market-status';
 import { TopOpportunities } from '../top-opportunities/top-opportunities';
 import { MacroPanel } from '../../../shared/components/macro-panel/macro-panel';
+import { CommoditiesBanner } from '../../../shared/components/commodities-banner/commodities-banner';
 
 @Component({
   selector: 'app-dashboard',
@@ -21,6 +22,7 @@ import { MacroPanel } from '../../../shared/components/macro-panel/macro-panel';
     MarketStatus,
     TopOpportunities,
     MacroPanel,
+    CommoditiesBanner,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',

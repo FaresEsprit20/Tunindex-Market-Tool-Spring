@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { MarketNewsItem, MarketSession } from '../models/market.model';
 import { MarketBreadth, UnusualActivity } from '../models/market-breadth.model';
-import { MacroSnapshot } from '../models/macro.model';
+import { MacroSnapshot, MarketQuote } from '../models/macro.model';
 
 @Injectable({ providedIn: 'root' })
 export class Market {
@@ -44,5 +44,14 @@ export class Market {
    */
   getMacro(): Observable<MacroSnapshot> {
     return this.http.get<MacroSnapshot>(`${API_BASE_URL}/market/macro`);
+  }
+
+  /**
+   * Metals and the major crypto pairs. Cached server-side for a few minutes —
+   * these providers rate-limit, and the figures do not need per-second
+   * freshness to be useful.
+   */
+  getCommodities(): Observable<MarketQuote[]> {
+    return this.http.get<MarketQuote[]>(`${API_BASE_URL}/market/commodities`);
   }
 }

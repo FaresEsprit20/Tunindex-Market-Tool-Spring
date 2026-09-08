@@ -34,6 +34,34 @@
   border-left-style: dashed;
 }
 
+// A live quote, so it carries a change where the statistics above do not.
+.macro-item.fx .macro-value {
+  font-size: 15px;
+}
+
+.macro-change {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
+
+  &.positive {
+    color: var(--color-positive);
+  }
+
+  &.negative {
+    color: var(--color-negative);
+  }
+}
+
+// The currency symbol leads the figure, unlike the trailing % and bn.
+.macro-unit-pre {
+  font-size: 0.62em;
+  font-weight: 600;
+  margin-right: 1px;
+  color: var(--color-text-tertiary);
+}
+
 .macro-label {
   display: flex;
   align-items: center;

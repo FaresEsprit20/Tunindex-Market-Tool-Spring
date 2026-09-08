@@ -29,6 +29,12 @@ public class MacroSnapshotResponseDto {
     /** Annual national-accounts figures. */
     private List<MacroIndicatorResponseDto> economy;
 
+    /**
+     * The dinar's crosses, quoted live with their move since the previous
+     * close — a different kind of number from the annual statistics above.
+     */
+    private List<MarketQuoteResponseDto> currencies;
+
     private LocalDateTime fetchedAt;
 
     /** Publishers we could not reach, so the UI can say so explicitly. */

@@ -47,15 +47,16 @@ public class BctRatesProvider {
     private record RateSpec(String key, String labelFragment, String label, String note) {
     }
 
+    /**
+     * Only the TMM. The policy, money-market and savings rates are published
+     * on the same page and were previously all scraped, but the banner shows
+     * TMM alone — it is the rate Tunisian lending is actually indexed to, and
+     * the other three have been identical to it for the whole period we have
+     * data for, so they added rows without adding information.
+     */
     private static final List<RateSpec> RATES = List.of(
-            new RateSpec("POLICY_RATE", "directeur", "Policy rate",
-                    "The central bank's main rate — the anchor for borrowing costs across the economy."),
-            new RateSpec("MONEY_MARKET_RATE", "marché monétaire (TM)", "Money market rate",
-                    "What banks pay each other overnight; moves before retail rates do."),
-            new RateSpec("TMM", "TMM", "TMM (monthly average)",
-                    "The monthly average money-market rate most Tunisian loans are indexed to."),
-            new RateSpec("SAVINGS_RATE", "épargne", "Savings rate",
-                    "The regulated return on bank savings — equities compete with this for retail money."));
+            new RateSpec("TMM", "TMM", "TMM",
+                    "The monthly average money-market rate most Tunisian loans are indexed to."));
 
     /** "…: <b>7,00000</b> %" — the number sits in its own bold element. */
     private static final Pattern PERIOD = Pattern.compile("(au\\s+[0-9/]+|du mois de\\s+[^:]+?)\\s*:");

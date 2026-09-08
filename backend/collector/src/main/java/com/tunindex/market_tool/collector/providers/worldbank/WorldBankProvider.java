@@ -2,13 +2,14 @@ package com.tunindex.market_tool.collector.providers.worldbank;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.tunindex.market_tool.collector.dto.macro.MacroIndicatorDto;
+import com.tunindex.market_tool.collector.services.scraping.PageFetcher;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,16 +35,23 @@ public class WorldBankProvider {
     private static final String SOURCE = "World Bank";
     private static final String SOURCE_URL = "https://data.worldbank.org/country/tunisia";
 
-    private record Series(String key, String indicator, String label, String note) {
+    /** {@code unit} matters: one of these is a percentage, the other is money. */
+    private record Series(String key, String indicator, String label, String note, String unit) {
     }
 
     private static final List<Series> SERIES = List.of(
             new Series("INFLATION_CPI", "FP.CPI.TOTL.ZG", "Inflation (CPI)",
-                    "Erodes real returns, and drives the central bank's rate decisions."),
-            new Series("GDP_GROWTH", "NY.GDP.MKTP.KD.ZG", "GDP growth",
-                    "The demand backdrop behind company earnings."));
+                    "Erodes real returns, and drives the central bank's rate decisions.", "%"),
+            // External debt stocks, total, current US$. The central-government
+            // debt series (GC.DOD.TOTL.GD.ZS) is the more conventional gauge
+            // but the World Bank has no Tunisian value for it after 2012,
+            // which is too stale to put on a dashboard.
+            new Series("EXTERNAL_DEBT_USD", "DT.DOD.DECT.CD", "External debt",
+                    "What the country owes abroad — the constraint behind fiscal and currency policy.",
+                    "USD"));
 
-    private final WebClient webClient;
+    private final PageFetcher pageFetcher;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Mono<List<MacroIndicatorDto>> fetchEconomy() {
         return Flux.fromIterable(SERIES)
@@ -55,18 +63,27 @@ public class WorldBankProvider {
                 });
     }
 
+    /**
+     * Reads one indicator series.
+     *
+     * <p>Uses {@link PageFetcher}'s plain HTTP path rather than the shared
+     * stealth {@code WebClient}. That client wraps every request in a chain of
+     * emulation filters built for scraping HTML pages; pointed at a JSON API
+     * it returned 200s whose bodies did not survive to the parser, and the
+     * adaptive-delay filter in the same chain had previously backed off past
+     * this method's timeout entirely. A public data API needs none of that —
+     * it wants a plain, politely paced GET.
+     */
     private Mono<MacroIndicatorDto> fetchOne(Series series) {
-        return webClient.get()
-                .uri(String.format(BASE, series.indicator()))
-                // The shared WebClient has no decompressor configured, so a
-                // gzipped body arrives as raw bytes and Jackson fails on the
-                // 0x1F magic byte. Asking for identity is simpler than wiring
-                // compression support for two small JSON documents.
-                .header(HttpHeaders.ACCEPT_ENCODING, "identity")
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .timeout(Duration.ofSeconds(20))
-                .mapNotNull(json -> toIndicator(series, json))
+        return Mono.fromCallable(() -> {
+                    String body = pageFetcher.fetchData(String.format(BASE, series.indicator()));
+                    if (body == null || body.isBlank()) {
+                        return null;
+                    }
+                    return toIndicator(series, objectMapper.readTree(body));
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .timeout(Duration.ofSeconds(30))
                 .onErrorResume(e -> {
                     log.warn("World Bank series {} failed: {}", series.indicator(), e.getMessage());
                     return Mono.empty();
@@ -93,8 +110,9 @@ public class WorldBankProvider {
                     .key(series.key())
                     .label(series.label())
                     .note(series.note())
-                    .value(BigDecimal.valueOf(value.asDouble()).setScale(2, RoundingMode.HALF_UP))
-                    .unit("%")
+                    .value(BigDecimal.valueOf(value.asDouble())
+                            .setScale("%".equals(series.unit()) ? 2 : 0, RoundingMode.HALF_UP))
+                    .unit(series.unit())
                     .periodLabel(row.path("date").asText())
                     .source(SOURCE)
                     .sourceUrl(SOURCE_URL)

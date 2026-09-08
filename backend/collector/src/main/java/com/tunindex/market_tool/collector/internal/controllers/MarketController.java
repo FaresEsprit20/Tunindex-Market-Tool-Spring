@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.collector.internal.controllers;
 
 import com.tunindex.market_tool.collector.dto.macro.MacroSnapshotDto;
+import com.tunindex.market_tool.collector.dto.macro.MarketQuoteDto;
 import com.tunindex.market_tool.collector.dto.market.MarketBreadthDto;
 import com.tunindex.market_tool.collector.dto.market.MarketSessionDto;
 import com.tunindex.market_tool.collector.dto.market.UnusualActivityDto;
@@ -74,6 +75,18 @@ public class MarketController {
     public Mono<MacroSnapshotDto> macro(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
         validateApiKey(apiKey);
         return macroIndicatorsService.snapshot();
+    }
+
+    /**
+     * Metals and the major crypto pairs, each with its move since the previous
+     * close. Separate from /macro because it moves continuously, while the
+     * macro figures are monthly and annual.
+     */
+    @GetMapping("/commodities")
+    public Mono<List<MarketQuoteDto>> commodities(
+            @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        return macroIndicatorsService.commodities();
     }
 
     /**

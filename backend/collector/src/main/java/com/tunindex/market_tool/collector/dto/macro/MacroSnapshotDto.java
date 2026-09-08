@@ -26,8 +26,16 @@ public class MacroSnapshotDto {
     /** Central-bank rates, most policy-relevant first. */
     private List<MacroIndicatorDto> rates;
 
-    /** Annual national accounts figures — inflation, growth. */
+    /** Annual national accounts figures — inflation, external debt. */
     private List<MacroIndicatorDto> economy;
+
+    /**
+     * The dinar's two crosses, quoted live with their move since the previous
+     * close. Kept apart from {@code economy} because they are a different kind
+     * of number: those are annual statistics that lag by up to a year, these
+     * change through the day.
+     */
+    private List<MarketQuoteDto> currencies;
 
     /** When we last successfully read the publishers. */
     private LocalDateTime fetchedAt;

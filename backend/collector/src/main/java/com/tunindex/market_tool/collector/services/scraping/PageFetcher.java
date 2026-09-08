@@ -96,6 +96,28 @@ public class PageFetcher {
     @Value("${market-tool.scraping.http-timeout-seconds:30}")
     private long httpTimeoutSeconds;
 
+    /** Attempts for data endpoints, which are worth waiting out a 429 for. */
+    @Value("${market-tool.scraping.data-retry-attempts:3}")
+    private int dataRetryAttempts;
+
+    /** Base pause after a 429, multiplied by the attempt number. */
+    @Value("${market-tool.scraping.rate-limit-backoff-ms:4000}")
+    private long rateLimitBackoffMs;
+
+    /**
+     * Per-host minimum gaps, as {@code host=millis} pairs.
+     *
+     * <p>One global interval does not fit every publisher. Yahoo's chart API
+     * returns 429 for a burst but is perfectly happy at roughly six seconds
+     * between calls — the throttling we saw was self-inflicted, not a block.
+     * Slowing every host to Yahoo's tolerance would make the stock sweep
+     * needlessly long, so the gap is set per host instead.
+     */
+    @Value("${market-tool.scraping.host-delays:query1.finance.yahoo.com=6000}")
+    private String hostDelayOverrides;
+
+    private final Map<String, Long> hostDelays = new ConcurrentHashMap<>();
+
     private final Map<String, Instant> lastRequestByHost = new ConcurrentHashMap<>();
     private final Map<String, Instant> browserRequiredUntil = new ConcurrentHashMap<>();
 
@@ -146,8 +168,50 @@ public class PageFetcher {
         return viaBrowser(url);
     }
 
+    /**
+     * A paced HTTP GET with no HTML interpretation, for endpoints that return
+     * data rather than pages — the World Bank JSON API, for instance.
+     *
+     * <p>Deliberately skips the challenge detection in {@link #fetch}: those
+     * checks look for markers in HTML, and running them over a JSON document
+     * is at best meaningless and at worst another false positive. There is no
+     * browser escalation here either — an API that refuses us will not be
+     * persuaded by Chrome.
+     */
+    public String fetchData(String url) {
+        String host = hostOf(url);
+        for (int attempt = 1; attempt <= dataRetryAttempts; attempt++) {
+            pace(host);
+            Result result = request(url);
+            if (result.body() != null) {
+                return result.body();
+            }
+            // 429 is the one refusal worth waiting out: it means "later", not
+            // "no". Anything else is retried too, but a rate limit is the case
+            // this loop exists for — Yahoo throttles a burst of seven quotes.
+            if (attempt < dataRetryAttempts) {
+                long wait = result.status() == 429
+                        ? rateLimitBackoffMs * attempt
+                        : 500L * attempt;
+                log.debug("Retrying {} in {}ms (attempt {} of {}, last status {})",
+                        url, wait, attempt, dataRetryAttempts, result.status());
+                sleep(wait);
+            }
+        }
+        log.warn("Gave up on {} after {} attempts", url, dataRetryAttempts);
+        return null;
+    }
+
+    /** A fetch outcome, so a caller can distinguish "later" from "no". */
+    private record Result(int status, String body) {
+    }
+
     /** Plain HTTP. Returns null when the response is missing, refused or a challenge page. */
     private String viaHttp(String url) {
+        return request(url).body();
+    }
+
+    private Result request(String url) {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(httpTimeoutSeconds))
@@ -176,29 +240,37 @@ public class PageFetcher {
 
             if (status == 403 || status == 429 || status == 503) {
                 log.warn("HTTP {} for {} — treating as refused", status, url);
-                return null;
+                return new Result(status, null);
             }
             if (status != 200) {
                 log.debug("HTTP {} for {}", status, url);
-                return null;
+                return new Result(status, null);
             }
 
             String body = response.body();
             if (body == null || body.isBlank()) {
-                return null;
+                return new Result(status, null);
             }
             if (captchaDetector.isBlocked(body) || captchaDetector.hasCaptcha(body)) {
                 log.warn("Challenge page returned for {} — treating as refused", url);
-                return null;
+                return new Result(status, null);
             }
-            return body;
+            return new Result(status, body);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return null;
+            return new Result(0, null);
         } catch (Exception e) {
             log.warn("HTTP fetch failed for {}: {}", url, e.getMessage());
-            return null;
+            return new Result(0, null);
+        }
+    }
+
+    private void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -250,7 +322,7 @@ public class PageFetcher {
      */
     private void pace(String host) {
         Instant last = lastRequestByHost.get(host);
-        long wait = hostDelayMs + ThreadLocalRandom.current().nextLong(jitterMs + 1);
+        long wait = delayFor(host) + ThreadLocalRandom.current().nextLong(jitterMs + 1);
 
         if (last != null) {
             long elapsed = Duration.between(last, Instant.now()).toMillis();
@@ -264,6 +336,23 @@ public class PageFetcher {
             }
         }
         lastRequestByHost.put(host, Instant.now());
+    }
+
+    /** This host's configured gap, falling back to the global default. */
+    private long delayFor(String host) {
+        if (hostDelays.isEmpty() && hostDelayOverrides != null && !hostDelayOverrides.isBlank()) {
+            for (String pair : hostDelayOverrides.split(",")) {
+                String[] parts = pair.split("=", 2);
+                if (parts.length == 2) {
+                    try {
+                        hostDelays.put(parts[0].trim(), Long.parseLong(parts[1].trim()));
+                    } catch (NumberFormatException e) {
+                        log.warn("Ignoring malformed host delay '{}'", pair);
+                    }
+                }
+            }
+        }
+        return hostDelays.getOrDefault(host, hostDelayMs);
     }
 
     private boolean needsBrowser(String host) {

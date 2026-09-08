@@ -12,17 +12,21 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import com.tunindex.market_tool.collector.services.calculator.GrahamCalculator;
 import com.tunindex.market_tool.collector.services.enricher.BaseDataEnricher;
+import com.tunindex.market_tool.collector.services.fundamentals.FundamentalsDeriver;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Collections;
 
 @Service("stockAnalysisEnricher")
 @Slf4j
 public class StockAnalysisEnricherImpl extends BaseDataEnricher {
 
-    public StockAnalysisEnricherImpl(GrahamCalculator grahamCalculator) {
+    private final FundamentalsDeriver fundamentalsDeriver;
+
+    public StockAnalysisEnricherImpl(GrahamCalculator grahamCalculator,
+                                     FundamentalsDeriver fundamentalsDeriver) {
         super(grahamCalculator);
+        this.fundamentalsDeriver = fundamentalsDeriver;
     }
 
     @Override
@@ -42,37 +46,17 @@ public class StockAnalysisEnricherImpl extends BaseDataEnricher {
                     stock.setCalculatedValues(new CalculatedValues());
                 }
 
-                // ========== 1. GET EPS ==========
-                BigDecimal eps = null;
-                if (stock.getFundamentalData() != null) {
-                    eps = stock.getFundamentalData().getEps();
-                }
+                // ========== 1. CLOSE THE ARITHMETIC GAPS ==========
+                // EPS<->P/E, BVPS<->P/B and the payout ratio are identities, so
+                // they live in one place rather than being re-derived per
+                // provider. This also persists the derived BVPS: it used to be
+                // computed into a local, used for the Graham value and then
+                // thrown away, which is why book value read as empty for every
+                // stock whose source published only the P/B ratio.
+                fundamentalsDeriver.derive(stock);
 
-                // Fallback: Calculate EPS from PE ratio and price
-                if (eps == null && stock.getFundamentalData() != null && stock.getPriceData() != null) {
-                    BigDecimal peRatio = stock.getFundamentalData().getPeRatio();
-                    BigDecimal price = stock.getPriceData().getLastPrice();
-                    if (peRatio != null && price != null && peRatio.compareTo(BigDecimal.ZERO) > 0) {
-                        eps = price.divide(peRatio, 4, RoundingMode.HALF_UP);
-                        // Set the calculated EPS back to fundamental data
-                        stock.getFundamentalData().setEps(eps);
-                    }
-                }
-
-                // ========== 2. GET BVPS ==========
-                BigDecimal bvps = null;
-                if (stock.getCalculatedValues() != null) {
-                    bvps = stock.getCalculatedValues().getBookValuePerShare();
-                }
-
-                // Fallback: Calculate BVPS from Price to Book ratio
-                if (bvps == null && stock.getRatiosData() != null && stock.getPriceData() != null) {
-                    BigDecimal priceToBook = stock.getRatiosData().getPriceToBook();
-                    BigDecimal price = stock.getPriceData().getLastPrice();
-                    if (priceToBook != null && price != null && priceToBook.compareTo(BigDecimal.ZERO) > 0) {
-                        bvps = price.divide(priceToBook, 4, RoundingMode.HALF_UP);
-                    }
-                }
+                BigDecimal eps = stock.getFundamentalData().getEps();
+                BigDecimal bvps = stock.getCalculatedValues().getBookValuePerShare();
 
                 // ========== 3. GET CURRENT PRICE ==========
                 BigDecimal price = null;
@@ -125,11 +109,7 @@ public class StockAnalysisEnricherImpl extends BaseDataEnricher {
                     }
                 }
 
-                // ========== 8. CALCULATE PRICE TO BOOK RATIO ==========
-                if (stock.getRatiosData().getPriceToBook() == null && price != null && bvps != null && bvps.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal priceToBook = price.divide(bvps, 2, RoundingMode.HALF_UP);
-                    stock.getRatiosData().setPriceToBook(priceToBook);
-                }
+                // Price-to-book is derived alongside the other identities above.
 
                 // ========== 9. UPDATE 52-WEEK RANGE STRING ==========
                 if (stock.getPriceData().getWeek52Range() == null && week52Low != null && week52High != null) {

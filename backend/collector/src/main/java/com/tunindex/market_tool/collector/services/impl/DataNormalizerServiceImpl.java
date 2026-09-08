@@ -99,6 +99,7 @@ public class DataNormalizerServiceImpl implements DataNormalizerService {
         fundamentalData.setEps(normalizedData.getEps());
         fundamentalData.setPeRatio(normalizedData.getPeRatio());
         fundamentalData.setDividendYield(normalizedData.getDividendYield());
+        fundamentalData.setPayoutRatio(normalizedData.getPayoutRatio());
         fundamentalData.setRevenue(normalizedData.getRevenue());
         fundamentalData.setOneYearReturn(normalizedData.getOneYearReturn());
         stock.setFundamentalData(fundamentalData);

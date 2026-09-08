@@ -2,6 +2,8 @@ package com.tunindex.market_tool.collector.services.backfill;
 
 import com.tunindex.market_tool.collector.entities.Stock;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
+import com.tunindex.market_tool.collector.services.fundamentals.FundamentalsFallbackService;
+import com.tunindex.market_tool.collector.services.fundamentals.PriceDerivedMetricsService;
 import com.tunindex.market_tool.collector.services.history.PriceHistoryService;
 import com.tunindex.market_tool.collector.services.news.StockNewsService;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,8 @@ public class BackfillServiceImpl implements BackfillService {
     private final StockRepository stockRepository;
     private final PriceHistoryService priceHistoryService;
     private final StockNewsService stockNewsService;
+    private final PriceDerivedMetricsService priceDerivedMetricsService;
+    private final FundamentalsFallbackService fundamentalsFallbackService;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicInteger processed = new AtomicInteger();
@@ -125,6 +129,25 @@ public class BackfillServiceImpl implements BackfillService {
 
             log.info("✅ Backfill complete: {}/{} symbols — history for {}, news for {}, {} failures",
                     processed.get(), total.get(), historyOk.get(), newsOk.get(), failures.get());
+
+            // Average volume and one-year return exist nowhere upstream for this
+            // market, so they are computed from the bars we just stored. Running
+            // it here rather than in the pipeline is deliberate: this is the
+            // moment the history they depend on is complete.
+            try {
+                priceDerivedMetricsService.refreshAll();
+            } catch (Exception e) {
+                log.warn("Price-derived metrics failed after backfill: {}", e.getMessage());
+            }
+
+            // Last resort for anything still blank: a second source. Runs at
+            // the end because it should only ever see gaps the primary source
+            // and the arithmetic derivations could not close between them.
+            try {
+                fundamentalsFallbackService.fillGaps();
+            } catch (Exception e) {
+                log.warn("Fundamentals fallback failed after backfill: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.error("❌ Backfill run failed: {}", e.getMessage(), e);
         } finally {

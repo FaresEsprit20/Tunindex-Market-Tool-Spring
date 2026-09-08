@@ -76,6 +76,15 @@
             <artifactId>jsoup</artifactId>
         </dependency>
 
+        <!-- Reads the exchange's official daily bulletin, which is published
+             only as PDF. It is the legal record of each session, so it is the
+             one fallback that cannot be stale or reformatted away. -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.31</version>
+        </dependency>
+
         <!-- JSON Processing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

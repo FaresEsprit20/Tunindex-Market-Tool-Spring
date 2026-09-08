@@ -85,10 +85,20 @@ public class StockAnalysisProvider implements MarketDataProvider {
         String ratiosUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/financials/ratios/";
         String statisticsUrl = Constants.STOCKANALYSIS_BASE_URL + symbol + "/statistics/";
 
+        // Only the overview page is required - it carries price, EPS and the
+        // rest of the headline figures. The other two are supplementary, and
+        // a company that does not publish full statements simply has no
+        // /financials/ratios/ page: the site returns 404.
+        //
+        // Mono.zip completes empty if ANY source is empty, so treating all
+        // three as required meant one 404 discarded the two pages that did
+        // load. Four listed, actively trading stocks (UADH, TAIR, STS, SIPHA)
+        // were dropped from the exchange entirely for want of a page that was
+        // never going to exist.
         return Mono.zip(
                         fetchPage(overviewUrl),
-                        fetchPage(ratiosUrl),
-                        fetchPage(statisticsUrl)
+                        fetchOptionalPage(ratiosUrl),
+                        fetchOptionalPage(statisticsUrl)
                 ).flatMap(tuple -> extractStockDataFromPages(tuple.getT1(), tuple.getT2(), tuple.getT3(), symbol, stockInfo))
                 .filter(rawData -> rawData.getMainPageHtml() != null && !rawData.getMainPageHtml().isEmpty())
                 .switchIfEmpty(Mono.defer(() -> {
@@ -146,6 +156,18 @@ public class StockAnalysisProvider implements MarketDataProvider {
                 });
     }
 
+    /**
+     * A page whose absence is not a failure.
+     *
+     * <p>Emits an empty string rather than nothing, so a missing supplementary
+     * page costs only the fields that page carried instead of the whole
+     * symbol. Every extractor downstream already treats blank HTML as "no
+     * fields here".
+     */
+    private Mono<String> fetchOptionalPage(String url) {
+        return fetchPage(url).defaultIfEmpty("");
+    }
+
     private Mono<RawStockData> extractStockDataFromPages(String overviewHtml, String ratiosHtml, String statisticsHtml,
                                                          String symbol, Constants.StockInfo stockInfo) {
         RawStockData rawData = new RawStockData();
@@ -171,6 +193,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
         // Extract Profit Margin and Book Value from statistics page
         extractProfitMarginFromStatisticsPage(statisticsHtml, metrics);
         extractBookValueFromStatisticsPage(statisticsHtml, metrics);
+
+        // Everything else the statistics table publishes, read generically.
+        // The bespoke extractors above each handle one label; anything without
+        // its own method was simply dropped, which is why the payout ratio was
+        // missing for every stock and the P/B ratio for a quarter of them even
+        // though both sit in this table.
+        extractStatisticsTable(statisticsHtml, metrics);
 
         // Post-processing
         if (metrics.containsKey("l52") && metrics.containsKey("h52")) {
@@ -472,6 +501,72 @@ public class StockAnalysisProvider implements MarketDataProvider {
         }
     }
 
+    /**
+     * Statistics-table labels we care about, mapped to our own field names.
+     *
+     * <p>Matched on the exact label text rather than position: the table's row
+     * order varies between symbols, and a positional read would silently pair
+     * the wrong number with the wrong field.
+     */
+    private static final Map<String, String> STATISTICS_LABELS = Map.ofEntries(
+            Map.entry("PB Ratio", "priceToBook"),
+            Map.entry("PE Ratio", "peRatio"),
+            Map.entry("Payout Ratio", "payoutRatio"),
+            Map.entry("Dividend Yield", "dividendYield"),
+            Map.entry("Book Value Per Share", "bookValuePerShare"),
+            Map.entry("Debt / Equity", "debtToEquity"),
+            Map.entry("Beta (5Y)", "beta"),
+            Map.entry("EPS (Diluted)", "eps"),
+            Map.entry("Profit Margin", "profitMargin"),
+            Map.entry("Average Volume (3M)", "averageVolume"),
+            Map.entry("Shares Outstanding", "sharesOut"),
+            Map.entry("Market Cap", "marketCap"));
+
+    /**
+     * Reads every label/value pair in the statistics table.
+     *
+     * <p>Does not overwrite a value another extractor already found — those
+     * are more specific and were written against known page shapes. This only
+     * fills what would otherwise be left empty.
+     *
+     * <p>"n/a" is treated as absent, not as a value. The source uses it for
+     * figures it genuinely does not hold, and storing the literal string would
+     * turn a known gap into a parse error further down.
+     */
+    private void extractStatisticsTable(String html, Map<String, String> metrics) {
+        if (html == null || html.isBlank()) {
+            return;
+        }
+        try {
+            Document doc = Jsoup.parse(html);
+            int filled = 0;
+
+            for (Element row : doc.select("tr")) {
+                Elements cells = row.select("td");
+                if (cells.size() < 2) {
+                    continue;
+                }
+                String label = cells.get(0).text().trim();
+                String field = STATISTICS_LABELS.get(label);
+                if (field == null || metrics.containsKey(field)) {
+                    continue;
+                }
+                String value = cells.get(1).text().trim();
+                if (value.isEmpty() || value.equalsIgnoreCase("n/a") || value.equals("-")) {
+                    continue;
+                }
+                metrics.put(field, value);
+                filled++;
+            }
+
+            if (filled > 0) {
+                log.debug("Statistics table supplied {} additional field(s)", filled);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read the statistics table: {}", e.getMessage());
+        }
+    }
+
     private void extractBookValueFromStatisticsPage(String html, Map<String, String> metrics) {
         log.info("🔍 Looking for Book Value Per Share...");
 
@@ -539,6 +634,9 @@ public class StockAnalysisProvider implements MarketDataProvider {
         html.append("  <div class='section valuation'>\n    <h3>Valuation</h3>\n");
         appendMetric(html, metrics, "peRatio", "pe-ratio", "P/E Ratio");
         appendMetric(html, metrics, "forwardPE", "forward-pe", "Forward P/E");
+        // The parser has always selected `.pb-ratio`; until now nothing emitted
+        // it, so a scraped P/B never survived the trip to the entity.
+        appendMetric(html, metrics, "priceToBook", "pb-ratio", "P/B Ratio");
         html.append("  </div>\n");
 
         html.append("  <div class='section financial-health'>\n    <h3>Financial Health</h3>\n");

@@ -1,6 +1,8 @@
 package com.tunindex.market_tool.collector.internal.controllers;
 
 import com.tunindex.market_tool.collector.services.backfill.BackfillService;
+import com.tunindex.market_tool.collector.services.fundamentals.FundamentalsFallbackService;
+import com.tunindex.market_tool.collector.services.fundamentals.PriceDerivedMetricsService;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
 import com.tunindex.market_tool.common.exception.InvalidEntityException;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +20,32 @@ import java.util.Map;
 public class BackfillController {
 
     private final BackfillService backfillService;
+    private final FundamentalsFallbackService fundamentalsFallbackService;
+    private final PriceDerivedMetricsService priceDerivedMetricsService;
 
     @Value("${internal.api.key}")
     private String internalApiKey;
+
+    /**
+     * Re-runs only the gap-filling passes, without re-scraping price history.
+     *
+     * <p>Useful after a parser change: the expensive part is the history
+     * download, and this reconsiders every blank field against the second
+     * source and the arithmetic derivations using the data already stored.
+     */
+    @PostMapping("/fill-gaps")
+    public Map<String, Object> fillGaps(
+            @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+
+        validateApiKey(apiKey);
+        int metricsUpdated = priceDerivedMetricsService.refreshAll();
+        Map<String, Integer> filled = fundamentalsFallbackService.fillGaps();
+
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("priceDerivedMetricsUpdated", metricsUpdated);
+        response.put("fallbackFilled", filled);
+        return response;
+    }
 
     /** Kicks off a background backfill of price history (and news) for every symbol. */
     @PostMapping("/start")

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -47,6 +48,13 @@ public class IlBoursaHistoryProvider {
     private static final DateTimeFormatter CSV_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final WebClient webClient;
+
+    /**
+     * The site's antiforgery session cookie, kept across requests because the
+     * server only issues it once. Held as a reference rather than a field
+     * assignment since windows are fetched from reactor threads.
+     */
+    private final AtomicReference<String> antiforgeryCookie = new AtomicReference<>();
 
     public record PricePoint(LocalDate tradeDate, BigDecimal open, BigDecimal high, BigDecimal low,
                               BigDecimal close, Long volume) {
@@ -111,7 +119,7 @@ public class IlBoursaHistoryProvider {
                 .toEntity(String.class)
                 .flatMap(getResponse -> {
                     String token = extractToken(getResponse.getBody());
-                    String cookie = extractAntiforgeryCookie(getResponse.getHeaders());
+                    String cookie = rememberOrReuseCookie(getResponse.getHeaders());
                     log.debug("ilboursa GET for {}: status={}, bodyLen={}, tokenFound={}, cookieFound={}",
                             symbol, getResponse.getStatusCode(),
                             getResponse.getBody() != null ? getResponse.getBody().length() : -1,
@@ -158,6 +166,33 @@ public class IlBoursaHistoryProvider {
         if (html == null) return null;
         Matcher m = TOKEN_PATTERN.matcher(html);
         return m.find() ? m.group(1) : null;
+    }
+
+    /**
+     * Returns the antiforgery cookie for this exchange, falling back to the
+     * one we were issued earlier.
+     *
+     * <p>The server sets the cookie once and then treats the session as
+     * established: every GET after the first comes back with no
+     * {@code Set-Cookie} header at all. Reading the header alone therefore
+     * works for the first window of a symbol's history and fails for every
+     * one after it - which looked like a broken scraper but was really us
+     * discarding a session the server considered still open. A year of
+     * history is five windows, so this is the difference between three months
+     * of data and all of it.
+     *
+     * <p>Holding one cookie for the provider is correct because it is a
+     * session identifier for the site, not something per symbol. The hidden
+     * token still comes fresh from each GET, and the pair is what the POST
+     * validates.
+     */
+    private String rememberOrReuseCookie(HttpHeaders headers) {
+        String issued = extractAntiforgeryCookie(headers);
+        if (issued != null) {
+            antiforgeryCookie.set(issued);
+            return issued;
+        }
+        return antiforgeryCookie.get();
     }
 
     /**

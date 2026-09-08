@@ -19,6 +19,16 @@ public class FundamentalData {
     private BigDecimal eps;
     private BigDecimal peRatio;
     private BigDecimal dividendYield;
+
+    /**
+     * Share of earnings paid out as dividends, in percent.
+     *
+     * <p>Scraped and parsed since the beginning but never stored, because no
+     * column existed to store it in - the value reached the DTO and was
+     * dropped at the entity boundary.
+     */
+    private BigDecimal payoutRatio;
+
     private BigDecimal revenue;
     private BigDecimal oneYearReturn;
 

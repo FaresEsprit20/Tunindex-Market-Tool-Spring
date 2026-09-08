@@ -117,6 +117,7 @@ public class StockDto {
                     .eps(stock.getFundamentalData().getEps())
                     .peRatio(stock.getFundamentalData().getPeRatio())
                     .dividendYield(stock.getFundamentalData().getDividendYield())
+                    .payoutRatio(stock.getFundamentalData().getPayoutRatio())
                     .revenue(stock.getFundamentalData().getRevenue())
                     .oneYearReturn(stock.getFundamentalData().getOneYearReturn());
         }

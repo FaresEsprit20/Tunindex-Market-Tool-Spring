@@ -5,6 +5,7 @@ import com.tunindex.market_tool.collector.entities.Stock;
 import com.tunindex.market_tool.collector.repository.jpa.PriceHistoryRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
 import com.tunindex.market_tool.common.entities.embedded.FundamentalData;
+import com.tunindex.market_tool.common.entities.embedded.TechnicalData;
 import com.tunindex.market_tool.common.entities.embedded.VolumeData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Computes the two metrics no provider publishes for this market, from the
@@ -66,8 +68,19 @@ public class PriceDerivedMetricsService {
      */
     private static final int LOOKBACK_DAYS = 400;
 
+    /** The market every Tunisian listing is measured against. */
+    private static final String INDEX_SYMBOL = "PX1";
+
+    /**
+     * How far our computed beta may sit from a scraped one before it is worth
+     * reporting. Betas from different windows and benchmarks differ routinely;
+     * a gap this wide means the two are not measuring the same thing.
+     */
+    private static final BigDecimal BETA_DISAGREEMENT = new BigDecimal("0.75");
+
     private final StockRepository stockRepository;
     private final PriceHistoryRepository priceHistoryRepository;
+    private final BetaCalculatorService betaCalculator;
 
     /**
      * Recomputes both metrics for every stock and persists the changes.
@@ -82,6 +95,17 @@ public class PriceDerivedMetricsService {
         int updated = 0;
         int volumeFilled = 0;
         int returnFilled = 0;
+        int betaFilled = 0;
+        int betaDisagreements = 0;
+
+        // Loaded once: every stock's beta is measured against the same index
+        // series over the same window.
+        Map<LocalDate, BigDecimal> indexCloses = BetaCalculatorService.closesByDate(
+                priceHistoryRepository.findBySymbolAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
+                        INDEX_SYMBOL, from));
+        if (indexCloses.isEmpty()) {
+            log.warn("No {} history stored - beta cannot be computed this run", INDEX_SYMBOL);
+        }
 
         for (Stock stock : stocks) {
             List<PriceHistory> history =
@@ -113,14 +137,36 @@ public class PriceDerivedMetricsService {
                 changed = true;
             }
 
+            BigDecimal beta = betaCalculator.beta(history, indexCloses);
+            if (beta != null) {
+                if (stock.getTechnicalData() == null) {
+                    stock.setTechnicalData(new TechnicalData());
+                }
+                BigDecimal scraped = stock.getTechnicalData().getBeta();
+                if (scraped == null) {
+                    stock.getTechnicalData().setBeta(beta);
+                    betaFilled++;
+                    changed = true;
+                } else if (scraped.subtract(beta).abs().compareTo(BETA_DISAGREEMENT) > 0) {
+                    // Not overwritten: the stored value is what the rest of the
+                    // app has been scoring on. Reported instead, because a gap
+                    // this size means one of the two is measuring against a
+                    // different market.
+                    betaDisagreements++;
+                    log.info("Beta disagreement for {}: stored {} vs TUNINDEX-computed {}",
+                            stock.getSymbol(), scraped, beta);
+                }
+            }
+
             if (changed) {
                 stockRepository.save(stock);
                 updated++;
             }
         }
 
-        log.info("Price-derived metrics: {} stocks updated ({} average volume, {} one-year return)",
-                updated, volumeFilled, returnFilled);
+        log.info("Price-derived metrics: {} stocks updated ({} average volume, {} one-year return, "
+                        + "{} beta computed, {} beta disagreements)",
+                updated, volumeFilled, returnFilled, betaFilled, betaDisagreements);
         return updated;
     }
 

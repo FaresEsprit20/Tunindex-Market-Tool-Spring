@@ -43,6 +43,9 @@ public class BackfillServiceImpl implements BackfillService {
     private static final long DELAY_BETWEEN_SYMBOLS_MS = 1500;
     private static final int NEWS_LIMIT = 20;
 
+    /** The TUNINDEX, the benchmark beta is measured against. */
+    private static final String INDEX_SYMBOL = "PX1";
+
     private final StockRepository stockRepository;
     private final PriceHistoryService priceHistoryService;
     private final StockNewsService stockNewsService;
@@ -125,6 +128,17 @@ public class BackfillServiceImpl implements BackfillService {
                     log.warn("Backfill interrupted after {} symbols", done);
                     break;
                 }
+            }
+
+            // The index is not a stock, so it is not in the loop above - but
+            // beta is measured against it, so its history has to be present
+            // before the metrics pass runs.
+            try {
+                var indexPoints = priceHistoryService.refreshAndGet(INDEX_SYMBOL, from, to).block();
+                log.info("📈 Index {} history: {} points",
+                        INDEX_SYMBOL, indexPoints == null ? 0 : indexPoints.size());
+            } catch (Exception e) {
+                log.warn("Backfill: index history failed for {}: {}", INDEX_SYMBOL, e.getMessage());
             }
 
             log.info("✅ Backfill complete: {}/{} symbols — history for {}, news for {}, {} failures",

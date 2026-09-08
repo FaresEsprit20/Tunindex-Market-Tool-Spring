@@ -4,12 +4,14 @@ import com.tunindex.market_tool.collector.entities.PriceHistory;
 import com.tunindex.market_tool.collector.entities.Stock;
 import com.tunindex.market_tool.collector.repository.jpa.PriceHistoryRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
+import com.tunindex.market_tool.collector.services.fundamentals.BetaCalculatorService;
 import com.tunindex.market_tool.collector.services.fundamentals.PriceDerivedMetricsService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -43,6 +45,11 @@ class PriceDerivedMetricsServiceTest {
 
     @Mock
     private PriceHistoryRepository priceHistoryRepository;
+
+    // Real, not mocked: beta is arithmetic over the same history these tests
+    // build, so a stub would hide whether the two agree on what a bar is.
+    @Spy
+    private BetaCalculatorService betaCalculator = new BetaCalculatorService();
 
     @InjectMocks
     private PriceDerivedMetricsService service;

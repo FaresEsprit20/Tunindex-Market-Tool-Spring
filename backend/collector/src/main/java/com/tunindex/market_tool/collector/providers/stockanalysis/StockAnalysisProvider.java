@@ -25,7 +25,7 @@ import com.tunindex.market_tool.collector.services.normalizer.DataNormalizerServ
 import com.tunindex.market_tool.collector.services.parser.DataParserService;
 
 import reactor.core.scheduler.Schedulers;
-import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
+import com.tunindex.market_tool.collector.services.scraping.PageFetcher;
 
 import java.time.Duration;
 import java.util.*;
@@ -41,7 +41,7 @@ public class StockAnalysisProvider implements MarketDataProvider {
     private final DataEnricherService enricher;
     private final WebClient webClient;
     private final PipelineStatusService pipelineStatus;
-    private final SeleniumService seleniumService;
+    private final PageFetcher pageFetcher;
 
     @Value("${market-tool.scraping.request-timeout:60}")
     private long requestTimeout;
@@ -51,13 +51,13 @@ public class StockAnalysisProvider implements MarketDataProvider {
                                 DataEnricherService enricher,
                                 WebClient webClient,
                                 PipelineStatusService pipelineStatus,
-                                SeleniumService seleniumService) {
+                                PageFetcher pageFetcher) {
         this.dataParserService = dataParserService;
         this.normalizer = normalizer;
         this.enricher = enricher;
         this.webClient = webClient;
         this.pipelineStatus = pipelineStatus;
-        this.seleniumService = seleniumService;
+        this.pageFetcher = pageFetcher;
     }
 
 
@@ -130,12 +130,18 @@ public class StockAnalysisProvider implements MarketDataProvider {
         return Constants.TUNISIAN_STOCKS_STOCK_ANALYSIS.containsKey(symbol);
     }
 
+    /**
+     * Fetches one page through {@link PageFetcher}, which tries a plain HTTP
+     * request first and only launches a browser if this host is actually
+     * refusing us. Three pages are read per symbol, so paying a Chrome launch
+     * for each was roughly 200 browser starts per full pipeline run.
+     */
     private Mono<String> fetchPage(String url) {
-        return Mono.fromCallable(() -> seleniumService.getPageSource(url))
+        return Mono.fromCallable(() -> pageFetcher.fetch(url))
                 .subscribeOn(Schedulers.boundedElastic())
                 .timeout(Duration.ofSeconds(requestTimeout))
                 .onErrorResume(e -> {
-                    log.error("❌ Failed to fetch page via Selenium: {} - {}", url, e.getMessage());
+                    log.error("❌ Failed to fetch page: {} - {}", url, e.getMessage());
                     return Mono.empty();
                 });
     }

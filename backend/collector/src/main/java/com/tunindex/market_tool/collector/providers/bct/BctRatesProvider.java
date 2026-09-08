@@ -1,14 +1,13 @@
 package com.tunindex.market_tool.collector.providers.bct;
 
 import com.tunindex.market_tool.collector.dto.macro.MacroIndicatorDto;
-import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
+import com.tunindex.market_tool.collector.services.scraping.PageFetcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
@@ -38,7 +37,7 @@ public class BctRatesProvider {
 
     private static final String URL = "https://www.bct.gov.tn/bct/siteprod/index.jsp";
     private static final String SOURCE = "Banque Centrale de Tunisie";
-    private final SeleniumService seleniumService;
+    private final PageFetcher pageFetcher;
 
     /**
      * Label fragment -> what we call it. Matched case-insensitively against
@@ -61,10 +60,8 @@ public class BctRatesProvider {
     /** "…: <b>7,00000</b> %" — the number sits in its own bold element. */
     private static final Pattern PERIOD = Pattern.compile("(au\\s+[0-9/]+|du mois de\\s+[^:]+?)\\s*:");
 
-    private final WebClient webClient;
-
     public Mono<List<MacroIndicatorDto>> fetchRates() {
-        return Mono.fromCallable(() -> seleniumService.getPageSource(URL))
+        return Mono.fromCallable(() -> pageFetcher.fetch(URL))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(this::parse)
                 .timeout(Duration.ofSeconds(60))

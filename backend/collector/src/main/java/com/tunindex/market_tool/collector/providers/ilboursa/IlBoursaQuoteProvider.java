@@ -1,7 +1,7 @@
 package com.tunindex.market_tool.collector.providers.ilboursa;
 
 import com.google.common.net.HttpHeaders;
-import com.tunindex.market_tool.collector.services.scraping.SeleniumService;
+import com.tunindex.market_tool.collector.services.scraping.PageFetcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -37,7 +37,7 @@ public class IlBoursaQuoteProvider {
     // plain ASCII-space replace silently fails to remove.
     private static final Pattern ANY_WHITESPACE = Pattern.compile("[\\s\\u00A0]+");
 
-    private final SeleniumService seleniumService;
+    private final PageFetcher pageFetcher;
 
 
     public record LiveQuote(BigDecimal lastPrice, BigDecimal open, BigDecimal prevClose,
@@ -45,7 +45,10 @@ public class IlBoursaQuoteProvider {
     }
 
     public Mono<LiveQuote> fetchQuote(String symbol) {
-        return Mono.fromCallable(() -> seleniumService.getPageSource(BASE_URL + symbol))
+        // PageFetcher, not Selenium directly: this page answers a plain HTTP
+        // GET in about 0.4s with the markup we parse, and only escalates to a
+        // browser if the site actually starts refusing us.
+        return Mono.fromCallable(() -> pageFetcher.fetch(BASE_URL + symbol))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(html -> parse(symbol, html))
                 .timeout(Duration.ofSeconds(60))

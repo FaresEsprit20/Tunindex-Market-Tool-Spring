@@ -1,6 +1,8 @@
 package com.tunindex.market_tool.collector.services.status;
 
 import com.tunindex.market_tool.collector.services.orchestrator.DataOrchestrator;
+import com.tunindex.market_tool.collector.services.fundamentals.FundamentalsFallbackService;
+import com.tunindex.market_tool.collector.services.fundamentals.PriceDerivedMetricsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +27,8 @@ public class PipelineRunnerService {
 
     private final DataOrchestrator dataOrchestrator;
     private final PipelineStatusService statusService;
+    private final PriceDerivedMetricsService priceDerivedMetricsService;
+    private final FundamentalsFallbackService fundamentalsFallbackService;
 
     @Value("${market-tool.scheduler.interval-minutes:30}")
     private int schedulerIntervalMinutes;
@@ -58,9 +62,40 @@ public class PipelineRunnerService {
             log.info("🔄 Running pipeline...");
             dataOrchestrator.runPipeline().block();
             log.info("✅ Pipeline run completed");
+            enrich();
             ensureSchedulerStarted();
         } catch (Exception e) {
             log.error("❌ Pipeline run failed: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recomputes and re-fills everything the scrape does not itself supply.
+     *
+     * <p>This has to run on every pipeline run, not only after a backfill.
+     * Saving a stock replaces its record wholesale - the freshly scraped
+     * entity is given the existing row's id and written over it - so anything
+     * a later pass computed is gone the moment the next scrape lands. With the
+     * scheduler firing every {@code interval-minutes}, enrichment that ran
+     * only after a manual backfill survived less than half an hour: average
+     * volume, one-year return and the TUNINDEX beta were all silently reset to
+     * blank or to the scraped foreign-index value, and the app looked
+     * incomplete again for no visible reason.
+     *
+     * <p>Both passes work off data already stored, so neither adds scraping
+     * load: the metrics pass reads price history, and the fallback only
+     * contacts a second source for stocks that still have a gap.
+     */
+    private void enrich() {
+        try {
+            priceDerivedMetricsService.refreshAll();
+        } catch (Exception e) {
+            log.warn("Price-derived metrics failed after pipeline: {}", e.getMessage());
+        }
+        try {
+            fundamentalsFallbackService.fillGaps();
+        } catch (Exception e) {
+            log.warn("Fundamentals fallback failed after pipeline: {}", e.getMessage());
         }
     }
 

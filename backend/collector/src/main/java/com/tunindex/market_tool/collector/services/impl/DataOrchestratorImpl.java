@@ -17,6 +17,8 @@ import reactor.core.scheduler.Schedulers;
 import com.tunindex.market_tool.collector.services.orchestrator.DataOrchestrator;
 
 import java.time.LocalDateTime;
+import com.tunindex.market_tool.collector.services.fundamentals.StockMerger;
+
 import java.util.List;
 
 @Service
@@ -28,6 +30,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
     private final StockAnalysisProvider stockAnalysisProvider;
     private final IlBoursaQuoteProvider ilBoursaQuoteProvider;
     private final PipelineStatusService pipelineStatus;
+    private final StockMerger stockMerger;
 
     @Override
     public Mono<Void> runPipeline() {
@@ -150,6 +153,17 @@ public class DataOrchestratorImpl implements DataOrchestrator {
                         // Preserve the ID and creation date
                         newStock.setId(existingStock.getId());
                         newStock.setCreatedAt(existingStock.getCreatedAt());
+
+                        // Saving replaces the row, so anything this scrape
+                        // failed to collect would be erased. A null here means
+                        // "not observed this time", not "no longer true" - the
+                        // supplementary pages are allowed to fail, and a page
+                        // timing out must not blank a figure we already hold.
+                        List<String> carried = stockMerger.carryForward(newStock, existingStock);
+                        if (!carried.isEmpty()) {
+                            log.info("↩️ {}: carried forward {} field(s) the scrape missed: {}",
+                                    symbol, carried.size(), carried);
+                        }
 
                         // Log calculated values for debugging
                         if (newStock.getCalculatedValues() != null) {

@@ -96,14 +96,26 @@ class FundamentalsDeriverTest {
     }
 
     @Test
-    @DisplayName("declines to derive a P/E for a loss-making company")
-    void refusesNegativeEarnings() {
+    @DisplayName("derives the true negative P/E for a loss-making company")
+    void derivesNegativeEarnings() {
         Stock stock = stock("10.00");
         stock.getFundamentalData().setEps(new BigDecimal("-2.00"));
 
-        assertThat(deriver.derive(stock)).isEmpty();
-        // A negative P/E would sort as "cheap" in a value screen; unknown is
-        // the honest answer.
+        assertThat(deriver.derive(stock)).contains("peRatio");
+        // -5 is the real ratio, and the scorer already treats any P/E at or
+        // below zero as the worst case - so this cannot read as cheapness,
+        // and it beats a blank cell that explains nothing.
+        assertThat(stock.getFundamentalData().getPeRatio()).isEqualByComparingTo("-5.0000");
+    }
+
+    @Test
+    @DisplayName("declines a P/E only when earnings are exactly zero")
+    void refusesZeroEarnings() {
+        Stock stock = stock("10.00");
+        stock.getFundamentalData().setEps(BigDecimal.ZERO);
+
+        // Division by zero: undefined, not merely negative.
+        assertThat(deriver.derive(stock)).doesNotContain("peRatio");
         assertThat(stock.getFundamentalData().getPeRatio()).isNull();
     }
 

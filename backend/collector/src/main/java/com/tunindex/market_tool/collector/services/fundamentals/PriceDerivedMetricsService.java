@@ -143,18 +143,30 @@ public class PriceDerivedMetricsService {
                     stock.setTechnicalData(new TechnicalData());
                 }
                 BigDecimal scraped = stock.getTechnicalData().getBeta();
-                if (scraped == null) {
+
+                // The computed value wins here, unlike everywhere else in this
+                // codebase where a scraped figure is left alone.
+                //
+                // The scraped betas are not a different estimate of the same
+                // thing - they measure a different thing. Every one of them
+                // sits near zero (Amen Bank 0.08, BIAT 0.18, BT 0.09) while
+                // the same stocks compute to 1.1-1.7 against the TUNINDEX.
+                // Banks dominate that index, so a beta near 1 is what their
+                // co-movement with this market actually looks like; a beta
+                // near 0 is what you get measuring a Tunisian bank against a
+                // foreign index it barely correlates with. For a portfolio
+                // held in Tunis, the foreign figure is not conservative, it
+                // is wrong - it reports these banks as carrying almost no
+                // market risk.
+                if (scraped != null && scraped.subtract(beta).abs().compareTo(BETA_DISAGREEMENT) > 0) {
+                    betaDisagreements++;
+                    log.info("Beta for {}: replacing {} with TUNINDEX-computed {}",
+                            stock.getSymbol(), scraped, beta);
+                }
+                if (scraped == null || !scraped.equals(beta)) {
                     stock.getTechnicalData().setBeta(beta);
                     betaFilled++;
                     changed = true;
-                } else if (scraped.subtract(beta).abs().compareTo(BETA_DISAGREEMENT) > 0) {
-                    // Not overwritten: the stored value is what the rest of the
-                    // app has been scoring on. Reported instead, because a gap
-                    // this size means one of the two is measuring against a
-                    // different market.
-                    betaDisagreements++;
-                    log.info("Beta disagreement for {}: stored {} vs TUNINDEX-computed {}",
-                            stock.getSymbol(), scraped, beta);
                 }
             }
 

@@ -291,16 +291,17 @@ public class StockAnalysisParserImpl implements DataParserService {
         if (sharesOutElem != null) {
             String value = cleanLabel(sharesOutElem.text(), "Shares Outstanding");
             if (value != null && !value.isEmpty()) {
-                try {
-                    if (value.endsWith("M")) {
-                        value = value.substring(0, value.length() - 1);
-                        BigDecimal shares = new BigDecimal(value);
-                        normalizedData.setSharesOutstanding(shares.multiply(new BigDecimal("1000000")).longValue());
-                    } else {
-                        normalizedData.setSharesOutstanding(Long.parseLong(value.replace(",", "")));
-                    }
+                // Reuses the shared suffix parser rather than handling "M"
+                // alone. A small-cap's share count is printed as "680.00K",
+                // which the old branch sent to Long.parseLong and lost - and
+                // losing the share count also loses every figure derived from
+                // it. Société Tunisienne du Sucre was blank for exactly this
+                // reason while the number sat on the page.
+                BigDecimal shares = parseNumberWithSuffix(value);
+                if (shares != null) {
+                    normalizedData.setSharesOutstanding(shares.longValue());
                     log.info("📋 Extracted shares outstanding: {}", normalizedData.getSharesOutstanding());
-                } catch (NumberFormatException e) {
+                } else {
                     log.warn("Failed to parse shares outstanding: {}", value);
                 }
             }
@@ -427,6 +428,29 @@ public class StockAnalysisParserImpl implements DataParserService {
                     .divide(normalizedData.getRevenue(), 4, RoundingMode.HALF_UP)
                     .multiply(new BigDecimal("100"));
             normalizedData.setProfitMargin(profitMargin);
+        }
+
+        // EPS from the income statement, when the source prints "n/a" for it.
+        //
+        // Earnings per share is net income over shares outstanding by
+        // definition, and both are on the same page. The source reports "n/a"
+        // for the ratio on loss-making companies while still publishing the
+        // two figures it is made of, so this is reading what is there rather
+        // than estimating: Société Tunisienne du Sucre shows a net income of
+        // -3.96M against 680K shares, which is -5.82 per share.
+        //
+        // Done here rather than in the deriver because net income is not
+        // carried on the entity - this is the last point at which both
+        // numbers are in hand.
+        if (normalizedData.getEps() == null
+                && normalizedData.getNetIncome() != null
+                && normalizedData.getSharesOutstanding() != null
+                && normalizedData.getSharesOutstanding() > 0) {
+
+            BigDecimal eps = normalizedData.getNetIncome()
+                    .divide(BigDecimal.valueOf(normalizedData.getSharesOutstanding()), 4, RoundingMode.HALF_UP);
+            normalizedData.setEps(eps);
+            log.info("📐 Derived EPS from net income / shares: {}", eps);
         }
     }
 

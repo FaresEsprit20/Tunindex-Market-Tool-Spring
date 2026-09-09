@@ -108,11 +108,15 @@ public class FundamentalsDeriver {
             return;
         }
         BigDecimal eps = fundamentals.getEps();
-        // A loss-making company has no meaningful P/E. Null is the honest
-        // result; a negative one would sort as "cheap" in a value screen.
-        if (eps == null || eps.signum() <= 0) {
+        if (eps == null || eps.signum() == 0) {
+            // Zero earnings make the ratio undefined, not merely negative.
             return;
         }
+        // A loss-making company's P/E is genuinely negative, and storing it is
+        // better than leaving a blank: the scorer already treats any P/E at or
+        // below zero as the worst case, so the number cannot be mistaken for
+        // cheapness, and a reader sees "-1.28" rather than an empty cell that
+        // says nothing about why.
         BigDecimal pe = divide(price, eps);
         if (plausible(pe)) {
             fundamentals.setPeRatio(pe);

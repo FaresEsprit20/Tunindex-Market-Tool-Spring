@@ -151,10 +151,19 @@ public class TunindexScorer {
         if (priceToBook != null) {
             double pb = priceToBook.doubleValue();
             // Below 1x book is the classic value marker; above 4x is rich.
-            int pbScore = pb <= 0 ? 50 : clamp((4 - pb) / 3 * 100);
+            //
+            // A negative P/B means negative shareholders' equity - the company
+            // owes more than it owns. That scores 0, the same as negative
+            // earnings ten lines above, rather than the 50 it used to get:
+            // scoring insolvency as "average" pulled six of the most distressed
+            // companies on the exchange towards a neutral valuation mark, and
+            // it contradicted this method's own treatment of a negative P/E.
+            int pbScore = pb <= 0 ? 0 : clamp((4 - pb) / 3 * 100);
             parts.add(pbScore);
             if (pb > 0 && pb < 1) {
                 reasons.add(String.format("Trades at %.2fx book value", pb));
+            } else if (pb <= 0) {
+                warnings.add("Negative book value — liabilities exceed assets");
             }
         }
 

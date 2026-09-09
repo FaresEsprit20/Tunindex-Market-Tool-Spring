@@ -264,6 +264,18 @@ public class FundamentalsFallbackService {
             applied.add("prevClose");
         }
 
+        // Only a dividend the exchange actually records as recent produces a
+        // yield. An old one - ATB's is dated 2019, SIPHAT's 2011 - is left as
+        // a gap.
+        //
+        // Filling those with zero was tried and reverted. The reasoning was
+        // that a lapsed dividend means the company pays nothing, so the yield
+        // "is" zero; the flaw is that a stored zero is indistinguishable from
+        // a measured zero. Nothing downstream can tell an inference from an
+        // observation, and if the exchange is simply late recording a fresh
+        // coupon, the invented zero is silently wrong. Every source here
+        // returns null rather than zero for an unreported figure, and this is
+        // the same rule: a blank the scorer drops beats a number it believes.
         if (fundamentals.getDividendYield() == null
                 && positive(quote.lastDividend())
                 && isRecent(quote.lastDividendDate())

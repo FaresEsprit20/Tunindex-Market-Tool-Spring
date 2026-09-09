@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -68,13 +69,45 @@ public class IlBoursaHistoryProvider {
     // back as real text/csv). 85 days keeps a safe margin under that cap.
     private static final int MAX_WINDOW_DAYS = 85;
 
+    /**
+     * Consecutive empty windows before a symbol is given up on.
+     *
+     * <p>Two, not one: the earliest window of a recently listed company is
+     * legitimately empty while the rest are not. Two in a row means the site
+     * has nothing for this symbol at all.
+     */
+    private static final int MAX_BARREN_WINDOWS = 2;
+
     public Mono<List<PricePoint>> fetchHistory(String symbol, LocalDate from, LocalDate to) {
         List<LocalDate[]> windows = splitIntoWindows(from, to);
 
+        // A symbol the site does not carry fails every window the same way,
+        // and each failure costs a timeout plus its retries. Walking all of
+        // them anyway is how one delisted symbol stalled a whole backfill for
+        // minutes; after two barren windows in a row the symbol is abandoned.
+        AtomicInteger barrenWindows = new AtomicInteger();
+
         return Flux.fromIterable(windows)
-                .concatMap(window -> fetchWindow(symbol, window[0], window[1])
-                        // One failed window shouldn't blank out the others.
-                        .onErrorResume(e -> Mono.just(List.<PricePoint>of())))
+                .concatMap(window -> {
+                    if (barrenWindows.get() >= MAX_BARREN_WINDOWS) {
+                        return Mono.just(List.<PricePoint>of());
+                    }
+                    return fetchWindow(symbol, window[0], window[1])
+                            .doOnNext(points -> {
+                                if (points.isEmpty()) {
+                                    barrenWindows.incrementAndGet();
+                                } else {
+                                    // A genuine gap mid-history (a suspension,
+                                    // say) shouldn't count towards abandonment.
+                                    barrenWindows.set(0);
+                                }
+                            })
+                            // One failed window shouldn't blank out the others.
+                            .onErrorResume(e -> {
+                                barrenWindows.incrementAndGet();
+                                return Mono.just(List.<PricePoint>of());
+                            });
+                })
                 .collectList()
                 .map(lists -> lists.stream()
                         .flatMap(List::stream)

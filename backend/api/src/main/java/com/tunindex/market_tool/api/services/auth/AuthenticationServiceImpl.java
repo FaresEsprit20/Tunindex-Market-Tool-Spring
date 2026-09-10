@@ -19,6 +19,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
+import com.tunindex.market_tool.common.entities.enums.TwoFactorMethod;
+import com.tunindex.market_tool.api.services.two_facor.TwoFactorAuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,6 +57,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final UnifiedTokenRepository unifiedTokenRepository;
     private final OAuth2TokenService oauth2TokenService;
+    private final TwoFactorAuthService twoFactorAuthService;
     private final IpUaExtractor ipUaExtractor;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
@@ -107,10 +110,33 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             String mfaToken = "mfa_" + java.util.UUID.randomUUID().toString().replace("-", "");
             oauth2TokenService.storeToken(mfaToken, TokenType.TOTP_LOGIN_PENDING,
                     user.getId(), user.getEmail(), request, 5);
-            log.info("🔐 Password OK, TOTP code required for user: {}", user.getEmail());
+
+            // Honours the user's chosen delivery method. This branch used to
+            // assume the authenticator app, which is why the email route
+            // existed in the codebase but was unreachable - and why the
+            // account page had nothing to offer but on/off.
+            TwoFactorMethod method = user.resolvedTwoFactorMethod();
+            if (method == TwoFactorMethod.EMAIL) {
+                try {
+                    twoFactorAuthService.generateAndSendOtp(user.getEmail());
+                } catch (Exception e) {
+                    // The password was correct, so the account is not at
+                    // fault; the delivery channel is. Failing the sign-in
+                    // with a clear reason beats returning a challenge for a
+                    // code that was never sent.
+                    log.error("Could not send the 2FA code to {}: {}", user.getEmail(), e.getMessage());
+                    throw new InvalidOperationException(
+                            "Could not send your verification code",
+                            ErrorCodes.TWO_FACTOR_TOKEN_INVALID,
+                            List.of("Email delivery is unavailable right now. Try again shortly."));
+                }
+            }
+
+            log.info("🔐 Password OK, {} code required for user: {}", method, user.getEmail());
             return AuthenticationResponse.builder()
                     .requiresTwoFactor(true)
                     .mfaToken(mfaToken)
+                    .twoFactorMethod(method.name())
                     .build();
         }
 

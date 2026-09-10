@@ -1,6 +1,8 @@
 package com.tunindex.market_tool.api.controllers.twofactor;
 
 import com.tunindex.market_tool.api.dto.two_factor.TotpCodeRequestDto;
+import com.tunindex.market_tool.api.dto.two_factor.TwoFactorMethodChangeResponseDto;
+import com.tunindex.market_tool.api.dto.two_factor.TwoFactorMethodRequestDto;
 import com.tunindex.market_tool.api.dto.two_factor.TotpSetupResponseDto;
 import com.tunindex.market_tool.api.dto.two_factor.TotpStatusResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,4 +34,19 @@ public interface TwoFactorSetupApi {
     @PostMapping(value = TWO_FACTOR_ENDPOINT + "/disable", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Disable two-factor auth, given a valid current code")
     ResponseEntity<Void> disable(@RequestBody TotpCodeRequestDto request, Authentication authentication);
+
+    @PostMapping(value = TWO_FACTOR_ENDPOINT + "/method/start", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Begin switching the second factor to another method",
+            description = "Does not change anything yet. For email it sends a test code; for the "
+                    + "authenticator app it returns a fresh secret and QR URI. The switch only takes "
+                    + "effect once a code from the new channel is confirmed, so a channel that cannot "
+                    + "deliver leaves the account on its current method rather than locking it out.")
+    TwoFactorMethodChangeResponseDto startMethodChange(@RequestBody TwoFactorMethodRequestDto request,
+                                                       Authentication authentication);
+
+    @PostMapping(value = TWO_FACTOR_ENDPOINT + "/method/confirm", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Confirm the pending method with a code delivered through it")
+    ResponseEntity<Void> confirmMethodChange(@RequestBody TotpCodeRequestDto request,
+                                             Authentication authentication);
 }

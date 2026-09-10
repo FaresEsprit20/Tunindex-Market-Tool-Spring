@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.common.entities;
 
 import com.tunindex.market_tool.common.entities.embedded.Address;
+import com.tunindex.market_tool.common.entities.enums.TwoFactorMethod;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -73,5 +74,38 @@ public abstract class BaseUser extends AbstractEntity {
 
     @Column(name = "totp_secret")
     private String totpSecret;
+
+    /**
+     * How the second factor reaches the user.
+     *
+     * <p>Stored as a string and left nullable for the same reason as the
+     * columns above: ddl-auto=update cannot add a NOT NULL column to a table
+     * that already has rows, and Hibernate only warns when it fails - leaving
+     * the column absent while the application believes it exists. Existing
+     * users therefore read as null, which the read sites treat as TOTP: that
+     * is what every account enrolled before this field was added is actually
+     * using.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "two_factor_method")
+    private TwoFactorMethod twoFactorMethod;
+
+    /**
+     * The method a pending switch is moving to, held until a code from that
+     * channel is confirmed.
+     *
+     * <p>Kept separate from the live method on purpose. Writing the new
+     * method immediately and verifying afterwards would lock the account out
+     * whenever the new channel does not work - which, for email, means
+     * whenever the mailing service is down.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pending_two_factor_method")
+    private TwoFactorMethod pendingTwoFactorMethod;
+
+    /** The method actually in force, defaulting to what existing users have. */
+    public TwoFactorMethod resolvedTwoFactorMethod() {
+        return twoFactorMethod == null ? TwoFactorMethod.TOTP : twoFactorMethod;
+    }
 
 }

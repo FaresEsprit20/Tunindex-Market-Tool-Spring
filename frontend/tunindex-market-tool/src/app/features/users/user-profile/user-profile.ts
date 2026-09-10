@@ -31,6 +31,8 @@ export class UserProfile {
   protected readonly loading = signal(true);
   protected readonly user = signal<UserExtendedDto | null>(null);
   protected readonly savingProfile = signal(false);
+  /** Why the account could not be loaded, shown instead of a blank page. */
+  protected readonly loadError = signal<string | null>(null);
   protected readonly savingPassword = signal(false);
 
   // Two-factor auth (TOTP) enrollment state.
@@ -64,6 +66,17 @@ export class UserProfile {
   );
 
   constructor() {
+    this.loadUser();
+  }
+
+  /** Re-runs the fetch, so a transient failure does not need a page reload. */
+  protected reload(): void {
+    this.loading.set(true);
+    this.loadError.set(null);
+    this.loadUser();
+  }
+
+  private loadUser(): void {
     this.userService.getAuthUser().subscribe({
       next: (u) => {
         this.user.set(u);
@@ -80,7 +93,18 @@ export class UserProfile {
         });
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: (err: unknown) => {
+        // Previously swallowed, which is what made the page render empty
+        // rather than explain itself. A 401 here usually means the session
+        // outlived its token - the sign-in is stale, not the account.
+        const status = err instanceof HttpErrorResponse ? err.status : 0;
+        this.loadError.set(
+          status === 401 || status === 403
+            ? 'Your session has expired. Please sign out and sign in again.'
+            : 'Your account details could not be loaded. Please try again.',
+        );
+        this.loading.set(false);
+      },
     });
   }
 

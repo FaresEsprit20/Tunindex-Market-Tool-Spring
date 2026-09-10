@@ -4,6 +4,7 @@ import { provideRouter, withViewTransitions } from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth-interceptor';
 import { errorInterceptor } from './core/interceptors/error-interceptor';
+import { tokenRefreshInterceptor } from './core/interceptors/token-refresh-interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -13,6 +14,6 @@ export const appConfig: ApplicationConfig = {
     // quick cross-fade + rise, not the browser's default plain cross-fade).
     // skipInitialTransition avoids animating the very first paint on load.
     provideRouter(routes, withViewTransitions({ skipInitialTransition: true })),
-    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, tokenRefreshInterceptor, errorInterceptor])),
   ],
 };

@@ -10,6 +10,21 @@
     <app-skeleton-block height="180px" radius="12px" />
     <app-skeleton-block height="180px" radius="12px" />
   </div>
+} @else if (!user()) {
+  <!-- Without this branch the page rendered completely empty when the account
+       could not be loaded: the skeleton stopped, nothing replaced it, and the
+       profile form, password card and two-factor setup all simply never
+       appeared. It read as an unimplemented screen rather than a failed
+       request. -->
+  <div class="panel-card">
+    <div class="panel-head"><p class="panel-title">Account unavailable</p></div>
+    <div class="panel-body">
+      <p class="totp-help">{{ loadError() ?? 'Your account details could not be loaded.' }}</p>
+      <div class="totp-actions">
+        <button type="button" class="btn btn-primary" (click)="reload()">Try again</button>
+      </div>
+    </div>
+  </div>
 } @else if (user(); as u) {
   <div class="two-col-grid">
     <div class="panel-card">

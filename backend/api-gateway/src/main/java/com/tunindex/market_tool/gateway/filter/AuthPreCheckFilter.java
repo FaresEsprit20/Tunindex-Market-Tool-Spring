@@ -111,6 +111,6 @@ public class AuthPreCheckFilter implements GlobalFilter, Ordered {
     public int getOrder() {
         // After the correlation id, so a rejection is still traceable, and
         // after the rate limiter, so a flood is capped before it is judged.
-        return Ordered.HIGHEST_PRECEDENCE + 3;
+        return Ordered.HIGHEST_PRECEDENCE + 4;
     }
 }

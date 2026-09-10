@@ -115,6 +115,6 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
         // Before the auth pre-check, so a flood of unauthenticated requests is
         // capped rather than merely rejected one at a time - and after
         // ClientAddressFilter, whose resolved address it counts against.
-        return Ordered.HIGHEST_PRECEDENCE + 2;
+        return Ordered.HIGHEST_PRECEDENCE + 3;
     }
 }

@@ -130,6 +130,15 @@ eureka:
   instance:
     prefer-ip-address: true
 
+# The ad module signs watch-to-unlock grants with this; the gateway verifies
+# them with it. The two MUST match or every grant is refused and every gated
+# feature stays shut. Set AD_GRANT_SECRET in any real environment: a signing
+# key committed to a repository signs nothing, because anyone who can read it
+# can mint their own grants and skip every ad.
+ads:
+  grant:
+    secret: ${AD_GRANT_SECRET:tunindex-dev-ad-grant-secret-change-me}
+
 # ========================
 # GATEWAY POLICY
 # ========================
@@ -142,6 +151,24 @@ gateway:
   # browser reaches us directly, which is the safe assumption: trusting a
   # host that is not actually a proxy lets any caller forge its own address.
   trusted-upstream-proxies:
+
+  # ── WATCH-TO-UNLOCK ──────────────────────────────────────────────────
+  # Paths that cost an ad, and which feature's grant opens them.
+  #
+  # Enforced here rather than in the browser, which is the whole point: a
+  # gate drawn by the frontend is skipped by calling the endpoint directly.
+  # With the rule here there is no request shape that reaches the service
+  # without a valid grant - the app, curl and a script all get 402.
+  #
+  # Only the pipeline is gated to begin with. Every entry added takes a
+  # working screen away from anyone who has not watched an ad, so each one
+  # wants deciding on purpose; the frontend must handle 402 for that path
+  # before it is listed here.
+  ad-gate:
+    enabled: true
+    rules:
+      /tunindex/market/tool/v1/stocks/pipeline/start: PIPELINE_RUN
+
   rate-limit:
     enabled: true
     # Generous by design. The dashboard opens several panels at once, and a

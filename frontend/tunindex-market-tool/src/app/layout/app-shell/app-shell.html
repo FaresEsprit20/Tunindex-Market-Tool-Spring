@@ -17,4 +17,13 @@
   <router-outlet />
 </main>
 
+<!-- The one ad every authenticated page carries. Below the content, so it
+     is the last thing on the page rather than something to scroll past. -->
+<app-ad-slot placement="GLOBAL_FOOTER" />
+
 <app-command-palette />
+
+<!-- Triggered by navigation, not by a page. Rate-limited inside the
+     component: without that cap this would raise a full-screen ad on every
+     click in the app. -->
+<app-ad-navigation-interstitial />

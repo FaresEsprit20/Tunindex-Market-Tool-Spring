@@ -15,6 +15,7 @@ import { NewsList } from '../../../shared/components/news-list/news-list';
 import { ScorePanel } from '../../../shared/components/score-panel/score-panel';
 import { exchangeCountry } from '../../../core/constants/exchange-flags';
 import { CountryFlag } from '../../../shared/components/country-flag/country-flag';
+import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
 import { Explain } from '../../../shared/directives/explain';
 import {
   EXPLAIN_NOTES,
@@ -27,7 +28,7 @@ import {
 
 @Component({
   selector: 'app-stock-detail',
-  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, CandlestickChart, NewsList, ScorePanel, Explain, CountryFlag],
+  imports: [RouterLink, DecimalPipe, SkeletonBlock, StatTile, RangeBar, WatchlistStar, CandlestickChart, NewsList, ScorePanel, Explain, CountryFlag, AdSlot],
   templateUrl: './stock-detail.html',
   styleUrl: './stock-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MarketNewsItem } from '../../../core/models/market.model';
 import { Market } from '../../../core/services/market';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
+import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
 
 /**
  * Market-wide headlines from the exchange feed — the whole BVMT rather
@@ -11,7 +12,7 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
  */
 @Component({
   selector: 'app-market-news',
-  imports: [DatePipe, DecimalPipe, SkeletonBlock],
+  imports: [DatePipe, DecimalPipe, SkeletonBlock, AdSlot],
   templateUrl: './market-news.html',
   styleUrl: './market-news.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

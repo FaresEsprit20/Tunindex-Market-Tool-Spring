@@ -38,6 +38,13 @@
             }
             <span class="news-date">{{ item.publishedAt | date: 'MMM d, HH:mm' }}</span>
           </li>
+          <!-- One unit, part-way down, never at the top of the feed. The
+               list item wrapper keeps it inside the list's own rhythm; the
+               slot renders nothing at all when there is no ad to show, so
+               no empty row is left behind. -->
+          @if ($index === 3) {
+            <li class="news-ad-row"><app-ad-slot placement="NEWS_FEED_INLINE" /></li>
+          }
         }
       </ul>
       <p class="footnote">

@@ -11,10 +11,11 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { NewsList } from '../../../shared/components/news-list/news-list';
 import { CandlestickChart } from '../../../shared/components/candlestick-chart/candlestick-chart';
+import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
 
 @Component({
   selector: 'app-analysis',
-  imports: [DecimalPipe, RangeBar, SkeletonBlock, EmptyState, NewsList, CandlestickChart],
+  imports: [DecimalPipe, RangeBar, SkeletonBlock, EmptyState, NewsList, CandlestickChart, AdSlot],
   templateUrl: './analysis.html',
   styleUrl: './analysis.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

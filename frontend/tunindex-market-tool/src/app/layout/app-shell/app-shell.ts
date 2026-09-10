@@ -5,6 +5,8 @@ import { PrimaryNav } from '../../shared/components/primary-nav/primary-nav';
 import { Navbar } from '../../shared/components/navbar/navbar';
 import { MarketTicker } from '../../shared/components/market-ticker/market-ticker';
 import { CommandPalette } from '../../shared/components/command-palette/command-palette';
+import { AdSlot } from '../../shared/components/ad-slot/ad-slot';
+import { AdNavigationInterstitial } from '../../shared/components/ad-navigation-interstitial/ad-navigation-interstitial';
 
 /**
  * Route-level shell for every authenticated page: a brand masthead, a
@@ -16,7 +18,7 @@ import { CommandPalette } from '../../shared/components/command-palette/command-
  */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, Navbar, MarketTicker, CommandPalette, PrimaryNav],
+  imports: [RouterOutlet, RouterLink, Navbar, MarketTicker, CommandPalette, PrimaryNav, AdSlot, AdNavigationInterstitial],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -120,3 +120,10 @@
     display: none;
   }
 }
+
+/* The in-feed ad sits in the list, so it takes the list's own spacing
+   rather than a card's. No bullet, no dot column: it is not a headline. */
+.news-ad-row {
+  list-style: none;
+  padding: 4px 0;
+}

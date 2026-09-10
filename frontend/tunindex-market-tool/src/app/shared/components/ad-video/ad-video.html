@@ -1,0 +1,49 @@
+@if (ad(); as advert) {
+  <div class="ad-unit ad-video" [class.finished]="finished()">
+    <span class="ad-label">Sponsored</span>
+
+    @if (!finished()) {
+      <video
+        class="ad-creative"
+        [src]="advert.creativeUrl"
+        autoplay
+        muted
+        playsinline
+        [attr.aria-label]="advert.altText || advert.name"
+        (playing)="onPlaying()"
+        (pause)="onPaused()"
+        (ended)="onEnded()"
+        (click)="onClick()"
+      ></video>
+
+      <div class="ad-video-bar">
+        @if (remaining() !== null) {
+          <span class="ad-countdown mono">{{ remaining() }}s</span>
+        }
+
+        @if (advert.skippable) {
+          @if (canSkip()) {
+            <button type="button" class="ad-skip" (click)="onSkip()">Skip ad ›</button>
+          } @else {
+            <span class="ad-skip-wait">Skip in {{ secondsUntilSkip() }}s</span>
+          }
+        } @else {
+          <!-- No skip control at all, rather than a disabled one. A greyed
+               button invites clicking and reads as broken; saying plainly that
+               the ad runs to the end sets the expectation once. -->
+          <span class="ad-skip-wait">Ad — plays in full</span>
+        }
+      </div>
+
+      @if (advert.targetUrl) {
+        <a
+          class="ad-cta"
+          [href]="advert.targetUrl"
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          (click)="onClick()"
+        >Learn more ›</a>
+      }
+    }
+  </div>
+}

@@ -14,6 +14,7 @@ import { PriceStream } from '../../../core/services/price-stream';
 import { SplitPane } from '../../../shared/components/split-pane/split-pane';
 import { StockPreview } from '../stock-preview/stock-preview';
 import { CountryFlag } from '../../../shared/components/country-flag/country-flag';
+import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
 
 // Rows are now ~24px, so a page shows a useful slice of the exchange
 // instead of a fifth of it.
@@ -172,7 +173,7 @@ const TABLE_COLUMNS: TableColumn[] = [
 
 @Component({
   selector: 'app-stock-list',
-  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, Sparkline, CountryFlag, SplitPane, StockPreview],
+  imports: [Pagination, SkeletonBlock, DecimalPipe, RangeBar, WatchlistStar, Sparkline, CountryFlag, SplitPane, StockPreview, AdSlot],
   templateUrl: './stock-list.html',
   styleUrl: './stock-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

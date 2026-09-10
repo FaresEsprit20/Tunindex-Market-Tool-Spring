@@ -1,0 +1,33 @@
+@if (ad(); as advert) {
+  <div class="ad-overlay" role="dialog" aria-label="Advertisement">
+    <div class="ad-interstitial">
+      <div class="ad-interstitial-head">
+        <span class="ad-label">Sponsored{{ advert.advertiser ? ' · ' + advert.advertiser : '' }}</span>
+        @if (canClose()) {
+          <button type="button" class="ad-close" (click)="onClose()" aria-label="Close advertisement">✕</button>
+        } @else {
+          <!-- A countdown rather than nothing: a reader who can see the wait
+               ending waits, where one facing a blank corner assumes the page
+               has hung. -->
+          <span class="ad-close-wait mono">{{ secondsLeft() }}s</span>
+        }
+      </div>
+
+      <a
+        [href]="advert.targetUrl || '#'"
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        (click)="onClick()"
+      >
+        @if (advert.creativeUrl) {
+          <img class="ad-creative" [src]="advert.creativeUrl" [alt]="advert.altText || advert.name" />
+        } @else {
+          <div class="ad-fallback">
+            <p class="ad-fallback-title">{{ advert.name }}</p>
+            @if (advert.altText) { <p class="ad-fallback-text">{{ advert.altText }}</p> }
+          </div>
+        }
+      </a>
+    </div>
+  </div>
+}

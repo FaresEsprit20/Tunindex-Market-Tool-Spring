@@ -1,0 +1,18 @@
+@if (ad(); as advert) {
+  @switch (format()) {
+    @case ('video') { <app-ad-video [ad]="advert" /> }
+    @case ('native') { <app-ad-native [ad]="advert" /> }
+    @case ('interstitial') { <app-ad-interstitial [ad]="advert" (closed)="onDismissed()" /> }
+    @case ('banner') { <app-ad-banner [ad]="advert" /> }
+    @case ('embed') {
+      <!-- A network unit renders itself through the provider's script. The
+           container carries the slot id the provider looks for; we do not
+           draw the creative, count the impression, or decide whether it can
+           be skipped - the network does all three, and its reported revenue
+           is the figure that gets paid. -->
+      <div class="ad-embed" [attr.data-ad-unit]="advert.externalUnitId">
+        <span class="ad-label">Sponsored</span>
+      </div>
+    }
+  }
+}

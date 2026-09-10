@@ -20,6 +20,10 @@
   <button type="button" class="btn btn-primary" (click)="onSearchSubmit()">Analyze</button>
 </div>
 
+<!-- Before the analysis itself, and above the empty state too: the slot
+     collapses to nothing when unfilled, so it costs an empty page nothing. -->
+<app-ad-slot placement="ANALYSIS_PRE_CONTENT" />
+
 @if (!symbol()) {
   <app-empty-state title="Pick a stock to analyze" message="Enter a symbol above to see its full technical and fundamental breakdown." />
 } @else if (loading()) {

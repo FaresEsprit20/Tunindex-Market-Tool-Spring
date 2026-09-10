@@ -5,6 +5,10 @@
   </div>
 </div>
 
+<!-- Above the fold but below the page title, so the first thing on screen
+     is still what the reader came for. -->
+<app-ad-slot placement="DASHBOARD_TOP" />
+
 <app-market-status />
 
 <div class="section">
@@ -41,6 +45,9 @@
   <app-top-opportunities />
   <app-market-news />
 </div>
+
+<!-- Between two content blocks rather than interrupting one. -->
+<app-ad-slot placement="DASHBOARD_INLINE" />
 
 <div class="section">
   <p class="section-label">Movers</p>

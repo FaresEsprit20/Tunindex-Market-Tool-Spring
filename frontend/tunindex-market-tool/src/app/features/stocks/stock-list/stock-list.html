@@ -305,6 +305,10 @@
           <app-pagination [page]="page()" [totalPages]="totalPages()" [totalElements]="totalElements()" (pageChange)="onPageChange($event)" />
         </div>
       }
+
+      <!-- After the pagination control, so it never sits between a table
+           and the control that pages it. -->
+      <app-ad-slot placement="STOCK_LIST_INLINE" />
     </div>
 
     <div paneB class="panel-card fill preview-panel">

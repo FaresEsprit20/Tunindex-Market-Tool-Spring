@@ -118,7 +118,15 @@ public class PageFetcher {
 
     private final Map<String, Long> hostDelays = new ConcurrentHashMap<>();
 
-    private final Map<String, Instant> lastRequestByHost = new ConcurrentHashMap<>();
+    /**
+     * The earliest instant each host may next be contacted. Replaces a
+     * "last request" timestamp, which could not express a slot already
+     * claimed by a thread that has not sent its request yet.
+     */
+    private final Map<String, Instant> nextAllowedByHost = new ConcurrentHashMap<>();
+
+    /** Per-host locks guarding slot reservation in {@link #pace}. */
+    private final Map<String, Object> hostLocks = new ConcurrentHashMap<>();
     private final Map<String, Instant> browserRequiredUntil = new ConcurrentHashMap<>();
 
     /** Rolling hour for the browser launch budget; guarded by {@code this}. */
@@ -220,7 +228,13 @@ public class PageFetcher {
      * repeating it wastes a request the host would rather not serve.
      */
     private String viaHttp(String url) {
+        String host = hostOf(url);
         for (int attempt = 1; attempt <= dataRetryAttempts; attempt++) {
+            if (attempt > 1) {
+                // Claims a fresh slot, so a retry queues with everyone else
+                // rather than jumping the gap another thread reserved.
+                pace(host);
+            }
             Result result = request(url);
             if (result.body() != null) {
                 return result.body();
@@ -231,7 +245,7 @@ public class PageFetcher {
             // Backs off further each time: a host that is throttling wants
             // less traffic, so trying again at the same cadence is the one
             // response guaranteed not to help.
-            long wait = result.status() == 429
+            long wait = (result.status() == 429 || result.status() == 403)
                     ? rateLimitBackoffMs * attempt
                     : 500L * attempt;
             log.debug("Retrying {} in {}ms (attempt {} of {}, last status {})",
@@ -241,9 +255,16 @@ public class PageFetcher {
         return null;
     }
 
-    /** True for refusals that are temporary by definition. */
+    /**
+     * True for refusals worth waiting out.
+     *
+     * <p>403 is included because on this host it is volume-based rather than
+     * permanent: the same URLs that return 403 during a run answer 200 when
+     * requested on their own. A 404 is a real answer and is not retried -
+     * asking again only spends a request the host would rather not serve.
+     */
     private boolean worthRetrying(int status) {
-        return status == 429 || status >= 500;
+        return status == 429 || status == 403 || status >= 500;
     }
 
     private Result request(String url) {
@@ -355,22 +376,47 @@ public class PageFetcher {
      * an unrelated publisher, and one shared clock made every source wait on
      * the slowest.
      */
+    /**
+     * Holds this thread until the host's next free slot, and reserves it.
+     *
+     * <p>The reservation is the point. This previously read the last request
+     * time, slept, and then wrote the new time - three steps with no lock
+     * between them. Run from several workers at once, every thread read the
+     * same timestamp, computed the same wait, slept the same length and woke
+     * together: the effect was not one request every gap but a simultaneous
+     * burst of five, every gap. Widening the gap only spaced the bursts
+     * further apart, which is why a host kept returning 403 to the pipeline
+     * while answering the identical URLs individually with 200 - a burst is
+     * what a WAF reacts to, not a total.
+     *
+     * <p>Now each caller claims the next slot under a per-host lock and then
+     * sleeps outside it, so concurrent workers queue up at one gap apart
+     * instead of stacking on the same instant. The lock is held only for the
+     * arithmetic, never across the sleep.
+     */
     private void pace(String host) {
-        Instant last = lastRequestByHost.get(host);
-        long wait = delayFor(host) + ThreadLocalRandom.current().nextLong(jitterMs + 1);
+        long wait;
+        long gap = delayFor(host) + ThreadLocalRandom.current().nextLong(jitterMs + 1);
 
-        if (last != null) {
-            long elapsed = Duration.between(last, Instant.now()).toMillis();
-            wait = Math.max(0, wait - elapsed);
+        synchronized (lockFor(host)) {
+            Instant now = Instant.now();
+            Instant earliest = nextAllowedByHost.get(host);
+            Instant slot = (earliest == null || earliest.isBefore(now)) ? now : earliest;
+
+            wait = Duration.between(now, slot).toMillis();
+            // Claimed before releasing the lock, so the next caller queues
+            // behind this slot rather than racing for the same one.
+            nextAllowedByHost.put(host, slot.plusMillis(gap));
         }
+
         if (wait > 0) {
-            try {
-                Thread.sleep(wait);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+            sleep(wait);
         }
-        lastRequestByHost.put(host, Instant.now());
+    }
+
+    /** One lock per host, so unrelated hosts never wait on each other. */
+    private Object lockFor(String host) {
+        return hostLocks.computeIfAbsent(host, key -> new Object());
     }
 
     /** This host's configured gap, falling back to the global default. */

@@ -18,6 +18,10 @@ import { CountryFlag } from '../../../shared/components/country-flag/country-fla
 // Rows are now ~24px, so a page shows a useful slice of the exchange
 // instead of a fifth of it.
 const PAGE_SIZE = 50;
+
+/** Pause after the last keystroke before searching. Long enough to skip
+ * intermediate words, short enough to feel immediate. */
+const SEARCH_DEBOUNCE_MS = 300;
 const COLUMNS_STORAGE_KEY = 'tunindex-stock-columns';
 const SECTOR_OPTIONS: SectorType[] = [
   'FINANCIALS',
@@ -223,6 +227,9 @@ export class StockList {
   protected readonly sortDirection = signal<'ASC' | 'DESC'>('ASC');
 
   protected readonly searchInput = signal('');
+
+  /** Pending debounced search, so a new keystroke supersedes it. */
+  private searchDebounce?: ReturnType<typeof setTimeout>;
   protected readonly sector = signal<SectorType | ''>('');
   protected readonly ownershipType = signal('');
   protected readonly preset = signal<PresetKey | null>(null);
@@ -301,7 +308,37 @@ export class StockList {
     });
   }
 
+  /**
+   * Searches as the user types, a short pause after they stop.
+   *
+   * <p>The box previously only searched on Enter, while every other control
+   * here — sector, the preset chips, the ranges — applied immediately. Typing
+   * a name and watching the table sit unchanged reads as a broken search
+   * rather than as one waiting for a keystroke, and nothing on screen says
+   * otherwise.
+   *
+   * <p>Debounced because each call is a round trip: firing per keystroke
+   * would send six requests for "biat" and leave the answer to whichever
+   * happened to return last.
+   */
+  protected onSearchInput(value: string): void {
+    this.searchInput.set(value);
+
+    if (this.searchDebounce !== undefined) {
+      clearTimeout(this.searchDebounce);
+    }
+    this.searchDebounce = setTimeout(() => {
+      this.page.set(1);
+      this.load();
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  /** Enter searches at once rather than waiting out the debounce. */
   protected onSearchSubmit(): void {
+    if (this.searchDebounce !== undefined) {
+      clearTimeout(this.searchDebounce);
+      this.searchDebounce = undefined;
+    }
     this.page.set(1);
     this.load();
   }

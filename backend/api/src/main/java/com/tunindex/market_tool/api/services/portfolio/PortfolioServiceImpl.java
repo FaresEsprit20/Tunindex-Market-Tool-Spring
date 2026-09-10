@@ -27,9 +27,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -61,6 +65,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         BigDecimal totalCostBasis = BigDecimal.ZERO;
         BigDecimal totalDayChangeValue = BigDecimal.ZERO;
         BigDecimal prevDayMarketValue = BigDecimal.ZERO;
+        Map<String, BigDecimal> quantityBoughtToday = quantityBoughtToday(account.getId());
 
         for (PortfolioPosition position : positions) {
             BigDecimal currentPrice = position.getAvgCostBasis();
@@ -86,20 +91,43 @@ public class PortfolioServiceImpl implements PortfolioService {
                     ? BigDecimal.ZERO
                     : unrealizedPnl.divide(costBasisTotal, 6, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
 
-            // Today's move on the position: (last - prevClose) x quantity.
+            // Today's move, counted only on shares actually held through
+            // yesterday's close.
+            //
+            // Shares bought today were not exposed to the move from the
+            // previous close to now - that move happened before they were
+            // owned. Counting them credited a position with a gain (or debited
+            // a loss) it could not have experienced: buy at today's price and
+            // the portfolio immediately showed the whole day's move as profit.
+            //
+            // Computed from today's BUY transactions rather than a flag on the
+            // position, which also handles the partial case correctly: holding
+            // 100 shares from last week and buying 50 more today counts the
+            // day's move on 100, not 150 and not zero.
+            BigDecimal boughtToday = quantityBoughtToday.getOrDefault(position.getSymbol(), BigDecimal.ZERO);
+            BigDecimal heldSinceYesterday = position.getQuantity().subtract(boughtToday);
+            if (heldSinceYesterday.compareTo(BigDecimal.ZERO) < 0) {
+                // More bought today than are held now: the rest was sold
+                // intraday, so nothing survives from yesterday.
+                heldSinceYesterday = BigDecimal.ZERO;
+            }
+
             BigDecimal dayChangeValue = null;
             BigDecimal dayChangePct = null;
-            if (prevClose != null && prevClose.compareTo(BigDecimal.ZERO) > 0) {
+            if (prevClose != null && prevClose.compareTo(BigDecimal.ZERO) > 0
+                    && heldSinceYesterday.compareTo(BigDecimal.ZERO) > 0) {
+
                 BigDecimal perShare = currentPrice.subtract(prevClose);
-                dayChangeValue = perShare.multiply(position.getQuantity()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+                dayChangeValue = perShare.multiply(heldSinceYesterday).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
                 dayChangePct = perShare.divide(prevClose, 6, RoundingMode.HALF_UP)
                         .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
                 totalDayChangeValue = totalDayChangeValue.add(dayChangeValue);
                 // Yesterday's value of the holding, so the portfolio-level
                 // percentage is weighted by position size rather than a flat
-                // average of each position's percentage.
+                // average of each position's percentage. Only the shares that
+                // existed yesterday belong in that base.
                 prevDayMarketValue = prevDayMarketValue.add(
-                        prevClose.multiply(position.getQuantity()).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+                        prevClose.multiply(heldSinceYesterday).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
             }
 
             totalMarketValue = totalMarketValue.add(marketValue);
@@ -291,6 +319,39 @@ public class PortfolioServiceImpl implements PortfolioService {
      * at commit, where it could not be handled) so the loser of the race
      * can simply read the row the winner just created.
      */
+    /**
+     * Shares bought today, by symbol, for the account.
+     *
+     * <p>Used to keep today's purchases out of today's change: a share bought
+     * this morning was not held at yesterday's close, so the move from that
+     * close to now is not a gain or loss the holder experienced. Without this,
+     * buying anything on a green day showed an instant paper profit equal to
+     * the whole day's move.
+     *
+     * <p>SELLs are ignored deliberately. Selling shares held since yesterday
+     * reduces the quantity, and the smaller quantity already reflects that -
+     * subtracting the sale again would double-count it.
+     */
+    private Map<String, BigDecimal> quantityBoughtToday(Long accountId) {
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        Map<String, BigDecimal> bought = new HashMap<>();
+
+        for (PortfolioTransaction transaction :
+                portfolioTransactionRepository.findByAccountIdOrderByExecutedAtDesc(accountId)) {
+
+            if (transaction.getExecutedAt() == null || transaction.getExecutedAt().isBefore(startOfToday)) {
+                // Ordered newest first, so the first older row means the rest
+                // are older too.
+                break;
+            }
+            if (transaction.getSide() != TransactionSide.BUY || transaction.getQuantity() == null) {
+                continue;
+            }
+            bought.merge(transaction.getSymbol(), transaction.getQuantity(), BigDecimal::add);
+        }
+        return bought;
+    }
+
     private PortfolioAccount getOrCreateAccount(User user) {
         return portfolioAccountRepository.findByUserId(user.getId())
                 .orElseGet(() -> createAccount(user));

@@ -51,10 +51,17 @@
         </dependency>
 
         <!-- H2 Database -->
+        <!-- PostgreSQL is the real database. H2 stays on the test classpath
+             so the integration tests keep an in-memory schema of their own. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
         <!-- Spring Security -->

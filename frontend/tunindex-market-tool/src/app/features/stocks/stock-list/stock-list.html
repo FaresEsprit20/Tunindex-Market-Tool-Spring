@@ -10,7 +10,7 @@
       type="text"
       placeholder="Search by name…"
       [value]="searchInput()"
-      (input)="searchInput.set($any($event.target).value)"
+      (input)="onSearchInput($any($event.target).value)"
       (keydown.enter)="onSearchSubmit()"
     />
   </div>

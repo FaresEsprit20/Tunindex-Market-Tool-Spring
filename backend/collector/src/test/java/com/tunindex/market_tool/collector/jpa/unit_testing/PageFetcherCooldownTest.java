@@ -40,6 +40,8 @@ class PageFetcherCooldownTest {
         ReflectionTestUtils.setField(fetcher, "dataRetryAttempts", 3);
         ReflectionTestUtils.setField(fetcher, "rateLimitBackoffMs", 10L);
         ReflectionTestUtils.setField(fetcher, "rateLimitCooldownMs", 600_000L);
+        ReflectionTestUtils.setField(fetcher, "dataFetchBudgetMs", 9_000L);
+        ReflectionTestUtils.setField(fetcher, "httpTimeoutSeconds", 5L);
         return fetcher;
     }
 
@@ -142,6 +144,28 @@ class PageFetcherCooldownTest {
         clearCooldown(fetcher, "never-seen.example");
 
         assertThat(cooldowns(fetcher)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a throttled fetch gives up inside its budget rather than the full retry schedule")
+    void fetchStaysWithinBudget() throws Exception {
+        // The bug this catches: the cooldown was only armed on the loop's
+        // final attempt, but the retry schedule ran to roughly seventy
+        // seconds and every caller timed out at thirty - so the last attempt
+        // never happened, the cooldown never armed, and the next caller paid
+        // the same wait over again. The budget is what makes the back-off
+        // reachable.
+        PageFetcher fetcher = fetcher();
+        ReflectionTestUtils.setField(fetcher, "dataFetchBudgetMs", 1_500L);
+        ReflectionTestUtils.setField(fetcher, "rateLimitBackoffMs", 4_000L);
+
+        long start = System.nanoTime();
+        // Unroutable, so every attempt fails fast without reaching a network.
+        fetcher.fetchData("http://127.0.0.1:9/never-listening");
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+        // Comfortably under the ~70s the unbounded retry schedule would take.
+        assertThat(elapsedMs).isLessThan(20_000);
     }
 
     @Test

@@ -116,6 +116,19 @@ public class PageFetcher {
     private long rateLimitCooldownMs;
 
     /**
+     * Total wall-clock budget for one {@link #fetchData} call, retries and
+     * pacing included.
+     *
+     * <p>These endpoints are called while somebody waits for a page. Retrying
+     * politely past the point where the caller has given up helps nobody: the
+     * answer arrives after the response has already gone out, and the work is
+     * thrown away. Better to fail inside the budget and let the cooldown stop
+     * the next caller from repeating it.
+     */
+    @Value("${market-tool.scraping.data-fetch-budget-ms:9000}")
+    private long dataFetchBudgetMs;
+
+    /**
      * Per-host minimum gaps, as {@code host=millis} pairs.
      *
      * <p>One global interval does not fit every publisher. Yahoo's chart API
@@ -221,31 +234,53 @@ public class PageFetcher {
             return null;
         }
 
+        // Everything below has to finish inside this. The retry schedule alone
+        // can run to about seventy seconds against a throttling host, and the
+        // callers here are serving a web request - they give up long before
+        // that and, crucially, they give up *before the loop reaches its last
+        // attempt*, which is where the cooldown used to be set. So the back-off
+        // never armed, and every subsequent request paid the same wait again.
+        long deadline = System.currentTimeMillis() + dataFetchBudgetMs;
+        int lastStatus = 0;
+
         for (int attempt = 1; attempt <= dataRetryAttempts; attempt++) {
             pace(host);
             Result result = request(url);
+            lastStatus = result.status();
             if (result.body() != null) {
                 clearCooldown(host);
                 return result.body();
             }
+
+            boolean lastAttempt = attempt == dataRetryAttempts;
             // 429 is the one refusal worth waiting out: it means "later", not
             // "no". Anything else is retried too, but a rate limit is the case
             // this loop exists for — Yahoo throttles a burst of seven quotes.
-            if (attempt < dataRetryAttempts) {
-                long wait = result.status() == 429
-                        ? rateLimitBackoffMs * attempt
-                        : 500L * attempt;
-                log.debug("Retrying {} in {}ms (attempt {} of {}, last status {})",
-                        url, wait, attempt, dataRetryAttempts, result.status());
-                sleep(wait);
-            } else if (result.status() == 429 || result.status() == 403) {
-                // Retries exhausted against a throttle. This is no longer a
-                // busy moment, it is a host declining to serve us for now.
-                beginCooldown(host, result.status());
+            long wait = result.status() == 429
+                    ? rateLimitBackoffMs * attempt
+                    : 500L * attempt;
+            boolean outOfTime = System.currentTimeMillis() + wait >= deadline;
+
+            if (lastAttempt || outOfTime) {
+                if (isThrottle(lastStatus)) {
+                    // Out of attempts or out of time against a host that is
+                    // refusing us. Either way this is no longer a busy moment,
+                    // it is a host declining to serve us for now.
+                    beginCooldown(host, lastStatus);
+                }
+                break;
             }
+
+            log.debug("Retrying {} in {}ms (attempt {} of {}, last status {})",
+                    url, wait, attempt, dataRetryAttempts, result.status());
+            sleep(wait);
         }
-        log.warn("Gave up on {} after {} attempts", url, dataRetryAttempts);
+        log.warn("Gave up on {} (last status {})", url, lastStatus);
         return null;
+    }
+
+    private boolean isThrottle(int status) {
+        return status == 429 || status == 403;
     }
 
     /** Whether this host is being left alone for the moment. */

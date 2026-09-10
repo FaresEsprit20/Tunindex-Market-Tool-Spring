@@ -58,19 +58,32 @@ export class AdGateOverlay implements OnDestroy {
     return Math.min(100, (this.elapsed() / current.requiredSeconds) * 100);
   });
 
+  /**
+   * True from asking for an ad until one arrives.
+   *
+   * <p>Without it the effect can start a second view while the first request
+   * is still in flight: `challenge()` is not set until the response lands, so
+   * any re-run in that window looks like "no ad open yet". That would begin
+   * two server-side view sessions and record two impressions for one ad -
+   * charging an advertiser twice for something shown once.
+   */
+  private opening = false;
+
   constructor() {
     effect(() => {
       const feature = this.gate.current();
-      if (feature && !this.challenge()) {
+      if (feature && !this.challenge() && !this.opening) {
         this.open(feature);
       }
     });
   }
 
   private open(feature: Parameters<AdGate['start']>[0]): void {
+    this.opening = true;
     this.failed.set(false);
     this.elapsed.set(0);
     this.gate.start(feature).subscribe((challenge) => {
+      this.opening = false;
       if (!challenge) {
         // Nothing to play. Treated as open rather than shut: no inventory is
         // our problem, not the user's, and locking the feature would cost a

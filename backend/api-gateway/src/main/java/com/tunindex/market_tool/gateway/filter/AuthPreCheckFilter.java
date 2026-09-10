@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Turns away requests that plainly carry no credentials, before they cost a
@@ -62,6 +64,18 @@ public class AuthPreCheckFilter implements GlobalFilter, Ordered {
             "/fallback"
     );
 
+    /**
+     * The opaque session tokens this platform issues: a type prefix and a hex
+     * body, as in {@code at_29cf94d7...}. Length is left loose rather than
+     * pinned to today's 32 characters, so lengthening the token later does not
+     * lock every user out at the gateway.
+     */
+    private static final Pattern OPAQUE_TOKEN = Pattern.compile("^[a-z]{2,6}_[0-9a-fA-F]{16,128}$");
+
+    /** Three base64url segments, for tokens that arrive from the OAuth2 path. */
+    private static final Pattern JWT =
+            Pattern.compile("^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$");
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
@@ -97,14 +111,48 @@ public class AuthPreCheckFilter implements GlobalFilter, Ordered {
      * access and refresh cookies, so a perfectly valid request from the
      * browser has no Authorization header at all. Requiring one here would
      * have rejected every authenticated call the app makes.
+     *
+     * <p>The value is checked for <em>shape</em>, not validity. Any string at
+     * all used to count, which had a consequence past the obvious one: a
+     * request carrying "Bearer nonsense" got as far as the ad gate and was
+     * answered 402 - "watch an ad" - when the honest answer was 401. Turning
+     * away a token that could not possibly be one of ours puts the statuses
+     * back in the order a caller can act on.
      */
     private boolean hasCredentialShapedThing(ServerHttpRequest request) {
         String authorization = request.getHeaders().getFirst("Authorization");
         if (authorization != null && !authorization.isBlank()) {
-            return true;
+            String token = authorization.regionMatches(true, 0, "Bearer ", 0, 7)
+                    ? authorization.substring(7).trim()
+                    : authorization.trim();
+            return looksLikeOurToken(token);
         }
-        return request.getCookies().containsKey("accessToken")
-                || request.getCookies().containsKey("refreshToken");
+        return hasTokenCookie(request, "accessToken") || hasTokenCookie(request, "refreshToken");
+    }
+
+    private boolean hasTokenCookie(ServerHttpRequest request, String name) {
+        HttpCookie cookie = request.getCookies().getFirst(name);
+        return cookie != null && looksLikeOurToken(cookie.getValue());
+    }
+
+    /**
+     * A structural check, and nothing more.
+     *
+     * <p>Two shapes are issued here: the opaque session tokens, which are a
+     * type prefix and a hex body, and JWTs from the OAuth2 path. Anything
+     * matching either is passed along for the service to actually verify -
+     * this says only that the string is not obvious rubbish.
+     *
+     * <p>Kept deliberately loose. The cost of wrongly letting something
+     * through is that the service rejects it a moment later; the cost of
+     * wrongly turning something away is a user who cannot sign in, so where
+     * the two are in tension this errs toward letting it through.
+     */
+    private boolean looksLikeOurToken(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+        return OPAQUE_TOKEN.matcher(token).matches() || JWT.matcher(token).matches();
     }
 
     @Override

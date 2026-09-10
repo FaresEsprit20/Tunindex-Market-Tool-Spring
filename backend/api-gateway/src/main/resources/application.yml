@@ -27,6 +27,23 @@ spring:
             locator:
               enabled: false
 
+          # Both the gateway and each service behind it set their own CORS
+          # headers - the services because they must still be safe to reach
+          # directly, the gateway because it is what the browser talks to.
+          # Proxied through, that produces two Access-Control-Allow-Origin
+          # headers on one response, and a browser rejects that outright
+          # ("contains multiple values, but only one is allowed"). curl does
+          # not care, which is why this only shows up in a real browser.
+          #
+          # RETAIN_FIRST keeps the gateway's own value for the two headers
+          # where exactly one is legal. Expose-Headers and Vary are merged
+          # instead: the two layers legitimately expose different headers,
+          # and dropping the service's list would break file downloads,
+          # which rely on Content-Disposition being exposed.
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+            - DedupeResponseHeader=Access-Control-Expose-Headers Vary, RETAIN_UNIQUE
+
           routes:
             # Server-sent event streams, matched BEFORE the general API route
             # because routes are evaluated in order and the first match wins.
@@ -85,6 +102,19 @@ spring:
                   args:
                     name: collectorCircuitBreaker
                     fallbackUri: forward:/fallback/market
+
+          # Pass the caller's real address downstream. Without this the
+          # services only ever see the gateway's address: api-service binds
+          # each session to the client IP, so every user's token would bind
+          # to one shared value and the binding would stop protecting
+          # anything. The services pair this with a trusted-proxies list, so
+          # a spoofed header from outside is not taken at face value.
+          x-forwarded:
+            enabled: true
+            for-enabled: true
+            host-enabled: true
+            proto-enabled: true
+            port-enabled: true
 
           httpclient:
             connect-timeout: 5000

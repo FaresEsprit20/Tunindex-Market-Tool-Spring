@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Notification } from '../../../core/services/notification';
 import { Portfolio as PortfolioService } from '../../../core/services/portfolio';
 import { Stock } from '../../../core/services/stock';
+import { PriceStream } from '../../../core/services/price-stream';
 import { PortfolioPosition, PortfolioSummary, PortfolioTransaction } from '../../../core/models/portfolio.model';
 import { StockDto } from '../../../core/models/stock.model';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
@@ -29,12 +30,102 @@ export class Portfolio {
   private readonly portfolioService = inject(PortfolioService);
   private readonly stockService = inject(Stock);
   private readonly notification = inject(Notification);
+  protected readonly priceStream = inject(PriceStream);
 
   protected readonly verdictLabels = VERDICT_LABELS;
 
   protected readonly loading = signal(true);
-  protected readonly summary = signal<PortfolioSummary | null>(null);
+  /** What the server last returned, before live prices are applied. */
+  private readonly fetched = signal<PortfolioSummary | null>(null);
   protected readonly transactions = signal<PortfolioTransaction[]>([]);
+
+  /**
+   * The portfolio revalued at streamed prices.
+   *
+   * <p>The page used to render the server response as-is, fetched once in the
+   * constructor. Prices move, so every figure on it — market value, P&L,
+   * today's change, total portfolio value — drifted out of date within
+   * minutes and only corrected on a manual reload. That reads as a broken
+   * page rather than a stale one.
+   *
+   * <p>Recomputed rather than re-fetched so the numbers track the same live
+   * quotes the rest of the app shows. A position with no tick yet keeps the
+   * server's figures untouched.
+   */
+  protected readonly summary = computed<PortfolioSummary | null>(() => {
+    const base = this.fetched();
+    if (!base) {
+      return null;
+    }
+
+    const ticks = this.priceStream.prices();
+    let totalMarketValue = 0;
+    let totalCostBasis = 0;
+    let totalDayChangeValue = 0;
+    let prevDayValue = 0;
+
+    const positions = base.positions.map((position) => {
+      const live = ticks[position.symbol]?.price;
+      const price = live ?? position.currentPrice;
+
+      const marketValue = price * position.quantity;
+      const costBasis = position.avgCostBasis * position.quantity;
+      const unrealizedPnl = marketValue - costBasis;
+
+      // Today's move counts only on shares held through yesterday's close.
+      // The eligible quantity comes from the server, which knows what was
+      // bought today; recomputing on the full holding would credit this
+      // morning's purchases with a move that predates them.
+      const eligible = position.dayChangeQuantity ?? 0;
+      let dayChangeValue = position.dayChangeValue;
+      let dayChangePct = position.dayChangePct;
+      if (position.prevClose !== null && position.prevClose > 0 && eligible > 0) {
+        dayChangeValue = (price - position.prevClose) * eligible;
+        dayChangePct = ((price - position.prevClose) / position.prevClose) * 100;
+        totalDayChangeValue += dayChangeValue;
+        prevDayValue += position.prevClose * eligible;
+      }
+
+      totalMarketValue += marketValue;
+      totalCostBasis += costBasis;
+
+      return {
+        ...position,
+        currentPrice: price,
+        marketValue,
+        unrealizedPnl,
+        unrealizedPnlPct: costBasis === 0 ? 0 : (unrealizedPnl / costBasis) * 100,
+        dayChangeValue,
+        dayChangePct,
+      };
+    });
+
+    const totalUnrealizedPnl = totalMarketValue - totalCostBasis;
+    // Cash is part of the portfolio's worth; leaving it out understated the
+    // total for anyone not fully invested.
+    const totalPortfolioValue = totalMarketValue + base.cashBalance;
+    const invested = base.startingCash;
+
+    return {
+      ...base,
+      positions,
+      totalMarketValue,
+      totalPortfolioValue,
+      totalUnrealizedPnl,
+      totalUnrealizedPnlPct: totalCostBasis === 0 ? 0 : (totalUnrealizedPnl / totalCostBasis) * 100,
+      // Deliberately the same formula as the server: total value against the
+      // cash originally deposited.
+      //
+      // Realised P&L is NOT added here. It is already inside cashBalance — a
+      // sale moves the proceeds into cash — so adding it again double-counts
+      // every closed trade. An earlier version of this did exactly that and
+      // overstated the return of anyone who had ever sold.
+      totalReturnPct:
+        invested === 0 ? 0 : ((totalPortfolioValue - invested) / invested) * 100,
+      totalDayChangeValue,
+      totalDayChangePct: prevDayValue === 0 ? 0 : (totalDayChangeValue / prevDayValue) * 100,
+    };
+  });
 
   protected readonly tradeSymbol = signal('');
   protected readonly tradeQuantity = signal('');
@@ -128,6 +219,9 @@ export class Portfolio {
   }
 
   constructor() {
+    // Shared across the app; connecting twice is a no-op. Without this the
+    // portfolio never saw a price move.
+    this.priceStream.connect();
     this.loadPortfolio();
     this.loadTransactions();
   }
@@ -136,7 +230,7 @@ export class Portfolio {
     this.loading.set(true);
     this.portfolioService.getPortfolio().subscribe({
       next: (res) => {
-        this.summary.set(res);
+        this.fetched.set(res);
         this.loading.set(false);
         const symbols = res.positions.map((p) => p.symbol);
         if (symbols.length > 0) {
@@ -306,7 +400,7 @@ export class Portfolio {
     this.portfolioService.reset().subscribe({
       next: (res) => {
         this.resetting.set(false);
-        this.summary.set(res);
+        this.fetched.set(res);
         this.transactions.set([]);
         this.notification.show('Simulator reset', 'Your paper trading account has been reset.', 'success');
       },

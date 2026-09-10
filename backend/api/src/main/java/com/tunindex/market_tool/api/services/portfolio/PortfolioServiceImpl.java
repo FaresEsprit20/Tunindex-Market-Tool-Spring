@@ -145,6 +145,7 @@ public class PortfolioServiceImpl implements PortfolioService {
                     .prevClose(prevClose)
                     .dayChangeValue(dayChangeValue)
                     .dayChangePct(dayChangePct)
+                    .dayChangeQuantity(heldSinceYesterday)
                     .build());
         }
 

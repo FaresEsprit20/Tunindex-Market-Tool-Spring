@@ -26,4 +26,16 @@ public class PortfolioPositionDto {
     /** Today's move on this position, in TND and percent. */
     private BigDecimal dayChangeValue;
     private BigDecimal dayChangePct;
+
+    /**
+     * Shares eligible for today's change - those held through yesterday's
+     * close, so excluding anything bought today.
+     *
+     * <p>Exposed so the client can recompute the day's move against a live
+     * streamed price without having to guess this quantity. Recomputing with
+     * the full holding would silently undo the rule: shares bought this
+     * morning were not exposed to the move from yesterday's close, and
+     * counting them shows a gain the holder never earned.
+     */
+    private BigDecimal dayChangeQuantity;
 }

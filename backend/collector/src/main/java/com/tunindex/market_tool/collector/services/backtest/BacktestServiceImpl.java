@@ -7,6 +7,7 @@ import com.tunindex.market_tool.collector.repository.jpa.PriceHistoryRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
 import com.tunindex.market_tool.collector.services.analysis.TechnicalAnalysisCalculator;
 import com.tunindex.market_tool.collector.services.scoring.TunindexScorer;
+import com.tunindex.market_tool.collector.services.scoring.ReversalDetector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -64,6 +65,7 @@ public class BacktestServiceImpl implements BacktestService {
     private final StockRepository stockRepository;
     private final PriceHistoryRepository priceHistoryRepository;
     private final TechnicalAnalysisCalculator technicalAnalysisCalculator;
+    private final ReversalDetector reversalDetector;
     private final TunindexScorer scorer;
 
     private record Observation(int score, BigDecimal forwardReturnPct) {}
@@ -127,9 +129,15 @@ public class BacktestServiceImpl implements BacktestService {
         }
 
         BigDecimal positionInRange = positionIn52WeekRange(upToDate);
+        // Detected from the same slice the technicals came from, so the
+        // backtest scores the reversal exactly as production does. Passing
+        // null here would quietly measure a different scorer than the one
+        // that ships - the reason scoreTimingFrom is shared at all.
+        var reversal = reversalDetector.detect(upToDate, technical);
         // reasons/warnings are collected and discarded: the backtest wants
         // the number, not the prose the UI shows beside it.
-        return scorer.scoreTimingFrom(positionInRange, technical, new ArrayList<>(), new ArrayList<>());
+        return scorer.scoreTimingFrom(positionInRange, technical, reversal,
+                new ArrayList<>(), new ArrayList<>());
     }
 
     /**

@@ -55,7 +55,12 @@ public class TunindexScorer {
     private static final BigDecimal NEAR_LOW_THRESHOLD = new BigDecimal("85");
 
     public OpportunityScoreDto score(Stock stock, TechnicalAnalysisDto technical, List<NewsImpactDto> news) {
-        return score(stock, technical, news, null);
+        return score(stock, technical, news, null, null);
+    }
+
+    public OpportunityScoreDto score(Stock stock, TechnicalAnalysisDto technical,
+                                     List<NewsImpactDto> news, BigDecimal oneYearReturnPct) {
+        return score(stock, technical, news, oneYearReturnPct, null);
     }
 
     /**
@@ -67,12 +72,13 @@ public class TunindexScorer {
      *                         its inputs.
      */
     public OpportunityScoreDto score(Stock stock, TechnicalAnalysisDto technical,
-                                     List<NewsImpactDto> news, BigDecimal oneYearReturnPct) {
+                                     List<NewsImpactDto> news, BigDecimal oneYearReturnPct,
+                                     ReversalDetector.ReversalSignal reversal) {
         List<String> reasons = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
 
         Integer valuation = scoreValuation(stock, reasons, warnings);
-        Integer timing = scoreTiming(stock, technical, reasons, warnings);
+        Integer timing = scoreTiming(stock, technical, reversal, reasons, warnings);
         Integer health = scoreFinancialHealth(stock, reasons, warnings);
         Integer income = scoreIncome(stock, reasons);
         Integer momentum = scoreMomentum(stock, technical, oneYearReturnPct, reasons, warnings);
@@ -172,10 +178,12 @@ public class TunindexScorer {
 
     // ── Timing: is now a good moment to enter? ─────────────────────────────
 
-    private Integer scoreTiming(Stock stock, TechnicalAnalysisDto technical, List<String> reasons, List<String> warnings) {
+    private Integer scoreTiming(Stock stock, TechnicalAnalysisDto technical,
+                                ReversalDetector.ReversalSignal reversal,
+                                List<String> reasons, List<String> warnings) {
         BigDecimal closeTo52WeekLow = stock.getPriceData() != null
                 ? stock.getPriceData().getCloseTo52weekslowPct() : null;
-        return scoreTimingFrom(closeTo52WeekLow, technical, reasons, warnings);
+        return scoreTimingFrom(closeTo52WeekLow, technical, reversal, reasons, warnings);
     }
 
     /**
@@ -188,8 +196,35 @@ public class TunindexScorer {
      * that ships. This way both paths run the same arithmetic.
      */
     public Integer scoreTimingFrom(BigDecimal closeTo52WeekLow, TechnicalAnalysisDto technical,
+                                   ReversalDetector.ReversalSignal reversal,
                                    List<String> reasons, List<String> warnings) {
         List<Integer> parts = new ArrayList<>();
+
+        // The reversal read comes first and carries the most weight, because
+        // it answers the question the rest only circle: has the decline
+        // stopped? Cheapness and an oversold reading say a stock has fallen,
+        // not that it has finished falling - and a falling stock stays
+        // oversold the whole way down.
+        //
+        // Counted three times deliberately. Averaged once among five
+        // indicators it would move the component by a couple of points, which
+        // is not the difference between "wait" and "this is the entry".
+        if (reversal != null && reversal.phase() != ReversalDetector.Phase.NEUTRAL) {
+            int weightedReversal = reversal.score();
+            parts.add(weightedReversal);
+            parts.add(weightedReversal);
+            parts.add(weightedReversal);
+
+            switch (reversal.phase()) {
+                case REVERSING -> reasons.add("Downtrend broken — " + String.join("; ", reversal.conditions()));
+                case BOTTOMING -> reasons.add("Showing exhaustion after a decline — "
+                        + String.join("; ", reversal.conditions()));
+                case DOWNTREND -> warnings.add(
+                        "Still falling with no reversal confirmed — cheap is not the same as bottomed");
+                case TOPPING -> warnings.add("Extended and losing momentum");
+                default -> { }
+            }
+        }
 
         if (closeTo52WeekLow != null) {
             // 100 = at the 52-week low (best entry), 0 = at the high.

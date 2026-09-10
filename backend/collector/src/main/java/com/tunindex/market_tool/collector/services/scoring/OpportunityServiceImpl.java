@@ -47,6 +47,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final PriceHistoryRepository priceHistoryRepository;
     private final StockNewsRepository stockNewsRepository;
     private final TechnicalAnalysisCalculator technicalAnalysisCalculator;
+    private final ReversalDetector reversalDetector;
     private final NewsSentimentClassifier newsSentimentClassifier;
     private final TunindexScorer scorer;
 
@@ -111,7 +112,11 @@ public class OpportunityServiceImpl implements OpportunityService {
 
         TechnicalAnalysisDto technical = computeTechnical(history, stock.getSymbol());
         List<NewsImpactDto> news = includeNews ? loadClassifiedNews(stock.getSymbol()) : List.of();
-        return scorer.score(stock, technical, news, oneYearReturnPct(stock.getSymbol()));
+        // Whether the decline has actually ended, which the indicators alone
+        // cannot say: an oversold reading is as common halfway down as it is
+        // at the bottom.
+        ReversalDetector.ReversalSignal reversal = reversalDetector.detect(history, technical);
+        return scorer.score(stock, technical, news, oneYearReturnPct(stock.getSymbol()), reversal);
     }
 
     /**

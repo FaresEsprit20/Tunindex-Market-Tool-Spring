@@ -17,6 +17,13 @@ export interface PortfolioPosition {
   prevClose: number | null;
   dayChangeValue: number | null;
   dayChangePct: number | null;
+  /**
+   * Shares eligible for today's change — held through yesterday's close, so
+   * excluding anything bought today. Needed to recompute the day's move
+   * against a live price without crediting today's purchases with a move
+   * they were never exposed to.
+   */
+  dayChangeQuantity: number | null;
 }
 
 export interface PortfolioSummary {

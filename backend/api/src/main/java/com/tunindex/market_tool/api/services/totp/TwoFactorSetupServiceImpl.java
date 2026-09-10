@@ -218,6 +218,9 @@ public class TwoFactorSetupServiceImpl implements TwoFactorSetupService {
         User user = resolveUser(authentication);
         return TotpStatusResponseDto.builder()
                 .enabled(Boolean.TRUE.equals(user.getTwoFactorEnabled()))
+                .method(user.resolvedTwoFactorMethod().name())
+                .pendingMethod(user.getPendingTwoFactorMethod() == null
+                        ? null : user.getPendingTwoFactorMethod().name())
                 .build();
     }
 

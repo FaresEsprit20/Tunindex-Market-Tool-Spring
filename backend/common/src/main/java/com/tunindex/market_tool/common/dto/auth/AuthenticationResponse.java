@@ -23,4 +23,13 @@ public class AuthenticationResponse {
 
     private String mfaToken;
 
+    /**
+     * How the pending second-factor code is being delivered.
+     *
+     * <p>Sent so the challenge screen can say "check your email" or "open your
+     * authenticator app" rather than guessing. Before methods were
+     * selectable it could only ever have been one thing.
+     */
+    private String twoFactorMethod;
+
 }

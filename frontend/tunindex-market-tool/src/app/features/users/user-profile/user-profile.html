@@ -190,7 +190,73 @@
             <button type="button" class="btn btn-secondary" [disabled]="totpBusy()" (click)="toggleDisableForm()">Cancel</button>
           </div>
         } @else {
-          <p class="totp-help">Your account is protected — a code from your authenticator app is required at sign-in.</p>
+          <p class="totp-help">
+            Your account is protected — at sign-in you'll need a code
+            {{ currentMethod() === 'EMAIL' ? 'sent to your email' : 'from your authenticator app' }}.
+          </p>
+
+          <!-- Delivery method. Separate from the on/off control: the factor
+               stays on throughout, only the channel changes. -->
+          <div class="field">
+            <div class="field-label-row"><span class="field-label">How you receive codes</span></div>
+            @if (methodChange(); as change) {
+              @if (change.otpAuthUri) {
+                <p class="totp-help">Scan this with your authenticator app, then enter the code it shows.</p>
+                <div class="totp-qr-row">
+                  @if (methodQrDataUrl(); as qr) {
+                    <img [src]="qr" alt="Authenticator setup QR code" class="totp-qr" width="220" height="220" />
+                  } @else {
+                    <app-skeleton-block height="220px" width="220px" radius="12px" />
+                  }
+                  <div class="totp-manual">
+                    <span class="field-label">Can't scan? Enter this key manually:</span>
+                    <code class="totp-secret mono">{{ change.secret }}</code>
+                  </div>
+                </div>
+              } @else {
+                <p class="totp-help">{{ change.message }}</p>
+              }
+
+              <div class="field">
+                <div class="field-label-row"><label class="field-label" for="method-code">6-digit code</label></div>
+                <input
+                  id="method-code"
+                  class="field-input totp-code-input"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  autocomplete="one-time-code"
+                  [value]="methodCode()"
+                  (input)="onMethodCodeInput($any($event.target).value)"
+                />
+              </div>
+              <!-- Stated plainly, because the switch only lands once a code
+                   that actually arrived comes back. -->
+              <p class="totp-help">Your current method stays active until this code is confirmed.</p>
+              <div class="totp-actions">
+                <button type="button" class="btn btn-primary" [disabled]="methodBusy() || methodCode().length !== 6" (click)="confirmMethodChange()">
+                  {{ methodBusy() ? 'Confirming…' : 'Confirm switch' }}
+                </button>
+                <button type="button" class="btn btn-secondary" [disabled]="methodBusy()" (click)="cancelMethodChange()">Cancel</button>
+              </div>
+            } @else {
+              <div class="totp-actions">
+                @if (currentMethod() === 'TOTP') {
+                  <button type="button" class="btn btn-secondary" [disabled]="methodBusy()" (click)="startMethodChange('EMAIL')">
+                    {{ methodBusy() ? 'Sending…' : 'Switch to email codes' }}
+                  </button>
+                } @else {
+                  <button type="button" class="btn btn-secondary" [disabled]="methodBusy()" (click)="startMethodChange('TOTP')">
+                    {{ methodBusy() ? 'Preparing…' : 'Switch to an authenticator app' }}
+                  </button>
+                }
+              </div>
+            }
+            @if (methodError()) {
+              <p class="field-error">{{ methodError() }}</p>
+            }
+          </div>
+
           <div class="totp-actions">
             <button type="button" class="btn btn-danger" (click)="toggleDisableForm()">Disable two-factor auth</button>
           </div>

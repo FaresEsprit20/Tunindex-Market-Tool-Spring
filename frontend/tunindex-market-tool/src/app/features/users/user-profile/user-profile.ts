@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { toDataURL } from 'qrcode';
 import { UserExtendedDto } from '../../../core/models/user.model';
-import { TotpSetup } from '../../../core/models/totp.model';
+import { TotpSetup, TwoFactorMethod, TwoFactorMethodChange } from '../../../core/models/totp.model';
 import { User } from '../../../core/services/user';
 import { TwoFactorSetup } from '../../../core/services/two-factor-setup';
 import { Notification } from '../../../core/services/notification';
@@ -46,6 +46,16 @@ export class UserProfile {
   protected readonly totpBusy = signal(false);
   protected readonly totpError = signal<string | null>(null);
 
+  // Delivery-method switching. Separate from enable/disable: the factor stays
+  // on throughout, only the channel changes.
+  protected readonly currentMethod = signal<TwoFactorMethod>('TOTP');
+  protected readonly pendingMethod = signal<TwoFactorMethod | null>(null);
+  protected readonly methodChange = signal<TwoFactorMethodChange | null>(null);
+  protected readonly methodQrDataUrl = signal<string | null>(null);
+  protected readonly methodCode = signal('');
+  protected readonly methodBusy = signal(false);
+  protected readonly methodError = signal<string | null>(null);
+
   protected readonly profileForm = this.fb.nonNullable.group({
     firstName: ['', [Validators.required]],
     lastName: ['', [Validators.required]],
@@ -81,6 +91,7 @@ export class UserProfile {
       next: (u) => {
         this.user.set(u);
         this.twoFactorEnabled.set(u.twoFactorEnabled);
+        this.loadTwoFactorStatus();
         this.profileForm.patchValue({
           firstName: u.firstName,
           lastName: u.lastName,
@@ -106,6 +117,112 @@ export class UserProfile {
         this.loading.set(false);
       },
     });
+  }
+
+
+  /**
+   * Reads which delivery method is in force.
+   *
+   * <p>Fetched separately from the profile because the account payload only
+   * carries the on/off flag - it predates methods existing at all.
+   */
+  private loadTwoFactorStatus(): void {
+    this.twoFactorSetup.getStatus().subscribe({
+      next: (status) => {
+        this.currentMethod.set(status.method ?? 'TOTP');
+        this.pendingMethod.set(status.pendingMethod ?? null);
+      },
+      // A failure here costs only the method label, so the rest of the page
+      // should still render.
+      error: () => this.currentMethod.set('TOTP'),
+    });
+  }
+
+  protected onMethodCodeInput(value: string): void {
+    this.methodCode.set(value.replace(/\D/g, '').slice(0, 6));
+  }
+
+  /**
+   * Starts moving to the other delivery method.
+   *
+   * <p>Nothing changes on the account until the code is confirmed, so a user
+   * who cannot receive on the new channel simply keeps the old one.
+   */
+  protected startMethodChange(method: TwoFactorMethod): void {
+    if (this.methodBusy()) {
+      return;
+    }
+    this.methodBusy.set(true);
+    this.methodError.set(null);
+    this.methodCode.set('');
+    this.methodQrDataUrl.set(null);
+
+    this.twoFactorSetup.startMethodChange(method).subscribe({
+      next: (change) => {
+        this.methodBusy.set(false);
+        this.methodChange.set(change);
+        this.pendingMethod.set(change.pendingMethod);
+
+        if (!change.codeDelivered) {
+          // The server could not send the code, and said so rather than
+          // pretending. Surfacing that beats "check your inbox" for a
+          // message that never left.
+          this.methodError.set(change.message ?? 'We could not send the code.');
+          this.methodChange.set(null);
+          return;
+        }
+        if (change.otpAuthUri) {
+          toDataURL(change.otpAuthUri, { width: 220, margin: 1 })
+            .then((url) => this.methodQrDataUrl.set(url))
+            .catch(() => this.methodQrDataUrl.set(null));
+        }
+      },
+      error: (err: unknown) => {
+        this.methodBusy.set(false);
+        this.methodError.set(this.extractError(err) ?? 'Could not start the change.');
+      },
+    });
+  }
+
+  protected confirmMethodChange(): void {
+    if (this.methodCode().length !== 6 || this.methodBusy()) {
+      return;
+    }
+    this.methodBusy.set(true);
+    this.methodError.set(null);
+
+    this.twoFactorSetup.confirmMethodChange(this.methodCode()).subscribe({
+      next: () => {
+        const applied = this.pendingMethod();
+        this.methodBusy.set(false);
+        if (applied) {
+          this.currentMethod.set(applied);
+        }
+        this.pendingMethod.set(null);
+        this.methodChange.set(null);
+        this.methodCode.set('');
+        this.methodQrDataUrl.set(null);
+        this.notification.show(
+          'Method updated',
+          applied === 'EMAIL'
+            ? 'Codes will now be sent to your email.'
+            : 'Codes will now come from your authenticator app.',
+          'success',
+        );
+      },
+      error: (err: unknown) => {
+        this.methodBusy.set(false);
+        this.methodError.set(this.extractError(err) ?? 'That code was not accepted.');
+      },
+    });
+  }
+
+  protected cancelMethodChange(): void {
+    this.methodChange.set(null);
+    this.pendingMethod.set(null);
+    this.methodCode.set('');
+    this.methodQrDataUrl.set(null);
+    this.methodError.set(null);
   }
 
   protected startTwoFactorSetup(): void {

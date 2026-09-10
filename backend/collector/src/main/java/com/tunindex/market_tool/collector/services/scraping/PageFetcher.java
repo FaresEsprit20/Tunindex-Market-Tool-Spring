@@ -105,6 +105,17 @@ public class PageFetcher {
     private long rateLimitBackoffMs;
 
     /**
+     * How long a host is left alone after it throttles us out of retries.
+     *
+     * <p>Long enough that we stop being part of the host's problem, short
+     * enough that a brief throttle does not cost a panel its data for the
+     * afternoon. Any success clears it early, so the cost of guessing high is
+     * only that the first caller after recovery gets stale data.
+     */
+    @Value("${market-tool.scraping.rate-limit-cooldown-ms:600000}")
+    private long rateLimitCooldownMs;
+
+    /**
      * Per-host minimum gaps, as {@code host=millis} pairs.
      *
      * <p>One global interval does not fit every publisher. Yahoo's chart API
@@ -124,6 +135,15 @@ public class PageFetcher {
      * claimed by a thread that has not sent its request yet.
      */
     private final Map<String, Instant> nextAllowedByHost = new ConcurrentHashMap<>();
+
+    /**
+     * Hosts that are refusing us, and when to try again.
+     *
+     * <p>Separate from the pacing map above: that one spaces requests we
+     * intend to make, this one records hosts we have decided not to ask at
+     * all for a while.
+     */
+    private final Map<String, Instant> coolingDownUntil = new ConcurrentHashMap<>();
 
     /** Per-host locks guarding slot reservation in {@link #pace}. */
     private final Map<String, Object> hostLocks = new ConcurrentHashMap<>();
@@ -188,10 +208,24 @@ public class PageFetcher {
      */
     public String fetchData(String url) {
         String host = hostOf(url);
+
+        // A host that has already refused everything recently is not asked
+        // again. Without this the retry loop below runs in full for every
+        // caller, every time: measured against Yahoo while it was throttling
+        // this machine, four quotes took 45-90 seconds to all fail, the
+        // caller's timeout expired, and two dashboard panels served a 500
+        // instead of the cached figures sitting right there. Backing off is
+        // also what the host asked for.
+        if (isCoolingDown(host)) {
+            log.debug("Skipping {} - {} is in cooldown until {}", url, host, coolingDownUntil.get(host));
+            return null;
+        }
+
         for (int attempt = 1; attempt <= dataRetryAttempts; attempt++) {
             pace(host);
             Result result = request(url);
             if (result.body() != null) {
+                clearCooldown(host);
                 return result.body();
             }
             // 429 is the one refusal worth waiting out: it means "later", not
@@ -204,10 +238,47 @@ public class PageFetcher {
                 log.debug("Retrying {} in {}ms (attempt {} of {}, last status {})",
                         url, wait, attempt, dataRetryAttempts, result.status());
                 sleep(wait);
+            } else if (result.status() == 429 || result.status() == 403) {
+                // Retries exhausted against a throttle. This is no longer a
+                // busy moment, it is a host declining to serve us for now.
+                beginCooldown(host, result.status());
             }
         }
         log.warn("Gave up on {} after {} attempts", url, dataRetryAttempts);
         return null;
+    }
+
+    /** Whether this host is being left alone for the moment. */
+    private boolean isCoolingDown(String host) {
+        Instant until = coolingDownUntil.get(host);
+        if (until == null) {
+            return false;
+        }
+        if (Instant.now().isAfter(until)) {
+            coolingDownUntil.remove(host);
+            return false;
+        }
+        return true;
+    }
+
+    private void beginCooldown(String host, int status) {
+        Instant until = Instant.now().plusMillis(rateLimitCooldownMs);
+        coolingDownUntil.put(host, until);
+        log.warn("{} returned {} after {} attempts - backing off until {}",
+                host, status, dataRetryAttempts, until);
+    }
+
+    /**
+     * Ends a cooldown early on the first success.
+     *
+     * <p>The window is a guess at how long the host wants to be left alone.
+     * When it answers before the guess runs out, the guess was wrong and
+     * holding to it would keep refusing callers a working host would serve.
+     */
+    private void clearCooldown(String host) {
+        if (coolingDownUntil.remove(host) != null) {
+            log.info("{} is answering again - cooldown lifted", host);
+        }
     }
 
     /** A fetch outcome, so a caller can distinguish "later" from "no". */

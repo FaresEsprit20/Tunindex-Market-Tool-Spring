@@ -28,6 +28,26 @@ spring:
               enabled: false
 
           routes:
+            # Server-sent event streams, matched BEFORE the general API route
+            # because routes are evaluated in order and the first match wins.
+            #
+            # These carry no response-timeout on purpose. An SSE connection is
+            # meant to stay open indefinitely, so the 30s timeout applied to
+            # ordinary calls would sever the live price feed every thirty
+            # seconds and the client would reconnect in a loop. -1 disables it
+            # for these paths only.
+            #
+            # No CircuitBreaker either: a breaker measures request duration,
+            # and a stream that never "completes" looks like a permanent
+            # failure to it - it would trip open and stay there.
+            - id: api-service-streams
+              uri: lb://API-SERVICE
+              predicates:
+                - Path=/tunindex/market/tool/v1/stocks/prices/stream,/tunindex/market/tool/v1/stocks/notifications/stream,/tunindex/market/tool/v1/stocks/pipeline/status
+              metadata:
+                response-timeout: -1
+                connect-timeout: 5000
+
             # The main application API. The path is preserved exactly: the
             # frontend's base URL is /tunindex/market/tool/v1/stocks, and
             # rewriting it here would break every call in the app.

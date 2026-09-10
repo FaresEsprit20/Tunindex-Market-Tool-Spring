@@ -41,6 +41,7 @@
         <module>sms-service</module>
         <module>recaptcha-service</module>
         <module>ad-module</module>
+        <module>api-gateway</module>
         <module>discovery-server</module>
     </modules>
 

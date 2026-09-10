@@ -1,0 +1,134 @@
+# ========================
+# API GATEWAY
+# ========================
+# The single entry point. Routes by service name through Eureka rather than
+# host:port, so a service can move or scale without the browser knowing.
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # Spring Cloud 2025.0.0 moved routing configuration under
+      # server.webflux. The old spring.cloud.gateway.routes prefix still binds
+      # through a compatibility mapping, but it logs a deprecation for every
+      # entry and relying on it means the next upgrade quietly stops routing.
+      server:
+        webflux:
+          # Routes are listed explicitly rather than using discovery-locator,
+          # which would publish every registered service under a predictable
+          # URL - including the collector's internal scraping endpoints.
+          # Listing them means registering a service with Eureka does not by
+          # itself expose it to the internet.
+          discovery:
+            locator:
+              enabled: false
+
+          routes:
+            # The main application API. The path is preserved exactly: the
+            # frontend's base URL is /tunindex/market/tool/v1/stocks, and
+            # rewriting it here would break every call in the app.
+            - id: api-service
+              uri: lb://API-SERVICE
+              predicates:
+                - Path=/tunindex/market/tool/v1/stocks/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: apiCircuitBreaker
+                    fallbackUri: forward:/fallback/api
+
+            # Ads. A separate route so ad traffic can be limited or pulled out
+            # of rotation without touching the application API.
+            - id: ad-module
+              uri: lb://AD-MODULE
+              predicates:
+                - Path=/api/v1/ads/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: adCircuitBreaker
+                    fallbackUri: forward:/fallback/ads
+
+            # Market data, read-only. The collector's /internal/** endpoints
+            # are deliberately not routed: they trigger scrapes and pipeline
+            # runs, and the api service already proxies the ones the UI needs.
+            - id: collector-public
+              uri: lb://COLLECTOR-SERVICE
+              predicates:
+                - Path=/api/v1/market/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: collectorCircuitBreaker
+                    fallbackUri: forward:/fallback/market
+
+          httpclient:
+            connect-timeout: 5000
+            # Longer than a normal call needs, short enough that a hung
+            # service does not hold a browser connection open indefinitely.
+            response-timeout: 30s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# ========================
+# GATEWAY POLICY
+# ========================
+gateway:
+  cors:
+    # Explicit origins, never "*": the browser refuses to send cookies to a
+    # wildcard origin, and this platform authenticates with HttpOnly cookies.
+    allowed-origins: http://localhost:4200,http://127.0.0.1:4200
+  rate-limit:
+    enabled: true
+    # Generous by design. The dashboard opens several panels at once, and a
+    # limit tuned for a single call would throttle ordinary use.
+    requests-per-minute: 300
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 20
+        # Half the window failing is a service in trouble, not a bad request.
+        failureRateThreshold: 50
+        waitDurationInOpenState: 20s
+        permittedNumberOfCallsInHalfOpenState: 4
+        registerHealthIndicator: true
+    instances:
+      apiCircuitBreaker:
+        baseConfig: default
+      adCircuitBreaker:
+        baseConfig: default
+      collectorCircuitBreaker:
+        baseConfig: default
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      # Lets the route table be inspected at runtime, which is the quickest
+      # way to tell a misconfigured predicate from an unreachable service.
+      access: unrestricted
+
+logging:
+  level:
+    com.tunindex.market_tool.gateway: INFO
+    org.springframework.cloud.gateway: INFO
+  pattern:
+    # The correlation id on every line, so a request can be followed across
+    # services instead of matched up by timestamp.
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{correlationId:-no-trace}] %logger{36} - %msg%n"

@@ -50,6 +50,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     private final UserRepository userRepository;
     private final WebClient.Builder webClientBuilder;
     private final NotificationService notificationService;
+    private final DayChangeCalculator dayChangeCalculator;
 
     @Value("${internal.api.key:market-tool-internal-secret-key-2024}")
     private String internalApiKey;
@@ -104,30 +105,22 @@ public class PortfolioServiceImpl implements PortfolioService {
             // position, which also handles the partial case correctly: holding
             // 100 shares from last week and buying 50 more today counts the
             // day's move on 100, not 150 and not zero.
-            BigDecimal boughtToday = quantityBoughtToday.getOrDefault(position.getSymbol(), BigDecimal.ZERO);
-            BigDecimal heldSinceYesterday = position.getQuantity().subtract(boughtToday);
-            if (heldSinceYesterday.compareTo(BigDecimal.ZERO) < 0) {
-                // More bought today than are held now: the rest was sold
-                // intraday, so nothing survives from yesterday.
-                heldSinceYesterday = BigDecimal.ZERO;
-            }
+            DayChangeCalculator.DayChange dayChange = dayChangeCalculator.calculate(
+                    position.getQuantity(),
+                    quantityBoughtToday.getOrDefault(position.getSymbol(), BigDecimal.ZERO),
+                    prevClose,
+                    currentPrice);
 
-            BigDecimal dayChangeValue = null;
-            BigDecimal dayChangePct = null;
-            if (prevClose != null && prevClose.compareTo(BigDecimal.ZERO) > 0
-                    && heldSinceYesterday.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal heldSinceYesterday = dayChange.eligibleQuantity();
+            BigDecimal dayChangeValue = dayChange.value();
+            BigDecimal dayChangePct = dayChange.percent();
 
-                BigDecimal perShare = currentPrice.subtract(prevClose);
-                dayChangeValue = perShare.multiply(heldSinceYesterday).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-                dayChangePct = perShare.divide(prevClose, 6, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
+            if (dayChange.applies()) {
                 totalDayChangeValue = totalDayChangeValue.add(dayChangeValue);
-                // Yesterday's value of the holding, so the portfolio-level
-                // percentage is weighted by position size rather than a flat
-                // average of each position's percentage. Only the shares that
-                // existed yesterday belong in that base.
-                prevDayMarketValue = prevDayMarketValue.add(
-                        prevClose.multiply(heldSinceYesterday).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+                // Yesterday's value of the qualifying shares, so the
+                // portfolio-level percentage is weighted by position size
+                // rather than averaging each position's percentage flat.
+                prevDayMarketValue = prevDayMarketValue.add(dayChange.previousDayValue());
             }
 
             totalMarketValue = totalMarketValue.add(marketValue);

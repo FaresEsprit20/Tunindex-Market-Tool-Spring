@@ -207,8 +207,43 @@ public class PageFetcher {
     }
 
     /** Plain HTTP. Returns null when the response is missing, refused or a challenge page. */
+    /**
+     * A paced GET, retrying a refusal that means "later" rather than "no".
+     *
+     * <p>This used to be a single attempt, and the retry loop existed only on
+     * the data path - so a rate-limited <em>page</em> failed outright. Under
+     * sustained scraping that showed up as forty of seventy-three symbols
+     * failing in one run: not a block, just a busy host being asked again too
+     * soon and never asked twice.
+     *
+     * <p>Only 429 and the 5xx family are retried. A 404 is a real answer and
+     * repeating it wastes a request the host would rather not serve.
+     */
     private String viaHttp(String url) {
-        return request(url).body();
+        for (int attempt = 1; attempt <= dataRetryAttempts; attempt++) {
+            Result result = request(url);
+            if (result.body() != null) {
+                return result.body();
+            }
+            if (!worthRetrying(result.status()) || attempt == dataRetryAttempts) {
+                return null;
+            }
+            // Backs off further each time: a host that is throttling wants
+            // less traffic, so trying again at the same cadence is the one
+            // response guaranteed not to help.
+            long wait = result.status() == 429
+                    ? rateLimitBackoffMs * attempt
+                    : 500L * attempt;
+            log.debug("Retrying {} in {}ms (attempt {} of {}, last status {})",
+                    url, wait, attempt, dataRetryAttempts, result.status());
+            sleep(wait);
+        }
+        return null;
+    }
+
+    /** True for refusals that are temporary by definition. */
+    private boolean worthRetrying(int status) {
+        return status == 429 || status >= 500;
     }
 
     private Result request(String url) {

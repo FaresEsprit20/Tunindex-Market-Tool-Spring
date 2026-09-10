@@ -164,10 +164,16 @@ gateway:
   # working screen away from anyone who has not watched an ad, so each one
   # wants deciding on purpose; the frontend must handle 402 for that path
   # before it is listed here.
+  # The bracket-quoted keys are required, not decoration. Spring Boot's
+  # relaxed binding rewrites map keys - stripping and lower-casing characters
+  # like "/" - unless the key is wrapped in [...]. Written plainly, these
+  # bind to a mangled key that matches no path, the filter finds no rule, and
+  # every gated endpoint silently opens. That failure is invisible: nothing
+  # errors, the gate is simply not there.
   ad-gate:
     enabled: true
     rules:
-      /tunindex/market/tool/v1/stocks/pipeline/start: PIPELINE_RUN
+      "[/tunindex/market/tool/v1/stocks/pipeline/start]": PIPELINE_RUN
 
   rate-limit:
     enabled: true

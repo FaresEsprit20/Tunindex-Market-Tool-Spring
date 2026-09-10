@@ -1,6 +1,8 @@
 package com.tunindex.market_tool.gateway.filter;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import com.tunindex.market_tool.gateway.config.AdGateProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -47,22 +49,45 @@ import java.util.Map;
 public class AdGateFilter implements GlobalFilter, Ordered {
 
     /**
-     * Which paths require which feature's grant, as {@code pattern=FEATURE}.
+     * Which paths require which feature's grant.
      *
      * <p>Ant patterns, matched against the full path. Configured rather than
      * hard-coded so a gate can be added or lifted without a rebuild - and so
      * the list of what costs an ad is visible in one place instead of spread
      * across controllers.
      */
-    @Value("${gateway.ad-gate.rules:}")
-    private Map<String, String> rules = Map.of();
-
-    @Value("${gateway.ad-gate.enabled:true}")
-    private boolean enabled;
+    private final AdGateProperties properties;
 
     /** Must match the ad module's signing key, or every grant is refused. */
     @Value("${ads.grant.secret:tunindex-dev-ad-grant-secret-change-me}")
     private String secret;
+
+    public AdGateFilter(AdGateProperties properties) {
+        this.properties = properties;
+    }
+
+    /**
+     * Says out loud what is gated, because the alternative failure is silent.
+     *
+     * <p>A rule whose key fails to bind - the usual cause being a path written
+     * without the brackets Spring's relaxed binding needs - produces no error
+     * at all. The filter simply finds no match and every gated endpoint opens,
+     * which looks exactly like working software. Printing the rules at startup
+     * turns that into something someone can notice.
+     */
+    @PostConstruct
+    void reportRules() {
+        Map<String, String> rules = properties.getRules();
+        if (!properties.isEnabled()) {
+            log.warn("Ad gate is DISABLED - no feature requires watching an ad");
+            return;
+        }
+        if (rules == null || rules.isEmpty()) {
+            log.warn("Ad gate is enabled but no rules are configured - nothing is gated");
+            return;
+        }
+        rules.forEach((pattern, feature) -> log.info("Ad gate: {} requires {}", pattern, feature));
+    }
 
     private static final String COOKIE_PREFIX = "adGrant_";
     private static final String ALGORITHM = "HmacSHA256";
@@ -70,12 +95,13 @@ public class AdGateFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        if (!enabled || rules == null || rules.isEmpty()) {
+        Map<String, String> rules = properties.getRules();
+        if (!properties.isEnabled() || rules == null || rules.isEmpty()) {
             return chain.filter(exchange);
         }
 
         String path = exchange.getRequest().getURI().getPath();
-        String feature = featureFor(path);
+        String feature = featureFor(rules, path);
         if (feature == null) {
             return chain.filter(exchange);
         }
@@ -100,7 +126,7 @@ public class AdGateFilter implements GlobalFilter, Ordered {
         return refuse(exchange, feature);
     }
 
-    private String featureFor(String path) {
+    private String featureFor(Map<String, String> rules, String path) {
         for (Map.Entry<String, String> rule : rules.entrySet()) {
             if (MATCHER.match(rule.getKey(), path)) {
                 return rule.getValue();

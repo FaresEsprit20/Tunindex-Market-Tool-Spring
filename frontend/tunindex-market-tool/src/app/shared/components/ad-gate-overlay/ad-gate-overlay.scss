@@ -1,0 +1,117 @@
+.gate-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.gate-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(520px, 100%);
+  padding: 22px;
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-panel, #fff);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.4);
+}
+
+.gate-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gate-eyebrow {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary, #8a8a8a);
+}
+
+.gate-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--color-text-primary, #111);
+}
+
+.gate-creative {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  overflow: hidden;
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-panel-alt, #f2f2f4);
+
+  img {
+    max-width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+  }
+}
+
+.gate-placeholder {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #555);
+}
+
+/* A real measure of the wait, not a decorative spinner: it moves at one
+   second per second, so it says how much longer rather than just "busy". */
+.gate-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-border, #e2e2e6);
+}
+
+.gate-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand, #2f6fed);
+  transition: width 1s linear;
+}
+
+.gate-status {
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary, #555);
+}
+
+.gate-cancel {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--color-text-tertiary, #8a8a8a);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-text-secondary, #555);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand, #2f6fed);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-progress-fill {
+    transition: none;
+  }
+}

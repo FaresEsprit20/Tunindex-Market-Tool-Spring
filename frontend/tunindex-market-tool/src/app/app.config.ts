@@ -5,6 +5,7 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth-interceptor';
 import { errorInterceptor } from './core/interceptors/error-interceptor';
 import { tokenRefreshInterceptor } from './core/interceptors/token-refresh-interceptor';
+import { adGateInterceptor } from './core/interceptors/ad-gate-interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,6 +15,12 @@ export const appConfig: ApplicationConfig = {
     // quick cross-fade + rise, not the browser's default plain cross-fade).
     // skipInitialTransition avoids animating the very first paint on load.
     provideRouter(routes, withViewTransitions({ skipInitialTransition: true })),
-    provideHttpClient(withInterceptors([authInterceptor, tokenRefreshInterceptor, errorInterceptor])),
+    // Order matters. The ad gate sits after the token refresh, so an expired
+    // session is renewed and the call retried before anything concludes the
+    // user owes an ad; and before the error interceptor, so a 402 is turned
+    // into a playable ad rather than surfacing to the user as a failure.
+    provideHttpClient(
+      withInterceptors([authInterceptor, tokenRefreshInterceptor, adGateInterceptor, errorInterceptor]),
+    ),
   ],
 };

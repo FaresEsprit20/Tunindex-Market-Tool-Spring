@@ -8,7 +8,6 @@ import com.tunindex.market_tool.common.entities.embedded.Address;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,7 +50,19 @@ public class UserExtendedDto {
                 .username(user.getLoginName() != null ? user.getLoginName() : "")
                 .twoFactorEnabled(Boolean.TRUE.equals(user.getTwoFactorEnabled()))
                 .numTel(user.getNumTel() != null ? user.getNumTel() : "")
-                .birthDate(LocalDate.from(user.getBirthDate() != null ? user.getBirthDate() : Instant.EPOCH))
+                // Left null when unset, rather than substituted.
+                //
+                // This line used to read LocalDate.from(... : Instant.EPOCH),
+                // which throws for every user without a birth date: an Instant
+                // is a point on the timeline with no date until a time zone is
+                // applied, so LocalDate.from cannot read one. The guard meant
+                // to handle null was the thing that failed on it, and the whole
+                // response 500'd - which is what any account created through
+                // Google sign-in hits, since those carry no birth date.
+                //
+                // A date nobody supplied is unknown; 1970-01-01 would be a
+                // value the profile screen then shows as fact.
+                .birthDate(user.getBirthDate())
                 .password(user.getPassword() != null ? user.getPassword() : "")
                 .photo(user.getPhoto() != null ? user.getPhoto() : "")
                 .roles(user.getRoles() != null
@@ -74,7 +85,7 @@ public class UserExtendedDto {
                 .firstName(userExtendedDto.getFirstName() != null ? userExtendedDto.getFirstName() : "")
                 .lastName(userExtendedDto.getLastName() != null ? userExtendedDto.getLastName() : "")
                 .email(userExtendedDto.getEmail() != null ? userExtendedDto.getEmail() : "")
-                .birthDate(LocalDate.from(userExtendedDto.getBirthDate() != null ? userExtendedDto.getBirthDate() : Instant.EPOCH))
+                .birthDate(userExtendedDto.getBirthDate())
                 .password(userExtendedDto.getPassword() != null ? userExtendedDto.getPassword() : "")
                 .photo(userExtendedDto.getPhoto() != null ? userExtendedDto.getPhoto() : "")
                 .roles(userExtendedDto.getRoles() != null

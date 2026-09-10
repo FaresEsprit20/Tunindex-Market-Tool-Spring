@@ -7,6 +7,7 @@ import { MarketTicker } from '../../shared/components/market-ticker/market-ticke
 import { CommandPalette } from '../../shared/components/command-palette/command-palette';
 import { AdSlot } from '../../shared/components/ad-slot/ad-slot';
 import { AdNavigationInterstitial } from '../../shared/components/ad-navigation-interstitial/ad-navigation-interstitial';
+import { AdGateOverlay } from '../../shared/components/ad-gate-overlay/ad-gate-overlay';
 
 /**
  * Route-level shell for every authenticated page: a brand masthead, a
@@ -18,7 +19,17 @@ import { AdNavigationInterstitial } from '../../shared/components/ad-navigation-
  */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, Navbar, MarketTicker, CommandPalette, PrimaryNav, AdSlot, AdNavigationInterstitial],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    Navbar,
+    MarketTicker,
+    CommandPalette,
+    PrimaryNav,
+    AdSlot,
+    AdNavigationInterstitial,
+    AdGateOverlay,
+  ],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

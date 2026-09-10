@@ -21,6 +21,10 @@
      is the last thing on the page rather than something to scroll past. -->
 <app-ad-slot placement="GLOBAL_FOOTER" />
 
+<!-- Raised whenever the server answers a gated call with 402. Mounted here
+     so it works for any page, including ones that know nothing about ads. -->
+<app-ad-gate-overlay />
+
 <app-command-palette />
 
 <!-- Triggered by navigation, not by a page. Rate-limited inside the

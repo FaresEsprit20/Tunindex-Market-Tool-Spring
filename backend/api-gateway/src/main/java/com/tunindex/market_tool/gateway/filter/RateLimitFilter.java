@@ -90,13 +90,21 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
     /**
      * Who to count against.
      *
-     * <p>Remote address rather than anything user-derived, because the callers
-     * worth limiting are precisely the ones without a valid session. Behind a
-     * proxy this collapses everyone onto one key, so a real deployment should
-     * read a forwarded-for header it actually trusts - trusting one blindly
-     * lets any client rewrite its own identity and evade the limit entirely.
+     * <p>The address {@link ClientAddressFilter} resolved, not the raw socket
+     * address. Behind a proxy the socket address is the proxy's, which would
+     * collapse every caller onto one counter and let one noisy client exhaust
+     * the quota for everybody. That filter is also the only thing permitted to
+     * believe a forwarding header, which is what keeps a caller from rewriting
+     * its own identity to escape the limit.
+     *
+     * <p>Falls back to the socket address if the attribute is missing, so a
+     * change in filter order degrades the limit rather than removing it.
      */
     private String callerKey(ServerWebExchange exchange) {
+        Object resolved = exchange.getAttribute(ClientAddressFilter.CLIENT_IP_ATTRIBUTE);
+        if (resolved instanceof String ip && !ip.isBlank()) {
+            return ip;
+        }
         return exchange.getRequest().getRemoteAddress() == null
                 ? "unknown"
                 : exchange.getRequest().getRemoteAddress().getAddress().getHostAddress();
@@ -105,7 +113,8 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         // Before the auth pre-check, so a flood of unauthenticated requests is
-        // capped rather than merely rejected one at a time.
-        return Ordered.HIGHEST_PRECEDENCE;
+        // capped rather than merely rejected one at a time - and after
+        // ClientAddressFilter, whose resolved address it counts against.
+        return Ordered.HIGHEST_PRECEDENCE + 2;
     }
 }

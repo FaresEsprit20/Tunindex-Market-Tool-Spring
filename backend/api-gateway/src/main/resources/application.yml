@@ -103,18 +103,19 @@ spring:
                     name: collectorCircuitBreaker
                     fallbackUri: forward:/fallback/market
 
-          # Pass the caller's real address downstream. Without this the
-          # services only ever see the gateway's address: api-service binds
-          # each session to the client IP, so every user's token would bind
-          # to one shared value and the binding would stop protecting
-          # anything. The services pair this with a trusted-proxies list, so
-          # a spoofed header from outside is not taken at face value.
+          # Spring's own forwarding-header filter is off, and ours
+          # (ClientAddressFilter) writes these headers instead.
+          #
+          # Measured, not assumed: with trusted-proxies unset this filter
+          # emits no X-Forwarded-* header at all, so the services fell back
+          # to the socket address and bound every session to the gateway's
+          # own IP. Set wide enough to cover local callers, it passed a
+          # caller's own X-Forwarded-For through untouched - so a client
+          # could name its own address. Neither behaviour is what we want,
+          # and both are version-specific. One filter we control is easier
+          # to reason about than a regex whose meaning shifts under us.
           x-forwarded:
-            enabled: true
-            for-enabled: true
-            host-enabled: true
-            proto-enabled: true
-            port-enabled: true
+            enabled: false
 
           httpclient:
             connect-timeout: 5000
@@ -137,6 +138,10 @@ gateway:
     # Explicit origins, never "*": the browser refuses to send cookies to a
     # wildcard origin, and this platform authenticates with HttpOnly cookies.
     allowed-origins: http://localhost:4200,http://127.0.0.1:4200
+  # Real reverse proxies in front of this gateway, if any. Empty means the
+  # browser reaches us directly, which is the safe assumption: trusting a
+  # host that is not actually a proxy lets any caller forge its own address.
+  trusted-upstream-proxies:
   rate-limit:
     enabled: true
     # Generous by design. The dashboard opens several panels at once, and a

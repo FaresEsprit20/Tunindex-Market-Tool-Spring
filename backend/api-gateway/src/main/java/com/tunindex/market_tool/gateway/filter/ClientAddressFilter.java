@@ -55,7 +55,19 @@ public class ClientAddressFilter implements GlobalFilter, Ordered {
      * in front, such as an nginx or a load balancer.
      */
     @Value("${gateway.trusted-upstream-proxies:}")
-    private List<String> trustedUpstreamProxies;
+    private List<String> trustedUpstreamProxies = List.of();
+
+    /**
+     * Never null, whatever the configuration says.
+     *
+     * <p>A YAML key written with no value binds to null rather than to an
+     * empty list, and a null here would throw on the first request - turning
+     * a blank config line into a gateway that rejects all traffic. Treating
+     * absent as "no trusted proxies" is also the safe reading.
+     */
+    private List<String> trustedProxies() {
+        return trustedUpstreamProxies == null ? List.of() : trustedUpstreamProxies;
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -76,7 +88,7 @@ public class ClientAddressFilter implements GlobalFilter, Ordered {
         String peer = socketAddress(request);
 
         // Only a known proxy gets to tell us who it is speaking for.
-        if (peer != null && trustedUpstreamProxies.contains(peer)) {
+        if (peer != null && trustedProxies().contains(peer)) {
             String claimed = rightmostUntrusted(request.getHeaders().getFirst(X_FORWARDED_FOR));
             if (claimed != null) {
                 return claimed;
@@ -100,7 +112,7 @@ public class ClientAddressFilter implements GlobalFilter, Ordered {
         String[] hops = chain.split(",");
         for (int i = hops.length - 1; i >= 0; i--) {
             String hop = hops[i].trim();
-            if (!hop.isEmpty() && !trustedUpstreamProxies.contains(hop)) {
+            if (!hop.isEmpty() && !trustedProxies().contains(hop)) {
                 return hop;
             }
         }

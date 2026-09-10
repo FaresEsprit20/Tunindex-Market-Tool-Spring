@@ -232,6 +232,37 @@ public interface Constants {
         put("AETEC", new StockInfo("AETEC", "Advanced e-Technologies S.A", "/quote/bvmt/AETEC/", OwnershipType.PRIVATE, "Computer Programming, Data Processing, And Other Computer Related Services", "Tunisia"));
       }};
 
+    /**
+     * Listed companies the primary source does not carry.
+     *
+     * <p>Comparing the map above against the exchange's own cote turned up
+     * twelve companies it had never included. They are not scrape failures:
+     * stockanalysis.com returns 404 for every one of them, checked
+     * individually, so no amount of pacing or retrying reaches them.
+     *
+     * <p>Kept separate rather than merged into the primary map so the main
+     * pipeline does not spend three requests per symbol discovering a 404 it
+     * already knows about. These are collected from ilboursa and the BVMT
+     * bulletin instead, which do list all of them.
+     *
+     * <p>Names are the exchange's own display names, taken from its cote
+     * table rather than invented.
+     */
+    Map<String, StockInfo> TUNISIAN_STOCKS_SECONDARY = new LinkedHashMap<>() {{
+        put("ADWYA", new StockInfo("ADWYA", "ADWYA", "/marches/cotation_ADWYA", OwnershipType.PRIVATE, "Pharmaceutical Preparations", "Tunisia"));
+        put("AMS", new StockInfo("AMS", "AMS", "/marches/cotation_AMS", OwnershipType.PRIVATE, "Miscellaneous Manufacturing Industries", "Tunisia"));
+        put("CREAL", new StockInfo("CREAL", "Cerealis", "/marches/cotation_CREAL", OwnershipType.PRIVATE, "Groceries And Related Products", "Tunisia"));
+        put("ELBEN", new StockInfo("ELBEN", "Elbene", "/marches/cotation_ELBEN", OwnershipType.PRIVATE, "Dairy Products", "Tunisia"));
+        put("GIF", new StockInfo("GIF", "GIF Filter", "/marches/cotation_GIF", OwnershipType.PRIVATE, "Miscellaneous Manufacturing Industries", "Tunisia"));
+        put("LSTR", new StockInfo("LSTR", "Electrostar", "/marches/cotation_LSTR", OwnershipType.PRIVATE, "Miscellaneous Manufacturing Industries", "Tunisia"));
+        put("MIP", new StockInfo("MIP", "MIP", "/marches/cotation_MIP", OwnershipType.PRIVATE, "Miscellaneous Manufacturing Industries", "Tunisia"));
+        put("SERVI", new StockInfo("SERVI", "Servicom", "/marches/cotation_SERVI", OwnershipType.PRIVATE, "Computer Programming, Data Processing, And Other Computer Related Services", "Tunisia"));
+        put("SMD", new StockInfo("SMD", "Sanimed", "/marches/cotation_SMD", OwnershipType.PRIVATE, "Miscellaneous Manufacturing Industries", "Tunisia"));
+        put("SOPAT", new StockInfo("SOPAT", "Sopat", "/marches/cotation_SOPAT", OwnershipType.PRIVATE, "Groceries And Related Products", "Tunisia"));
+        put("SPHAX", new StockInfo("SPHAX", "Syphax Airlines", "/marches/cotation_SPHAX", OwnershipType.PRIVATE, "Air Transportation", "Tunisia"));
+        put("STEQ", new StockInfo("STEQ", "STEQ", "/marches/cotation_STEQ", OwnershipType.PRIVATE, "Miscellaneous Manufacturing Industries", "Tunisia"));
+      }};
+
     // StockInfo as a Java Record
     record StockInfo(
             String symbol,

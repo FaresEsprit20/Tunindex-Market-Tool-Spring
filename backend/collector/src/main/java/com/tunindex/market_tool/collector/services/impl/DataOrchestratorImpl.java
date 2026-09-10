@@ -1,6 +1,7 @@
 package com.tunindex.market_tool.collector.services.impl;
 
 import com.tunindex.market_tool.collector.providers.ilboursa.IlBoursaQuoteProvider;
+import com.tunindex.market_tool.collector.providers.ilboursa.IlBoursaStockProvider;
 import com.tunindex.market_tool.collector.providers.stockanalysis.StockAnalysisProvider;
 import com.tunindex.market_tool.collector.services.status.PipelineStatusService;
 import com.tunindex.market_tool.common.dto.pipeline.PipelinePhase;
@@ -31,6 +32,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
     private final IlBoursaQuoteProvider ilBoursaQuoteProvider;
     private final PipelineStatusService pipelineStatus;
     private final StockMerger stockMerger;
+    private final IlBoursaStockProvider ilBoursaStockProvider;
 
     @Override
     public Mono<Void> runPipeline() {
@@ -40,6 +42,7 @@ public class DataOrchestratorImpl implements DataOrchestrator {
         return stockAnalysisProvider.fetchAllStocks()
                 .collectList()
                 .flatMap(this::saveAllToDatabase)
+                .then(saveSecondaryUniverse())
                 .doOnSuccess(v -> {
                     log.info("✅ Pipeline completed successfully");
                     pipelineStatus.finish(true);
@@ -203,6 +206,34 @@ public class DataOrchestratorImpl implements DataOrchestrator {
     /**
      * Save all stocks to database with UPSERT logic
      */
+    /**
+     * Collects the listed companies the primary source has no page for.
+     *
+     * <p>Twelve of them, confirmed one by one as 404 on stockanalysis.com -
+     * so they are unreachable by the main path at any pacing. Built instead
+     * from ilboursa's cote and company pages, which do list them.
+     *
+     * <p>Run after the primary save and allowed to fail on its own: these are
+     * a supplement, and a problem fetching them should not discard a
+     * successful primary pass.
+     */
+    private Mono<Void> saveSecondaryUniverse() {
+        return Mono.fromCallable(ilBoursaStockProvider::fetchAll)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(Flux::fromIterable)
+                .concatMap(this::saveOrUpdateStock)
+                .doOnNext(stock -> log.info("💾 SAVED (secondary) - {} @ {}",
+                        stock.getSymbol(),
+                        stock.getPriceData() != null ? stock.getPriceData().getLastPrice() : null))
+                .onErrorContinue((error, item) ->
+                        log.warn("Secondary universe: failed to save {}: {}", item, error.getMessage()))
+                .then()
+                .onErrorResume(error -> {
+                    log.warn("Secondary universe pass failed: {}", error.getMessage());
+                    return Mono.empty();
+                });
+    }
+
     private Mono<Void> saveAllToDatabase(List<EnrichedStockData> stocks) {
         log.info("💾 Saving {} stocks to database (UPSERT mode)", stocks.size());
 

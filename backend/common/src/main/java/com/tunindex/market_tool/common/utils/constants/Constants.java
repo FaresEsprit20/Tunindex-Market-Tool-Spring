@@ -93,6 +93,11 @@ public interface Constants {
         put("DH", new StockInfo("DH", "Délice Holding SA", "/quote/bvmt/DH/", OwnershipType.PRIVATE, "Dairy Products", "Tunisia"));
         // 7
         put("BT", new StockInfo("BT", "Banque de Tunisie Société anonyme", "/quote/bvmt/BT/", OwnershipType.PRIVATE, "Commercial Banks", "Tunisia"));
+        // Added after comparing this list against the exchange's own cote,
+        // which carries 84 companies to this map's 73. These two are the only
+        // absentees the primary source can serve - the other twelve return 404
+        // there and need the ilboursa/BVMT path instead.
+        put("BTE", new StockInfo("BTE", "Banque de Tunisie et des Emirats Société anonyme", "/quote/bvmt/BTE/", OwnershipType.PRIVATE, "Commercial Banks", "Tunisia"));
         // 8
         put("SAH", new StockInfo("SAH", "Société d'Articles Hygiéniques Société Anonyme", "/quote/bvmt/SAH/", OwnershipType.PRIVATE, "Orthopedic, Prosthetic, and Surgical Appliances and Supplies", "Tunisia"));
         // 9

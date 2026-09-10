@@ -326,7 +326,11 @@ public class PortfolioServiceImpl implements PortfolioService {
      * reduces the quantity, and the smaller quantity already reflects that -
      * subtracting the sale again would double-count it.
      */
-    private Map<String, BigDecimal> quantityBoughtToday(Long accountId) {
+    // Package-private rather than private so the wiring can be tested
+    // directly. The calculation it feeds is money-affecting, and reaching it
+    // through getPortfolio() would mean standing up an HTTP client and an
+    // authenticated request just to observe one query.
+    Map<String, BigDecimal> quantityBoughtToday(Long accountId) {
         LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
         Map<String, BigDecimal> bought = new HashMap<>();
 

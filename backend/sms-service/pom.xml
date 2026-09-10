@@ -67,6 +67,23 @@
             <version>2.1.0</version>
         </dependency>
 
+        <!-- Twilio and libphonenumber were imported throughout this module but
+             never declared, so it had never compiled: the first full-reactor
+             build was what surfaced it, because earlier builds only ever named
+             specific modules. Versions are pinned here rather than left to a
+             range, so a future build cannot pick up a different major version
+             and change behaviour without anyone editing this file. -->
+        <dependency>
+            <groupId>com.twilio.sdk</groupId>
+            <artifactId>twilio</artifactId>
+            <version>9.14.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.googlecode.libphonenumber</groupId>
+            <artifactId>libphonenumber</artifactId>
+            <version>8.13.35</version>
+        </dependency>
+
     </dependencies>
 
 

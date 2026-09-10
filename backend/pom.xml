@@ -40,9 +40,6 @@
         <module>mailing-service</module>
         <module>sms-service</module>
         <module>recaptcha-service</module>
-        <module>payment-service</module>
-        <module>billing-service</module>
-        <module>user-subscription-service</module>
         <module>ad-module</module>
         <module>discovery-server</module>
     </modules>

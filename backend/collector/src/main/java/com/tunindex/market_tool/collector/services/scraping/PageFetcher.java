@@ -177,6 +177,20 @@ public class PageFetcher {
     private final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL)
             .connectTimeout(Duration.ofSeconds(15))
+            // HTTP/1.1, not the JDK's default HTTP/2.
+            //
+            // Yahoo answered 429 to this client for weeks while answering 200
+            // to the identical URL and headers from curl, seconds apart on the
+            // same address. The only remaining difference was the protocol:
+            // this client negotiates HTTP/2, curl here is built without it.
+            // A Java HTTP/2 connection is distinguishable from a browser's by
+            // its settings frames and header ordering, and that is evidently
+            // what was being refused - the "rate limit" was never about rate.
+            //
+            // The cost is a little efficiency on a workload that is paced to
+            // one request every few seconds anyway; every host we read speaks
+            // HTTP/1.1.
+            .version(HttpClient.Version.HTTP_1_1)
             .build();
 
     /**
@@ -245,7 +259,9 @@ public class PageFetcher {
 
         for (int attempt = 1; attempt <= dataRetryAttempts; attempt++) {
             pace(host);
-            Result result = request(url);
+            // true: this path serves JSON APIs, so it asks like a page's own
+            // script rather than like someone typing a URL.
+            Result result = request(url, true);
             lastStatus = result.status();
             if (result.body() != null) {
                 clearCooldown(host);
@@ -281,6 +297,24 @@ public class PageFetcher {
 
     private boolean isThrottle(int status) {
         return status == 429 || status == 403;
+    }
+
+    /**
+     * The site a data call would plausibly have come from.
+     *
+     * <p>An API host is usually a subdomain of the site that calls it -
+     * query1.finance.yahoo.com is fetched by finance.yahoo.com - so the parent
+     * domain is the honest referer. Falls back to the host's own root when the
+     * name is too short to have a parent.
+     */
+    private String refererFor(String url) {
+        String host = hostOf(url);
+        String[] parts = host.split("\\.");
+        if (parts.length >= 3) {
+            // query1.finance.yahoo.com -> https://finance.yahoo.com/
+            return "https://" + String.join(".", java.util.Arrays.copyOfRange(parts, 1, parts.length)) + "/";
+        }
+        return "https://" + host + "/";
     }
 
     /** Whether this host is being left alone for the moment. */
@@ -374,28 +408,61 @@ public class PageFetcher {
     }
 
     private Result request(String url) {
+        return request(url, false);
+    }
+
+    /**
+     * @param dataEndpoint true for a JSON API, false for an HTML page
+     *
+     * <p>The distinction is not cosmetic. The headers below describe what kind
+     * of request a browser thinks it is making, and sending the page set at a
+     * JSON API is a contradiction the API can see: {@code Sec-Fetch-Dest:
+     * document} with {@code Sec-Fetch-Site: none} says "the user typed this
+     * into the address bar", which nothing legitimately does to a quote
+     * endpoint.
+     *
+     * <p>Yahoo answered 429 to every such request while answering 200 to the
+     * same URL with XHR headers and a referer - from the same address, seconds
+     * apart. It was read for weeks as an IP rate limit, which is why gold,
+     * silver and the dinar crosses were missing from the dashboard: we were
+     * being refused for how we asked, not how often.
+     */
+    private Result request(String url, boolean dataEndpoint) {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(httpTimeoutSeconds))
                     // Headers a real Chrome sends. Ordinary browser traffic is
                     // the goal — not evasion of a block, but simply not looking
                     // like a bare library default.
                     .header("User-Agent", userAgent())
-                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                            + "image/avif,image/webp,image/apng,*/*;q=0.8")
                     .header("Accept-Language", "en-US,en;q=0.9,fr;q=0.8")
                     // identity, not gzip: the shared client has no decompressor
                     // wired in, and a gzipped body reaches the parser as raw
                     // bytes — which is what silently broke two thirds of the
                     // exchange once already.
-                    .header("Accept-Encoding", "identity")
-                    .header("Upgrade-Insecure-Requests", "1")
-                    .header("Sec-Fetch-Dest", "document")
-                    .header("Sec-Fetch-Mode", "navigate")
-                    .header("Sec-Fetch-Site", "none")
-                    .header("Sec-Fetch-User", "?1")
-                    .GET()
-                    .build();
+                    .header("Accept-Encoding", "identity");
+
+            if (dataEndpoint) {
+                // What a page's own script looks like when it fetches data.
+                builder.header("Accept", "application/json,text/plain,*/*")
+                        .header("Sec-Fetch-Dest", "empty")
+                        .header("Sec-Fetch-Mode", "cors")
+                        .header("Sec-Fetch-Site", "same-site")
+                        // Several data hosts check that the call came from
+                        // their own site. Derived from the URL rather than
+                        // hard-coded so this holds for every provider.
+                        .header("Referer", refererFor(url));
+            } else {
+                builder.header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                                + "image/avif,image/webp,image/apng,*/*;q=0.8")
+                        .header("Upgrade-Insecure-Requests", "1")
+                        .header("Sec-Fetch-Dest", "document")
+                        .header("Sec-Fetch-Mode", "navigate")
+                        .header("Sec-Fetch-Site", "none")
+                        .header("Sec-Fetch-User", "?1");
+            }
+
+            HttpRequest request = builder.GET().build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();

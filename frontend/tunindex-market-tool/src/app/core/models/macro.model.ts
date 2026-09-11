@@ -38,7 +38,8 @@ export interface MarketQuote {
   changePct: number | null;
   changeValue: number | null;
   currency: string;
-  category: 'METAL' | 'CRYPTO' | 'FX';
+  /** EQUITY covers the technology funds and MicroStrategy. */
+  category: 'METAL' | 'CRYPTO' | 'FX' | 'EQUITY';
   /**
    * What the change is measured against. Metals and currencies have a daily
    * close; crypto trades continuously and quotes a rolling window instead.

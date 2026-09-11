@@ -167,3 +167,14 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Same lockup on the signed-out screens, so the product is named
+   consistently before and after signing in. */
+.brand-mark-index {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}

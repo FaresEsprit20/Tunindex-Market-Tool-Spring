@@ -1,0 +1,79 @@
+@if (!loading() && slides().length > 0) {
+  <!-- Pauses on hover and on keyboard focus. An auto-advancing band that
+       pulls a headline away mid-sentence is why carousels are mistrusted. -->
+  <section class="car"
+           (mouseenter)="pause()" (mouseleave)="resume()"
+           (focusin)="pause()" (focusout)="resume()"
+           aria-roledescription="carousel"
+           aria-label="Today's market">
+
+    <div class="car-stage">
+      @if (current(); as slide) {
+        <!-- Keyed on the index so Angular replaces the node and the entrance
+             animation runs on every change. -->
+        <div class="car-slide" [attr.data-i]="index()">
+          @if (slide.kind === 'movers') {
+            <div class="car-head">
+              <span class="car-eyebrow" [class]="'tone-' + slide.tone">{{ slide.title }}</span>
+            </div>
+            <div class="movers">
+              @for (m of slide.movers; track m.symbol; let i = $index) {
+                <a class="mover" [routerLink]="['/app/stocks', m.symbol]" [style.--i]="i">
+                  <span class="mover-sym mono">{{ m.symbol }}</span>
+                  <span class="mover-name">{{ m.name }}</span>
+                  <span class="mover-price mono">{{ m.lastPrice | number: '1.2-2' }}</span>
+                  <span class="mover-chg mono"
+                        [class.up]="(m.changePct ?? 0) > 0"
+                        [class.down]="(m.changePct ?? 0) < 0">
+                    {{ (m.changePct ?? 0) > 0 ? '+' : '' }}{{ m.changePct | number: '1.2-2' }}%
+                  </span>
+                </a>
+              }
+            </div>
+          } @else {
+            <div class="car-head">
+              <span class="car-eyebrow tone-news">Market news</span>
+              <span class="news-dot" [class]="sentimentClass(slide.item.sentiment)"
+                    [title]="slide.item.sentiment ?? 'NEUTRAL'"></span>
+            </div>
+            <a class="news-slide" [href]="slide.item.url" target="_blank" rel="noopener noreferrer">
+              <p class="news-headline">{{ slide.item.headline }}</p>
+              <span class="news-cta">
+                Read the story
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h13M13 6l6 6-6 6" />
+                </svg>
+              </span>
+            </a>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="car-controls">
+      <button type="button" class="car-arrow" (click)="previous()" aria-label="Previous slide">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      </button>
+
+      <div class="car-dots" role="tablist">
+        @for (s of slides(); track $index; let i = $index) {
+          <button type="button"
+                  class="car-dot"
+                  [class.active]="i === index()"
+                  role="tab"
+                  [attr.aria-selected]="i === index()"
+                  [attr.aria-label]="'Slide ' + (i + 1) + ' of ' + slides().length"
+                  (click)="goTo(i)"></button>
+        }
+      </div>
+
+      <button type="button" class="car-arrow" (click)="next()" aria-label="Next slide">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
+    </div>
+  </section>
+}

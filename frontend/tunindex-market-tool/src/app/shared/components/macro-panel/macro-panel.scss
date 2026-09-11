@@ -212,3 +212,35 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Tiles assemble in sequence rather than appearing at once. The figures
+   themselves count up via app-animated-number, so the panel reads as
+   something being reported rather than something already sitting there. */
+.macro-item {
+  opacity: 0;
+  animation: macro-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.macro-grid .macro-item:nth-child(1) { animation-delay: 0ms; }
+.macro-grid .macro-item:nth-child(2) { animation-delay: 55ms; }
+.macro-grid .macro-item:nth-child(3) { animation-delay: 110ms; }
+.macro-grid .macro-item:nth-child(4) { animation-delay: 165ms; }
+.macro-grid .macro-item:nth-child(5) { animation-delay: 220ms; }
+.macro-grid .macro-item:nth-child(6) { animation-delay: 275ms; }
+.macro-grid .macro-item:nth-child(n+7) { animation-delay: 330ms; }
+
+.macro-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-brand, #2f6fed);
+}
+
+@keyframes macro-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .macro-item { opacity: 1; animation: none; }
+  .macro-item:hover { transform: none; }
+}

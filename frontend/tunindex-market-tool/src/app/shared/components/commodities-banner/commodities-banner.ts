@@ -1,5 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { AssetSymbol } from '../asset-symbol/asset-symbol';
+import { AnimatedNumber } from '../animated-number/animated-number';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MarketQuote } from '../../../core/models/macro.model';
 import { Market } from '../../../core/services/market';
@@ -16,7 +17,7 @@ import { Market } from '../../../core/services/market';
  */
 @Component({
   selector: 'app-commodities-banner',
-  imports: [DecimalPipe, AssetSymbol],
+  imports: [DecimalPipe, AssetSymbol, AnimatedNumber],
   templateUrl: './commodities-banner.html',
   styleUrl: './commodities-banner.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,11 +51,31 @@ export class CommoditiesBanner {
   );
 
   /**
-   * Crypto is quoted to the dollar and metals to the cent: bitcoin's cents are
-   * noise at seventy-odd thousand, while two cents on silver is a real move.
+   * The technology funds and MicroStrategy.
+   *
+   * <p>Grouped apart from the metals because they answer a different
+   * question - metals are what a Tunisian investor holds *instead* of
+   * equities, while these are the equity risk they are being compared
+   * against. Same close-to-close basis, so the numbers are comparable.
+   */
+  protected readonly equities = computed(() =>
+    this.quotes().filter((quote) => quote.category === 'EQUITY'),
+  );
+
+  /** Whether anything at all arrived, for the empty state. */
+  protected readonly hasAny = computed(() => this.quotes().length > 0);
+
+  /**
+   * Decimals appropriate to the instrument's own scale.
+   *
+   * <p>Bitcoin's cents are noise at seventy-odd thousand; two cents on silver
+   * is a real move. An ETF trading near 100 wants cents.
    */
   protected digitsFor(quote: MarketQuote): string {
-    return quote.category === 'CRYPTO' && quote.price > 1000 ? '1.0-0' : '1.2-2';
+    if (quote.category === 'CRYPTO' && quote.price > 1000) {
+      return '1.0-0';
+    }
+    return '1.2-2';
   }
 
   /** Spelled out, so the two bases in this banner are never conflated. */

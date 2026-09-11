@@ -65,6 +65,25 @@ spring:
                 response-timeout: -1
                 connect-timeout: 5000
 
+            # The endpoints that read outside publishers, on their own
+            # breaker. Listed BEFORE the general api route because the first
+            # match wins, and these must not fall into the shared one.
+            #
+            # Without this split a Yahoo rate limit opened the breaker that
+            # every api route shares, and the dashboard lost its news feed,
+            # its gainers list and its stock table - none of which depend on
+            # Yahoo. The fix is not a longer timeout; it is that one slow
+            # dependency should only be able to break itself.
+            - id: api-service-external-data
+              uri: lb://API-SERVICE
+              predicates:
+                - Path=/tunindex/market/tool/v1/stocks/market/macro,/tunindex/market/tool/v1/stocks/market/commodities,/tunindex/market/tool/v1/stocks/exchange-rates
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: externalDataCircuitBreaker
+                    fallbackUri: forward:/fallback/market
+
             # The main application API. The path is preserved exactly: the
             # frontend's base URL is /tunindex/market/tool/v1/stocks, and
             # rewriting it here would break every call in the app.
@@ -190,10 +209,40 @@ resilience4j:
         failureRateThreshold: 50
         waitDurationInOpenState: 20s
         permittedNumberOfCallsInHalfOpenState: 4
+        # A breaker that opens on the first few calls after a restart is
+        # measuring a cold cache, not a broken service. Nothing is judged
+        # until there is a window's worth of evidence.
+        minimumNumberOfCalls: 10
         registerHealthIndicator: true
+
+      # For the routes that read external publishers.
+      #
+      # These are slow by nature - a cold cache reaches Yahoo, the central
+      # bank and the World Bank - and they were tripping the shared breaker
+      # and taking the whole api service down with them. That is how a Yahoo
+      # rate limit blanked the news feed, the stock table and the gainers
+      # list, none of which touch Yahoo at all.
+      externalData:
+        slidingWindowSize: 20
+        # Slower to open: these endpoints already degrade to an empty panel
+        # on their own, so the breaker is protecting against a hung upstream
+        # rather than against a wrong answer.
+        failureRateThreshold: 70
+        minimumNumberOfCalls: 8
+        # Quicker to retry, because recovery here is usually a cache filling
+        # rather than a service restarting.
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+
     instances:
       apiCircuitBreaker:
         baseConfig: default
+      # Separate instance, so a slow macro call cannot open the breaker that
+      # the portfolio, the stock table and the news feed share. One breaker
+      # per service made every endpoint as fragile as its slowest sibling.
+      externalDataCircuitBreaker:
+        baseConfig: externalData
       adCircuitBreaker:
         baseConfig: default
       collectorCircuitBreaker:

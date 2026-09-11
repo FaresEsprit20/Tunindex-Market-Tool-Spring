@@ -139,3 +139,139 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Grouped strip ─────────────────────────────────────────────────────
+   Rebuilt from a flat row of numbers. Gold and an ETF are not the same
+   kind of thing, so each group is labelled and the eye can skip to the
+   one it wants instead of reading the lot. */
+.cb-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 26px;
+  align-items: flex-start;
+}
+
+.cb-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.cb-group-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+.cb-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cb-tile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border, #e3e3e8);
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-panel, #fff);
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+
+  /* Staggered entrance, one tile after another, so the strip assembles
+     rather than appearing. --i is set per tile in the template. */
+  opacity: 0;
+  animation: tile-in 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-brand, #2f6fed);
+    box-shadow: 0 6px 16px rgb(0 0 0 / 0.07);
+  }
+}
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.cb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cb-name {
+  font-size: 10px;
+  color: var(--color-text-tertiary, #8a8a95);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 15ch;
+}
+
+.cb-price {
+  display: flex;
+  align-items: baseline;
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary, #14141a);
+}
+
+.cb-ccy {
+  font-size: 10px;
+  font-weight: 500;
+  margin-right: 1px;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+/* The daily change, on every instrument. A triangle as well as a colour,
+   so the direction survives a colour-blind reader and a grayscale print. */
+.cb-chg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-panel-alt, #f3f3f6);
+  color: var(--color-text-secondary, #55555f);
+
+  .cb-arrow {
+    width: 0;
+    height: 0;
+    border-left: 3.5px solid transparent;
+    border-right: 3.5px solid transparent;
+  }
+
+  &.up {
+    background: rgb(26 143 90 / 0.12);
+    color: #1a8f5a;
+    .cb-arrow { border-bottom: 5px solid currentColor; }
+  }
+
+  &.down {
+    background: rgb(192 57 43 / 0.12);
+    color: #c0392b;
+    .cb-arrow { border-top: 5px solid currentColor; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cb-tile { opacity: 1; animation: none; }
+  .cb-tile:hover { transform: none; }
+}

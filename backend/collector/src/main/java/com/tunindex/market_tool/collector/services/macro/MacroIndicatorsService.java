@@ -140,8 +140,14 @@ public class MacroIndicatorsService {
      */
     public Mono<List<MarketQuoteDto>> commodities() {
         return Mono.zip(
+                        // Metals first, then the risk assets - gold, silver,
+                        // the two technology funds and MicroStrategy sit on
+                        // one strip because they answer the same question: what
+                        // is happening outside the BVMT that a Tunisian
+                        // investor is weighing their equities against.
                         yahooQuotes().map(quotes -> quotes.stream()
-                                .filter(quote -> "METAL".equals(quote.getCategory()))
+                                .filter(quote -> "METAL".equals(quote.getCategory())
+                                        || "EQUITY".equals(quote.getCategory()))
                                 .toList()),
                         crypto())
                 .map(both -> {

@@ -6,49 +6,90 @@
     <span class="cb-loading-cell"></span>
     <span class="cb-loading-cell"></span>
   </div>
-} @else if (failed() || quotes().length === 0) {
-  <p class="cb-note">Commodity and crypto prices are unavailable right now.</p>
+} @else if (failed() || !hasAny()) {
+  <p class="cb-note">Commodity and market prices are unavailable right now.</p>
 } @else {
   <div class="cb-strip">
-    @for (quote of metals(); track quote.key) {
-      <div class="cb-item" [title]="basisLabel(quote)">
-        <span class="cb-label"><app-asset-symbol [assetKey]="quote.key" size="sm" /><span class="cb-label-text">{{ quote.label }}</span></span>
-        <span class="cb-price mono">
-          <span class="cb-ccy">$</span>{{ quote.price | number: digitsFor(quote) }}
-        </span>
-        <span
-          class="cb-change mono"
-          [class.positive]="(quote.changePct ?? 0) > 0"
-          [class.negative]="(quote.changePct ?? 0) < 0"
-        >
-          {{ (quote.changePct ?? 0) > 0 ? '+' : '' }}{{ quote.changePct | number: '1.2-2' }}%
-        </span>
+    <!-- Three groups, each labelled. Gold and an ETF are not the same kind of
+         thing, and a single undifferentiated row invited reading them as one.
+         Every tile carries its own daily change on its own stated basis. -->
+    @if (metals().length > 0) {
+      <div class="cb-group">
+        <p class="cb-group-label">Metals</p>
+        <div class="cb-tiles">
+          @for (quote of metals(); track quote.key; let i = $index) {
+            <div class="cb-tile" [style.--i]="i" [title]="basisLabel(quote)">
+              <app-asset-symbol [assetKey]="quote.key" size="sm" />
+              <div class="cb-body">
+                <span class="cb-name">{{ quote.label }}</span>
+                <span class="cb-price mono">
+                  <span class="cb-ccy">$</span><app-animated-number [value]="quote.price" [decimals]="quote.price > 1000 ? 0 : 2" />
+                </span>
+              </div>
+              <span class="cb-chg mono"
+                    [class.up]="(quote.changePct ?? 0) > 0"
+                    [class.down]="(quote.changePct ?? 0) < 0">
+                <span class="cb-arrow" aria-hidden="true"></span>
+                {{ (quote.changePct ?? 0) > 0 ? '+' : '' }}{{ quote.changePct | number: '1.2-2' }}%
+              </span>
+            </div>
+          }
+        </div>
       </div>
     }
 
-    @if (metals().length > 0 && crypto().length > 0) {
-      <span class="cb-divider" aria-hidden="true"></span>
+    @if (equities().length > 0) {
+      <div class="cb-group">
+        <p class="cb-group-label">Tech &amp; equities</p>
+        <div class="cb-tiles">
+          @for (quote of equities(); track quote.key; let i = $index) {
+            <div class="cb-tile" [style.--i]="i + 2" [title]="basisLabel(quote)">
+              <app-asset-symbol [assetKey]="quote.key" size="sm" />
+              <div class="cb-body">
+                <span class="cb-name">{{ quote.label }}</span>
+                <span class="cb-price mono">
+                  <span class="cb-ccy">$</span><app-animated-number [value]="quote.price" [decimals]="2" />
+                </span>
+              </div>
+              <span class="cb-chg mono"
+                    [class.up]="(quote.changePct ?? 0) > 0"
+                    [class.down]="(quote.changePct ?? 0) < 0">
+                <span class="cb-arrow" aria-hidden="true"></span>
+                {{ (quote.changePct ?? 0) > 0 ? '+' : '' }}{{ quote.changePct | number: '1.2-2' }}%
+              </span>
+            </div>
+          }
+        </div>
+      </div>
     }
 
-    @for (quote of crypto(); track quote.key) {
-      <div class="cb-item" [title]="basisLabel(quote)">
-        <span class="cb-label">
-          <app-asset-symbol [assetKey]="quote.key" size="sm" />
-          <span class="cb-label-text">{{ quote.label }}</span>
+    @if (crypto().length > 0) {
+      <div class="cb-group">
+        <p class="cb-group-label">
+          Crypto
           <!-- Marked because this is a rolling window, not a close-to-close
-               move like the metals beside it. -->
+               move like the groups beside it. -->
           <span class="cb-tag">24h</span>
-        </span>
-        <span class="cb-price mono">
-          <span class="cb-ccy">$</span>{{ quote.price | number: digitsFor(quote) }}
-        </span>
-        <span
-          class="cb-change mono"
-          [class.positive]="(quote.changePct ?? 0) > 0"
-          [class.negative]="(quote.changePct ?? 0) < 0"
-        >
-          {{ (quote.changePct ?? 0) > 0 ? '+' : '' }}{{ quote.changePct | number: '1.2-2' }}%
-        </span>
+        </p>
+        <div class="cb-tiles">
+          @for (quote of crypto(); track quote.key; let i = $index) {
+            <div class="cb-tile" [style.--i]="i + 5" [title]="basisLabel(quote)">
+              <app-asset-symbol [assetKey]="quote.key" size="sm" />
+              <div class="cb-body">
+                <span class="cb-name">{{ quote.label }}</span>
+                <span class="cb-price mono">
+                  <span class="cb-ccy">$</span><app-animated-number [value]="quote.price" [decimals]="quote.price > 1000 ? 0 : 2" />
+                </span>
+              </div>
+              <span class="cb-chg mono"
+                    [class.up]="(quote.changePct ?? 0) > 0"
+                    [class.down]="(quote.changePct ?? 0) < 0">
+                <span class="cb-arrow" aria-hidden="true"></span>
+                {{ (quote.changePct ?? 0) > 0 ? '+' : '' }}{{ quote.changePct | number: '1.2-2' }}%
+              </span>
+            </div>
+          }
+        </div>
       </div>
     }
   </div>

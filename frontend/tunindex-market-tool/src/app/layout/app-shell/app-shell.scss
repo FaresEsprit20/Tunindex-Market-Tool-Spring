@@ -70,3 +70,28 @@
 @media (max-width: 760px) {
   .brand-word { display: none; }
 }
+
+/* Brand lockup: the product name leads, the index qualifies it. */
+.brand-lockup {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  gap: 2px;
+}
+
+.brand-index {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-brand, #2f6fed);
+}
+
+/* Overrides the old single-word treatment, which sized this as the whole
+   name rather than as the half that carries it. */
+.brand-lockup .brand-word {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary, #14141a);
+}

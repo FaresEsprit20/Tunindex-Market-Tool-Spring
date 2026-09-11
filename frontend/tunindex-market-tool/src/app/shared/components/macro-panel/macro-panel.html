@@ -31,7 +31,7 @@
               <span class="macro-unit-pre">$</span>{{ inBillions(item.value) | number: '1.1-1'
               }}<span class="macro-unit">bn</span>
             } @else {
-              {{ item.value | number: '1.2-2' }}<span class="macro-unit">{{ item.unit }}</span>
+              <app-animated-number [value]="item.value ?? 0" [decimals]="2" /><span class="macro-unit">{{ item.unit }}</span>
             }
           </span>
           <span class="macro-period">{{ item.periodLabel }}</span>

@@ -49,6 +49,20 @@ public class YahooQuoteProvider {
             new Instrument("GOLD", "GC=F", "Gold", "METAL"),
             new Instrument("SILVER", "SI=F", "Silver", "METAL"));
 
+    /**
+     * The wider risk assets a Tunisian investor watches alongside the metals.
+     *
+     * <p>Two technology funds and one equity, carried in the same payload and
+     * on the same basis as everything else here: last price against the
+     * previous session's close. Same provider on purpose - a banner that mixed
+     * close-to-close moves with rolling 24-hour ones under one heading would
+     * be comparing two different things and the reader could not tell which.
+     */
+    private static final List<Instrument> RISK_ASSETS = List.of(
+            new Instrument("IGM", "IGM", "iShares Expanded Tech", "EQUITY"),
+            new Instrument("SMH", "SMH", "VanEck Semiconductor", "EQUITY"),
+            new Instrument("MSTR", "MSTR", "Strategy (MicroStrategy)", "EQUITY"));
+
     private static final List<Instrument> FX = List.of(
             new Instrument("USD_TND", "USDTND=X", "USD / TND", "FX"),
             new Instrument("EUR_TND", "EURTND=X", "EUR / TND", "FX"));
@@ -70,7 +84,7 @@ public class YahooQuoteProvider {
      * has no "previous close" to measure against.
      */
     public Mono<List<MarketQuoteDto>> fetchAllQuotes() {
-        return fetchAll(Stream.concat(METALS.stream(), FX.stream()).toList());
+        return fetchAll(Stream.of(METALS, FX, RISK_ASSETS).flatMap(List::stream).toList());
     }
 
     /**

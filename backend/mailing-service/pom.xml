@@ -53,10 +53,21 @@
         </dependency>
 
         <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Test scope only now. It used to be the runtime database, which
+             meant every restart wiped the verification and password-reset
+             tokens this service issues - a user following a link sent minutes
+             earlier would be told it was invalid. Tests still run on H2 in
+             PostgreSQL mode; see application-test.properties. -->
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>${h2.version}</version>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

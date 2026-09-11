@@ -49,10 +49,19 @@
 
         <!-- H2 Database -->
         <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Test scope only now: in-memory H2 as the runtime database meant
+             every restart discarded the verification history, which is what a
+             replayed-token check has to read. -->
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>${h2.version}</version>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

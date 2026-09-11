@@ -7,6 +7,7 @@ import { PagedResponse, PaginationAndFilteringRequest } from '../models/paginati
 import { StockDto } from '../models/stock.model';
 import { PriceHistoryPoint } from '../models/price-history.model';
 import { FundamentalAnalysis, TechnicalAnalysis } from '../models/analysis.model';
+import { TradeSetup } from '../models/trade-setup.model';
 import { StockNews } from '../models/stock-news.model';
 import { NewsImpact } from '../models/news-impact.model';
 import { OpportunityScore, ScoreHistoryPoint } from '../models/opportunity.model';
@@ -126,10 +127,26 @@ export class Stock {
     });
   }
 
-  getTechnicalAnalysis(symbol: string, days = 180): Observable<TechnicalAnalysis> {
+  /**
+   * @param bars how many trading days to feed the indicators.
+   *
+   * Bars, not calendar days: for a thinly traded stock the two differ sharply,
+   * and asking by date returned too few rows to compute anything at all.
+   */
+  getTechnicalAnalysis(symbol: string, bars = 250): Observable<TechnicalAnalysis> {
     return this.http.get<TechnicalAnalysis>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/technical`, {
-      params: { days },
+      params: { bars },
     });
+  }
+
+  /**
+   * The Tradify Analyst's plan: where to buy, where it fails, what it targets.
+   *
+   * <p>Separate from the indicators because it answers a different question.
+   * The indicators describe the stock; this says what to do about it.
+   */
+  getTradeSetup(symbol: string): Observable<TradeSetup> {
+    return this.http.get<TradeSetup>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/setup`);
   }
 
   getFundamentalAnalysis(symbol: string): Observable<FundamentalAnalysis> {

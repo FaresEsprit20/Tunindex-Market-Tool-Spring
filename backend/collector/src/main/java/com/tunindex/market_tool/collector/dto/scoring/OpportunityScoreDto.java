@@ -52,4 +52,15 @@ public class OpportunityScoreDto {
 
     private List<String> reasons;
     private List<String> warnings;
+
+    /**
+     * Where to actually buy it, from {@code TradifyAnalyst}.
+     *
+     * <p>Carried alongside the score because the two answer different
+     * questions and only the pair is actionable: the score says whether the
+     * stock is worth owning, the setup says at what price and when. A ranking
+     * without levels leaves the reader to guess the part that decides their
+     * return.
+     */
+    private com.tunindex.market_tool.collector.dto.analyst.TradeSetupDto tradeSetup;
 }

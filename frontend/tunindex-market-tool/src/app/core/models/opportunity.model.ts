@@ -3,6 +3,8 @@
 // fundamentals, real price history and scraped headlines: a fixed weighted
 // rule set, not a model and not a prediction.
 
+import { TradeSetup } from './trade-setup.model';
+
 export type Verdict = 'STRONG_BUY' | 'BUY' | 'WATCH' | 'HOLD' | 'AVOID';
 
 export interface OpportunityScore {
@@ -29,6 +31,14 @@ export interface OpportunityScore {
 
   reasons: string[];
   warnings: string[];
+
+  /**
+   * Where to buy it, from the Tradify Analyst.
+   *
+   * <p>Optional because an older backend will not send it, and a list that
+   * breaks on a missing field is worse than one that quietly shows less.
+   */
+  tradeSetup?: TradeSetup | null;
 }
 
 export const VERDICT_LABELS: Record<Verdict, string> = {

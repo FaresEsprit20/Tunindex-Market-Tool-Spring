@@ -78,6 +78,25 @@
             }
           </div>
 
+          <!-- The analyst's call, on the row itself. A ranking that shows a
+               verdict but hides the price leaves out the half that decides
+               the return - and nobody expands twenty cards to find it. -->
+          @if (row.tradeSetup; as setup) {
+            <div class="call" [class]="'call-' + stanceTone[setup.stance]">
+              <span class="call-label">{{ stanceLabels[setup.stance] }}</span>
+              @if (setup.buyZoneLow !== null && setup.buyZoneHigh !== null) {
+                <span class="call-zone mono">
+                  {{ setup.buyZoneLow | number: '1.2-2' }}&ndash;{{ setup.buyZoneHigh | number: '1.2-2' }}
+                </span>
+              }
+              @if (setup.priceInBuyZone) {
+                <span class="call-flag">in zone now</span>
+              } @else if (setup.distanceToZonePct !== null) {
+                <span class="call-flag muted">{{ setup.distanceToZonePct | number: '1.0-0' }}% below</span>
+              }
+            </div>
+          }
+
           <button type="button" class="expand-btn" [attr.aria-expanded]="expanded() === row.symbol" [attr.aria-label]="'Show score breakdown for ' + row.symbol">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M6 9l6 6 6-6"></path>
@@ -89,6 +108,12 @@
           <div class="card-detail">
             <div class="detail-grid">
               <div class="components">
+                <!-- The plan sits above the breakdown: the reader wants to
+                     know what to do before they want to know how it was
+                     scored. -->
+                @if (row.tradeSetup; as setup) {
+                  <app-analyst-panel [setup]="setup" [currency]="row.currency" />
+                }
                 <p class="detail-heading">Score breakdown</p>
                 @for (component of scoreComponents; track component.key) {
                   <div class="component-row">

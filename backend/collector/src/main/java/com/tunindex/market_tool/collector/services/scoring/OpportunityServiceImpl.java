@@ -11,6 +11,7 @@ import com.tunindex.market_tool.collector.repository.jpa.StockNewsRepository;
 import com.tunindex.market_tool.collector.repository.jpa.StockRepository;
 import com.tunindex.market_tool.collector.services.market.QuoteFreshness;
 import com.tunindex.market_tool.collector.services.analysis.TechnicalAnalysisCalculator;
+import com.tunindex.market_tool.collector.services.analyst.TradifyAnalyst;
 import com.tunindex.market_tool.collector.services.news.NewsSentimentClassifier;
 import com.tunindex.market_tool.common.exception.EntityNotFoundException;
 import com.tunindex.market_tool.common.exception.ErrorCodes;
@@ -57,6 +58,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final ReversalDetector reversalDetector;
     private final NewsSentimentClassifier newsSentimentClassifier;
     private final TunindexScorer scorer;
+    private final TradifyAnalyst tradifyAnalyst;
 
     @Override
     @Transactional(readOnly = true)
@@ -121,7 +123,15 @@ public class OpportunityServiceImpl implements OpportunityService {
         // cannot say: an oversold reading is as common halfway down as it is
         // at the bottom.
         ReversalDetector.ReversalSignal reversal = reversalDetector.detect(history, technical);
-        return scorer.score(stock, technical, news, oneYearReturnPct(stock.getSymbol()), reversal);
+        OpportunityScoreDto score = scorer.score(
+                stock, technical, news, oneYearReturnPct(stock.getSymbol()), reversal);
+
+        // The levels, attached to the verdict. A ranking that says "BUY" and
+        // stops there leaves out the part that decides the return - at what
+        // price. Computed from the history already loaded above, so it costs
+        // no extra query.
+        score.setTradeSetup(tradifyAnalyst.analyse(stock, technical, history, reversal));
+        return score;
     }
 
     /**

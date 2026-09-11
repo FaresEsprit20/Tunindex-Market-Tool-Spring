@@ -7,6 +7,8 @@ import { Stock } from '../../../core/services/stock';
 import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleton-block';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
+import { AnalystPanel } from '../../../shared/components/analyst-panel/analyst-panel';
+import { STANCE_LABELS, STANCE_TONE } from '../../../core/models/trade-setup.model';
 
 const MIN_SCORE_OPTIONS = [0, 50, 65, 80];
 
@@ -18,7 +20,7 @@ const MIN_SCORE_OPTIONS = [0, 50, 65, 80];
  */
 @Component({
   selector: 'app-opportunities',
-  imports: [DecimalPipe, SkeletonBlock, EmptyState, WatchlistStar],
+  imports: [DecimalPipe, SkeletonBlock, EmptyState, WatchlistStar, AnalystPanel],
   templateUrl: './opportunities.html',
   styleUrl: './opportunities.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +31,8 @@ export class Opportunities {
 
   protected readonly sectorLabels = SECTOR_LABELS;
   protected readonly verdictLabels = VERDICT_LABELS;
+  protected readonly stanceLabels = STANCE_LABELS;
+  protected readonly stanceTone = STANCE_TONE;
   protected readonly scoreComponents = SCORE_COMPONENTS;
   protected readonly minScoreOptions = MIN_SCORE_OPTIONS;
 

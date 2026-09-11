@@ -1,0 +1,333 @@
+/* One accent per stance, set once here and referenced everywhere below, so a
+   panel can never end up with a green headline over a red bar. */
+.analyst {
+  --tone: var(--color-text-secondary, #667);
+  --tone-soft: rgb(102 102 119 / 0.12);
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--color-border, #e3e3e8);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-panel, #fff);
+  /* A hairline of the stance colour down the edge: enough to signal the call
+     before a word is read, without turning the card into a warning box. */
+  box-shadow: inset 3px 0 0 0 var(--tone);
+
+  &.tone-go     { --tone: #1a8f5a; --tone-soft: rgb(26 143 90 / 0.12); }
+  &.tone-ready  { --tone: #2f6fed; --tone-soft: rgb(47 111 237 / 0.12); }
+  &.tone-watch  { --tone: #c98a1b; --tone-soft: rgb(201 138 27 / 0.14); }
+  &.tone-stop   { --tone: #c0392b; --tone-soft: rgb(192 57 43 / 0.12); }
+  &.tone-muted  { --tone: #8a8a95; --tone-soft: rgb(138 138 149 / 0.12); }
+
+  &.compact { padding: 14px; gap: 10px; }
+}
+
+/* ── Who is speaking ───────────────────────────────────────────────── */
+.analyst-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.analyst-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--tone-soft);
+  color: var(--tone);
+
+  svg { width: 18px; height: 18px; }
+}
+
+.analyst-id { flex: 1; min-width: 0; }
+
+.analyst-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary, #14141a);
+}
+
+.analyst-role {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+.analyst-confidence {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-panel-alt, #f3f3f6);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary, #55555f);
+}
+
+/* ── The call ──────────────────────────────────────────────────────── */
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.verdict-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tone);
+  /* Only the green light pulses. Animating every state would make "stay out"
+     look as inviting as "buy now". */
+  .tone-go & {
+    box-shadow: 0 0 0 0 var(--tone);
+    animation: pulse 2.4s ease-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgb(26 143 90 / 0.5); }
+  70%  { box-shadow: 0 0 0 9px rgb(26 143 90 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(26 143 90 / 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verdict-dot { animation: none; }
+}
+
+.verdict-label {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--tone);
+}
+
+.verdict-blurb {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary, #55555f);
+}
+
+/* ── The levels ────────────────────────────────────────────────────── */
+.zone-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 10px);
+  background: var(--tone-soft);
+}
+
+.zone-label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.zone-range {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary, #14141a);
+}
+
+.zone-dash { color: var(--color-text-tertiary, #8a8a95); font-weight: 400; }
+.zone-ccy  { font-size: 12px; font-weight: 500; color: var(--color-text-tertiary, #8a8a95); }
+
+.zone-note {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: var(--color-text-secondary, #55555f);
+
+  &.in-zone { color: var(--tone); font-weight: 600; }
+}
+
+/* ── Stop → zone → target on one axis ──────────────────────────────── */
+.plan-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right,
+    rgb(192 57 43 / 0.28), var(--color-border, #e3e3e8) 45%, rgb(26 143 90 / 0.3));
+}
+
+.track-zone {
+  position: absolute;
+  top: -2px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--tone);
+  opacity: 0.55;
+}
+
+.track-marker {
+  position: absolute;
+  top: -5px;
+  width: 3px;
+  height: 16px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--color-text-primary, #14141a);
+  box-shadow: 0 0 0 2px var(--color-panel, #fff);
+}
+
+.track-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary, #8a8a95);
+
+  .stop   { color: #c0392b; }
+  .target { color: #1a8f5a; }
+}
+
+/* ── Figures ───────────────────────────────────────────────────────── */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-panel-alt, #f3f3f6);
+}
+
+.figure-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+.figure-value {
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary, #14141a);
+
+  &.positive { color: #1a8f5a; }
+}
+
+/* ── The cycle ─────────────────────────────────────────────────────── */
+.cycle {
+  display: flex;
+  gap: 4px;
+}
+
+.cycle-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+
+  .cycle-dot {
+    width: 100%;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--color-border, #e3e3e8);
+  }
+
+  .cycle-name {
+    font-size: 9px;
+    text-align: center;
+    color: var(--color-text-tertiary, #8a8a95);
+    /* These are short words; letting them wrap keeps the track aligned. */
+    overflow-wrap: anywhere;
+  }
+
+  &.reached .cycle-dot { background: var(--tone); opacity: 0.4; }
+
+  &.current {
+    .cycle-dot { background: var(--tone); opacity: 1; }
+    .cycle-name { color: var(--tone); font-weight: 700; }
+  }
+}
+
+/* ── Reasoning ─────────────────────────────────────────────────────── */
+.regime {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text-secondary, #55555f);
+}
+
+.basis {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+}
+
+.list-title {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-secondary, #55555f);
+
+  &::before {
+    position: absolute;
+    left: 2px;
+    top: 0;
+    font-weight: 700;
+  }
+
+  &.ev::before   { content: '+'; color: #1a8f5a; }
+  &.risk::before { content: '!'; color: #c0392b; }
+}
+
+.disclaimer {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border, #e3e3e8);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+/* ── Dark ──────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :host-context(:root:not([data-theme='light'])) .analyst {
+    background: var(--color-panel, #16161c);
+    border-color: var(--color-border, #2a2a33);
+  }
+}

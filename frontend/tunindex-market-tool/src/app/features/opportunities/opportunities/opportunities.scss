@@ -460,3 +460,62 @@
   margin: 20px 0 0;
   max-width: 860px;
 }
+
+/* ── The analyst's call, on the row ────────────────────────────────────
+   Sits between the reasons and the expander so the price is readable at a
+   glance: a ranking that hides the entry level makes the reader open every
+   card to find the one number that decides their return. */
+.call {
+  --call: var(--color-text-secondary, #55555f);
+
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: none;
+  min-width: 104px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--call);
+  border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
+  background: var(--color-panel-alt, #f3f3f6);
+
+  &.call-go     { --call: #1a8f5a; }
+  &.call-ready  { --call: #2f6fed; }
+  &.call-watch  { --call: #c98a1b; }
+  &.call-stop   { --call: #c0392b; }
+  &.call-muted  { --call: #8a8a95; }
+}
+
+.call-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--call);
+}
+
+.call-zone {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary, #14141a);
+}
+
+.call-flag {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--call);
+
+  &.muted {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--color-text-tertiary, #8a8a95);
+  }
+}
+
+/* The call is the first thing to go when the row runs out of room - the
+   symbol and score matter more than the level at this width. */
+@media (max-width: 900px) {
+  .call { display: none; }
+}

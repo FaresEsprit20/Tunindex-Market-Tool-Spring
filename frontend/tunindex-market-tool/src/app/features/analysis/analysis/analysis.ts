@@ -11,11 +11,13 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { NewsList } from '../../../shared/components/news-list/news-list';
 import { CandlestickChart } from '../../../shared/components/candlestick-chart/candlestick-chart';
+import { AnalystPanel } from '../../../shared/components/analyst-panel/analyst-panel';
+import { TradeSetup } from '../../../core/models/trade-setup.model';
 import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
 
 @Component({
   selector: 'app-analysis',
-  imports: [DecimalPipe, RangeBar, SkeletonBlock, EmptyState, NewsList, CandlestickChart, AdSlot],
+  imports: [DecimalPipe, RangeBar, SkeletonBlock, EmptyState, NewsList, CandlestickChart, AdSlot, AnalystPanel],
   templateUrl: './analysis.html',
   styleUrl: './analysis.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,6 +54,8 @@ export class Analysis {
     return { delta, pct: (delta / s.prevClose) * 100 };
   });
   protected readonly technical = signal<TechnicalAnalysis | null>(null);
+  /** The Tradify Analyst's entry plan, or null when it could not be formed. */
+  protected readonly setup = signal<TradeSetup | null>(null);
   protected readonly fundamental = signal<FundamentalAnalysis | null>(null);
   protected readonly history = signal<PriceHistoryPoint[]>([]);
   protected readonly historyLoading = signal(true);
@@ -76,6 +80,7 @@ export class Analysis {
     this.error.set(false);
     this.stock.set(null);
     this.technical.set(null);
+    this.setup.set(null);
     this.fundamental.set(null);
     this.history.set([]);
     this.historyLoading.set(true);
@@ -96,6 +101,17 @@ export class Analysis {
     this.stockService.getTechnicalAnalysis(symbol).subscribe({
       next: (res) => this.technical.set(res),
       error: () => {},
+    });
+
+    // The analyst's plan. Fetched alongside rather than after the indicators,
+    // because it is the part most readers came for and should not wait behind
+    // a slower call.
+    this.stockService.getTradeSetup(symbol).subscribe({
+      next: (res) => this.setup.set(res),
+      // Left null on failure: the indicators below still stand on their own,
+      // and an error banner where a recommendation goes is worse than its
+      // absence.
+      error: () => this.setup.set(null),
     });
 
     this.stockService.getFundamentalAnalysis(symbol).subscribe({

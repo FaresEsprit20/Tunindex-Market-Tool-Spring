@@ -60,6 +60,15 @@
     </div>
   </div>
 
+  <!-- The analyst's call comes before the chart and the indicators. A reader
+       opening this page wants to know what to do; the workings are underneath
+       for anyone who wants to check them. -->
+  @if (setup(); as s) {
+    <div class="section">
+      <app-analyst-panel [setup]="s" [currency]="stock()?.currency ?? 'TND'" />
+    </div>
+  }
+
   <div class="panel-card section">
     <div class="panel-head"><p class="panel-title">Price history</p></div>
     <div class="panel-body">

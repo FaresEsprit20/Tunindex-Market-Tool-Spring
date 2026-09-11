@@ -1,0 +1,142 @@
+@if (setup(); as s) {
+  <div class="analyst" [class]="'tone-' + tone()" [class.compact]="compact()">
+
+    <!-- Who is speaking. The point of the whole panel is that a reader feels
+         covered by someone who has done the work, so the source is named
+         rather than left as an anonymous number. -->
+    <div class="analyst-head">
+      <span class="analyst-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+          <path d="M12 3l7 4v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V7l7-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      </span>
+      <div class="analyst-id">
+        <p class="analyst-name">Tradify Analyst</p>
+        <p class="analyst-role">Entry plan for {{ s.symbol }}</p>
+      </div>
+      <span class="analyst-confidence" [title]="'How much of this rests on data we actually have'">
+        {{ s.confidence }}% confidence
+      </span>
+    </div>
+
+    <!-- The call, first and largest. -->
+    <div class="verdict">
+      <span class="verdict-dot" aria-hidden="true"></span>
+      <div class="verdict-text">
+        <p class="verdict-label">{{ stanceLabels[s.stance] }}</p>
+        <p class="verdict-blurb">{{ stanceBlurbs[s.stance] }}</p>
+      </div>
+    </div>
+
+    @if (hasZone()) {
+      <!-- The levels, as one instruction. -->
+      <div class="zone-card">
+        <p class="zone-label">Buy zone</p>
+        <p class="zone-range">
+          <span class="mono">{{ s.buyZoneLow | number: '1.3-3' }}</span>
+          <span class="zone-dash">&ndash;</span>
+          <span class="mono">{{ s.buyZoneHigh | number: '1.3-3' }}</span>
+          <span class="zone-ccy">{{ currency() }}</span>
+        </p>
+        @if (s.priceInBuyZone) {
+          <p class="zone-note in-zone">Trading in the zone right now</p>
+        } @else if (s.distanceToZonePct !== null) {
+          <p class="zone-note">
+            {{ s.distanceToZonePct | number: '1.1-1' }}% below today&rsquo;s price
+          </p>
+        }
+      </div>
+
+      <!-- Stop -> zone -> target on one axis. The single picture that makes
+           the plan readable without doing arithmetic. -->
+      @if (priceMarkerPct() !== null) {
+        <div class="plan-track" role="img"
+             [attr.aria-label]="'Stop ' + s.stopLevel + ', buy zone ' + s.buyZoneLow + ' to ' + s.buyZoneHigh + ', target ' + s.target1">
+          @if (zoneStartPct() !== null && zoneEndPct() !== null) {
+            <span class="track-zone"
+                  [style.left.%]="zoneStartPct()"
+                  [style.width.%]="(zoneEndPct() ?? 0) - (zoneStartPct() ?? 0)"></span>
+          }
+          <span class="track-marker" [style.left.%]="priceMarkerPct()"></span>
+        </div>
+        <div class="track-legend">
+          <span class="leg stop">Stop {{ s.stopLevel | number: '1.3-3' }}</span>
+          <span class="leg target">Target {{ s.target1 | number: '1.3-3' }}</span>
+        </div>
+      }
+
+      <!-- What the trade is worth, and what it risks. -->
+      <div class="figures">
+        @if (s.expectedReturnPct !== null) {
+          <div class="figure">
+            <span class="figure-label">Upside</span>
+            <span class="figure-value positive mono">+{{ s.expectedReturnPct | number: '1.1-1' }}%</span>
+          </div>
+        }
+        @if (s.riskReward !== null) {
+          <div class="figure">
+            <span class="figure-label">Risk / reward</span>
+            <span class="figure-value mono">{{ s.riskReward | number: '1.1-1' }} : 1</span>
+          </div>
+        }
+        @if (s.target2 !== null) {
+          <div class="figure">
+            <span class="figure-label">Fair value</span>
+            <span class="figure-value mono">{{ s.target2 | number: '1.3-3' }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    @if (!compact()) {
+      <!-- Where it sits in the cycle. A word alone ("Basing") means little;
+           its position on the track shows what the reader is waiting for. -->
+      @if (phaseIndex() >= 0) {
+        <div class="cycle">
+          @for (p of phases; track p; let i = $index) {
+            <span class="cycle-step"
+                  [class.reached]="i <= phaseIndex()"
+                  [class.current]="i === phaseIndex()">
+              <span class="cycle-dot"></span>
+              <span class="cycle-name">{{ phaseLabels[p] }}</span>
+            </span>
+          }
+        </div>
+      }
+
+      @if (s.regimeSummary) {
+        <p class="regime">{{ s.regimeSummary }}</p>
+      }
+
+      @if (s.buyZoneBasis) {
+        <p class="basis">{{ s.buyZoneBasis }}</p>
+      }
+
+      @if (s.evidence.length > 0) {
+        <div class="list">
+          <p class="list-title">What supports it</p>
+          <ul>
+            @for (item of s.evidence; track item) { <li class="ev">{{ item }}</li> }
+          </ul>
+        </div>
+      }
+
+      <!-- Stated before the fact, not buried. An analyst who only lists the
+           bull case is a salesperson. -->
+      @if (s.risks.length > 0) {
+        <div class="list">
+          <p class="list-title">What would make this wrong</p>
+          <ul>
+            @for (item of s.risks; track item) { <li class="risk">{{ item }}</li> }
+          </ul>
+        </div>
+      }
+
+      <p class="disclaimer">
+        Levels are computed from stored price history and fundamentals by a fixed
+        rule set &mdash; not a forecast, and not investment advice.
+      </p>
+    }
+  </div>
+}

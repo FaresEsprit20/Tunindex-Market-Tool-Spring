@@ -39,4 +39,13 @@ public class OpportunityScoreResponseDto {
 
     private List<String> reasons;
     private List<String> warnings;
+
+    /**
+     * Where to buy it, from the Tradify Analyst.
+     *
+     * <p>Travels with the score so the opportunities list can show a level
+     * rather than only a verdict - "BUY" without a price is the half of the
+     * decision the reader cannot act on.
+     */
+    private com.tunindex.market_tool.api.dto.analyst.TradeSetupResponseDto tradeSetup;
 }

@@ -12,7 +12,7 @@
   <div class="cb-strip">
     @for (quote of metals(); track quote.key) {
       <div class="cb-item" [title]="basisLabel(quote)">
-        <span class="cb-label">{{ quote.label }}</span>
+        <span class="cb-label"><app-asset-symbol [assetKey]="quote.key" size="sm" /><span class="cb-label-text">{{ quote.label }}</span></span>
         <span class="cb-price mono">
           <span class="cb-ccy">$</span>{{ quote.price | number: digitsFor(quote) }}
         </span>
@@ -33,7 +33,8 @@
     @for (quote of crypto(); track quote.key) {
       <div class="cb-item" [title]="basisLabel(quote)">
         <span class="cb-label">
-          {{ quote.label }}
+          <app-asset-symbol [assetKey]="quote.key" size="sm" />
+          <span class="cb-label-text">{{ quote.label }}</span>
           <!-- Marked because this is a rolling window, not a close-to-close
                move like the metals beside it. -->
           <span class="cb-tag">24h</span>

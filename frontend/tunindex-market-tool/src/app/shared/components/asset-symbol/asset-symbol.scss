@@ -1,0 +1,47 @@
+.sym {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 8px;
+  background: var(--sym-bg, var(--color-panel-alt, #f2f2f5));
+  color: var(--sym-fg, var(--color-text-secondary, #55555f));
+
+  &.size-md { width: 28px; height: 28px; }
+  &.size-sm { width: 22px; height: 22px; border-radius: 6px; }
+
+  svg { width: 62%; height: 62%; }
+}
+
+/* Each family gets its own tone so a strip of five instruments is scannable
+   by colour before any label is read. */
+.sym-gold      { --sym-bg: rgb(198 150 26 / 0.16); --sym-fg: #b8860b; }
+.sym-silver    { --sym-bg: rgb(130 140 150 / 0.18); --sym-fg: #74808c; }
+.sym-currency  { --sym-bg: rgb(47 111 237 / 0.13);  --sym-fg: #2f6fed; }
+.sym-rate      { --sym-bg: rgb(26 143 90 / 0.13);   --sym-fg: #1a8f5a; }
+.sym-inflation { --sym-bg: rgb(201 138 27 / 0.15);  --sym-fg: #c98a1b; }
+.sym-growth    { --sym-bg: rgb(110 86 207 / 0.14);  --sym-fg: #6e56cf; }
+
+.glyph {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+
+  &.small { font-size: 10px; letter-spacing: -0.02em; }
+}
+
+/* Crypto carries its brand hue on the letter itself, so the tile keeps the
+   neutral ground and the three tickers stay distinguishable. */
+.letter {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.size-sm .glyph { font-size: 12px; }
+.size-sm .letter { font-size: 11px; }

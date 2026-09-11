@@ -18,7 +18,8 @@
           [title]="item.note ?? ''"
         >
           <span class="macro-label">
-            {{ item.label }}
+            <app-asset-symbol [assetKey]="item.key" size="sm" />
+            <span class="macro-label-text">{{ item.label }}</span>
             @if (isAnnual(item)) {
               <!-- These lag by up to a year; reading them as current would be
                    a real error, so the tag is not decoration. -->
@@ -39,7 +40,10 @@
 
       @for (fx of currencies(); track fx.key) {
         <div class="macro-item fx" [title]="'Against the previous close of ' + fx.previousClose">
-          <span class="macro-label">{{ fx.label }}</span>
+          <span class="macro-label">
+            <app-asset-symbol [assetKey]="fx.key" size="sm" />
+            <span class="macro-label-text">{{ fx.label }}</span>
+          </span>
           <span class="macro-value mono">{{ fx.price | number: '1.4-4' }}</span>
           <span
             class="macro-change mono"

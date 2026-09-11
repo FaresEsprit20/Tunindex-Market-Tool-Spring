@@ -1,4 +1,5 @@
 import { DecimalPipe } from '@angular/common';
+import { AssetSymbol } from '../asset-symbol/asset-symbol';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MacroIndicator, MacroSnapshot, MarketQuote } from '../../../core/models/macro.model';
 import { Market } from '../../../core/services/market';
@@ -14,7 +15,7 @@ import { Market } from '../../../core/services/market';
  */
 @Component({
   selector: 'app-macro-panel',
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, AssetSymbol],
   templateUrl: './macro-panel.html',
   styleUrl: './macro-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

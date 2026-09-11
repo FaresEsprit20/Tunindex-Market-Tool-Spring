@@ -125,3 +125,17 @@
     animation: none;
   }
 }
+
+/* Symbol and name on one line, so the strip stays one row tall. */
+.cb-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cb-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

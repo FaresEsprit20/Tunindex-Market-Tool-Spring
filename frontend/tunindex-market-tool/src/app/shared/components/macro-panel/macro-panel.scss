@@ -197,3 +197,18 @@
     animation: none;
   }
 }
+
+/* The label is now a symbol plus text, so it needs to lay out as a row.
+   Without this the mark stacks above the name and every tile grows. */
+.macro-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.macro-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

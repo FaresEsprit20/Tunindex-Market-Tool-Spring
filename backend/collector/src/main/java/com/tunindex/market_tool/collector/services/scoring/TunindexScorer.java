@@ -35,10 +35,29 @@ import java.util.List;
 @Component
 public class TunindexScorer {
 
+    // Re-weighted toward the technical read.
+    //
+    // The blend used to be 30/25/20/10/10/5, which put half the score on the
+    // fundamentals and let a cheap, healthy company rank as a buy while its
+    // chart was still falling. That is the complaint this answers: the tool is
+    // meant to find the moment as well as the company, and the moment lives in
+    // the timing component, which is where the reversal read sits.
+    //
+    // Timing and momentum together now carry 40% rather than 35%. The points
+    // come from financial health and income, the two least time-sensitive
+    // things measured here and so the cheapest to trim.
+    //
+    // Valuation and timing are deliberately equal, and that tie is the whole
+    // statement: what you buy and when you buy it matter the same amount.
+    // Putting timing above valuation would make this a momentum tool wearing a
+    // value tool's clothes - a well-timed entry into a bad business is still a
+    // bad business. Leaving valuation dominant is what produced the original
+    // complaint, where a cheap, healthy company ranked as a buy while its
+    // chart was still falling.
     private static final int WEIGHT_VALUATION = 30;
-    private static final int WEIGHT_TIMING = 25;
-    private static final int WEIGHT_FINANCIAL_HEALTH = 20;
-    private static final int WEIGHT_INCOME = 10;
+    private static final int WEIGHT_TIMING = 30;
+    private static final int WEIGHT_FINANCIAL_HEALTH = 18;
+    private static final int WEIGHT_INCOME = 7;
     private static final int WEIGHT_MOMENTUM = 10;
     private static final int WEIGHT_NEWS = 5;
 
@@ -102,7 +121,9 @@ public class TunindexScorer {
                 .lastPrice(stock.getPriceData() != null ? stock.getPriceData().getLastPrice() : null)
                 .currency(stock.getCurrency())
                 .overallScore(overall)
-                .verdict(verdict(overall, completeness, stock, isNearFiftyTwoWeekLow(stock), reasons, warnings))
+                .verdict(verdict(overall, completeness, stock, isNearFiftyTwoWeekLow(stock),
+                        reversal == null ? ReversalDetector.Phase.NEUTRAL : reversal.phase(),
+                        reasons, warnings))
                 .valuationScore(valuation)
                 .financialHealthScore(health)
                 .timingScore(timing)
@@ -444,7 +465,8 @@ public class TunindexScorer {
      *                            the bottom of its 52-week range
      */
     private String verdict(int overall, int completeness, Stock stock,
-                           boolean nearFiftyTwoWeekLow, List<String> reasons, List<String> warnings) {
+                           boolean nearFiftyTwoWeekLow, ReversalDetector.Phase phase,
+                           List<String> reasons, List<String> warnings) {
 
         // Policy override, applied before anything else: a government-owned
         // company outside the financial sector is excluded regardless of how
@@ -467,11 +489,42 @@ public class TunindexScorer {
         else if (overall >= 35) base = "HOLD";
         else base = "AVOID";
 
+        // A stock still falling is not a buy at any score.
+        //
+        // The blend could previously carry a cheap, healthy company to BUY
+        // while its chart was in an unbroken downtrend - and the analyst,
+        // reading the same data, would tell the reader to stay out. Two of our
+        // own components contradicting each other on the same screen is worse
+        // than either being wrong: it leaves the reader to arbitrate.
+        //
+        // Capped at WATCH rather than pushed to AVOID, because the company may
+        // well be worth owning; it is the timing that is wrong, and WATCH is
+        // exactly that statement.
+        if (phase == ReversalDetector.Phase.DOWNTREND || phase == ReversalDetector.Phase.TOPPING) {
+            if ("STRONG_BUY".equals(base) || "BUY".equals(base)) {
+                warnings.add(phase == ReversalDetector.Phase.DOWNTREND
+                        ? "Scores well but is still in a downtrend — held at watch until the fall ends"
+                        : "Scores well but the move is extended — held at watch rather than chased");
+                return "WATCH";
+            }
+        }
+
         // A stock already good enough to buy, caught at the bottom of its
         // range, is the entry point this whole tool exists to find — so it
         // is promoted rather than left to the score's rounding.
-        if ("BUY".equals(base) && nearFiftyTwoWeekLow) {
-            reasons.add("Already a buy and trading near its 52-week low — upgraded to strong buy");
+        //
+        // Only once the decline has actually ended: "near the low" in an
+        // unbroken downtrend is the trap the cap above exists to avoid, and
+        // promoting on it would reintroduce the very thing it prevents.
+        // And only while the price is still below what the business is worth.
+        // "At its 52-week low" and "undervalued" are different claims, and
+        // conflating them promoted ARTES to STRONG_BUY at 10.51 against a fair
+        // value of 10.33 - the analyst, reading the same two numbers, was
+        // simultaneously reporting that no entry existed at any price. A stock
+        // can make a new low and still be expensive.
+        if ("BUY".equals(base) && nearFiftyTwoWeekLow && isBelowFairValue(stock)) {
+            reasons.add("Already a buy, trading near its 52-week low and still below fair value "
+                    + "— upgraded to strong buy");
             return "STRONG_BUY";
         }
 
@@ -483,6 +536,21 @@ public class TunindexScorer {
      * financial-sector names stay eligible — the exclusion is aimed at
      * state-run industrials and utilities, not at public banks.
      */
+    /**
+     * Price still under the Graham fair value.
+     *
+     * <p>False when no fair value could be computed, so a stock we cannot
+     * value is never promoted on a claim we cannot support.
+     */
+    private boolean isBelowFairValue(Stock stock) {
+        BigDecimal fairValue = stock.getCalculatedValues() != null
+                ? stock.getCalculatedValues().getGrahamFairValue() : null;
+        BigDecimal price = stock.getPriceData() != null
+                ? stock.getPriceData().getLastPrice() : null;
+        return fairValue != null && price != null
+                && fairValue.signum() > 0 && price.compareTo(fairValue) < 0;
+    }
+
     private boolean isNearFiftyTwoWeekLow(Stock stock) {
         BigDecimal position = stock.getPriceData() != null
                 ? stock.getPriceData().getCloseTo52weekslowPct() : null;

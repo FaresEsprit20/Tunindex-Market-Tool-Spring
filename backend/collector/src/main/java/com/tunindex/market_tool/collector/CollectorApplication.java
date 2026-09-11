@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -25,6 +26,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 })
 @Slf4j
 @EnableScheduling
+// Needed by MacroCacheWarmer: without it @Async is ignored and the cache
+// priming runs on the startup thread, adding half a minute to every boot.
+@EnableAsync
 @EnableDiscoveryClient
 @EntityScan("com.tunindex.market_tool.collector.entities")
 @EnableJpaRepositories("com.tunindex.market_tool.collector.repository")

@@ -10,6 +10,7 @@ import { TopOpportunities } from '../top-opportunities/top-opportunities';
 import { MacroPanel } from '../../../shared/components/macro-panel/macro-panel';
 import { CommoditiesBanner } from '../../../shared/components/commodities-banner/commodities-banner';
 import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
+import { TradifySpotlight } from '../../../shared/components/tradify-spotlight/tradify-spotlight';
 
 @Component({
   selector: 'app-dashboard',
@@ -25,6 +26,7 @@ import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
     MacroPanel,
     CommoditiesBanner,
     AdSlot,
+    TradifySpotlight,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',

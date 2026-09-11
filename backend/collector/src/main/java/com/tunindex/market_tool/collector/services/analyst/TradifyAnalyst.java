@@ -210,7 +210,7 @@ public class TradifyAnalyst {
                 .symbol(symbol)
                 .lastPrice(round(price))
                 .stance(stance)
-                .headline(headline(stance, zoneLow, zoneHigh, distanceToZone))
+                .headline(headline(stance, zoneLow, zoneHigh, distanceToZone, risks))
                 .buyZoneLow(round(zoneLow))
                 .buyZoneHigh(round(zoneHigh))
                 .priceInBuyZone(inZone)
@@ -410,14 +410,17 @@ public class TradifyAnalyst {
             case UPTREND -> inZone
                     ? TradeSetupDto.Stance.ACCUMULATE_NOW
                     : TradeSetupDto.Stance.BUY_THE_DIP;
-            case NEUTRAL -> inZone
-                    ? TradeSetupDto.Stance.WAIT_FOR_CONFIRMATION
-                    : TradeSetupDto.Stance.HOLD_OFF;
+            // "No clear structure" is not the same as "still falling", and
+            // saying HOLD_OFF here overstated it: the stock had a valid buy
+            // zone and a target on screen while the headline told the reader
+            // to stay out. HOLD_OFF is reserved for the two phases where the
+            // trend actively argues against buying.
+            case NEUTRAL -> TradeSetupDto.Stance.WAIT_FOR_CONFIRMATION;
         };
     }
 
     private String headline(TradeSetupDto.Stance stance, BigDecimal low, BigDecimal high,
-                            BigDecimal distance) {
+                            BigDecimal distance, List<String> risks) {
         String band = low == null || high == null ? null : money(low) + " - " + money(high);
         return switch (stance) {
             case ACCUMULATE_NOW -> band == null
@@ -431,7 +434,14 @@ public class TradifyAnalyst {
                     ? "Basing - wait for the turn to confirm"
                     : "Watch " + band + " - basing, but not confirmed yet";
             case HOLD_OFF -> "Hold off - the trend does not support an entry here";
-            case NO_SETUP -> "Not enough trading history to place an entry";
+            // "No setup" has two quite different causes and the reader needs
+            // to know which. Reporting "not enough history" for a stock with
+            // a year of data and a computed RSI is simply untrue, and it hides
+            // the real and more interesting finding: the price is above what
+            // the business is worth, so no entry exists at any chart level.
+            case NO_SETUP -> risks.stream().anyMatch(r -> r.contains("cheap on the numbers"))
+                    ? "No entry here - the price is above fair value"
+                    : "Not enough trading history to place an entry";
         };
     }
 

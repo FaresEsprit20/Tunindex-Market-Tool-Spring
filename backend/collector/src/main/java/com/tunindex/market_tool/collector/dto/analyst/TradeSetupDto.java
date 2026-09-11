@@ -48,6 +48,17 @@ public class TradeSetupDto {
     }
 
     private String symbol;
+
+    /**
+     * The price the plan was drawn against.
+     *
+     * <p>Carried explicitly so the reader sees where the stock is now next to
+     * where it is going. Without it the levels float free: "target 0.46" means
+     * nothing until you know whether the price is 0.42 or 0.45, and making the
+     * reader find that elsewhere is the gap between a number and a decision.
+     */
+    private BigDecimal lastPrice;
+
     private Stance stance;
 
     /** One line a reader can act on, e.g. "Accumulate 3.20 - 3.48". */

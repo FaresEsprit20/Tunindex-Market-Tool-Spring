@@ -28,6 +28,9 @@ public class TradeSetupResponseDto {
 
     private String symbol;
 
+    /** The price the plan was drawn against, so levels read next to it. */
+    private BigDecimal lastPrice;
+
     /** ACCUMULATE_NOW | BUY_THE_DIP | WAIT_FOR_CONFIRMATION | HOLD_OFF | NO_SETUP */
     private String stance;
 

@@ -55,51 +55,62 @@ public class RecaptchaServiceImpl implements RecaptchaService {
 
         List<String> errors = new ArrayList<>();
 
+        // A rejected token is an answer, not a failure.
+        //
+        // Every branch below used to throw, which turned "this looks like a
+        // bot" into an HTTP 500. The caller cannot tell that apart from the
+        // service being down - and because it must let requests through when
+        // its verifier is unreachable, a 500 meant every forged token was
+        // waved past. The check could never reject anything.
+        //
+        // So a negative verdict returns false and only a genuine fault
+        // throws.
         try {
             if (recaptchaToken == null || recaptchaToken.trim().isEmpty()) {
-                errors.add("reCAPTCHA token is null or empty");
-                throw new RecaptchaException("Token missing",
-                        ErrorCodes.RECAPTCHA_TOKEN_ABSENT, errors);
+                log.warn("reCAPTCHA rejected: no token supplied");
+                return false;
             }
 
             RecaptchaV3Response response = validateTokenWithGoogle(recaptchaToken, userIp);
 
             if (response == null) {
+                // No answer at all. This one IS a fault: the caller has to be
+                // able to distinguish "Google said no" from "Google said
+                // nothing", because its failure policy differs for each.
                 errors.add("Empty response from reCAPTCHA server");
                 throw new RecaptchaException("Empty response",
                         ErrorCodes.RECAPTCHA_RESPONSE_NULL, errors);
             }
 
             if (!response.isSuccess()) {
-                errors.add("Verification failed");
-                throw new RecaptchaException("Verification failed",
-                        ErrorCodes.RECAPTCHA_TOKEN_FAILED, errors);
+                log.warn("reCAPTCHA rejected: Google did not verify the token");
+                return false;
             }
 
             if (response.getScore() != null && response.getScore() < scoreThreshold) {
-                errors.add("Score too low");
-                throw new RecaptchaException("Score too low",
-                        ErrorCodes.RECAPTCHA_SCORE_LOW, errors);
+                log.warn("reCAPTCHA rejected: score {} below threshold {}",
+                        response.getScore(), scoreThreshold);
+                return false;
             }
 
             if (expectedAction != null && !expectedAction.equalsIgnoreCase(response.getAction())) {
-                errors.add("Action mismatch");
-                throw new RecaptchaException("Action mismatch",
-                        ErrorCodes.RECAPTCHA_ACTION_MISMATCH, errors);
+                // A token minted for one action being replayed against
+                // another - exactly what per-action tokens exist to catch.
+                log.warn("reCAPTCHA rejected: action was {} but {} was expected",
+                        response.getAction(), expectedAction);
+                return false;
             }
 
             if (response.getHostname() != null && !isValidHostname(response.getHostname())) {
-                errors.add("Invalid hostname: " + response.getHostname());
-                throw new RecaptchaException("Invalid hostname",
-                        ErrorCodes.RECAPTCHA_HOSTNAME_INVALID, errors);
+                log.warn("reCAPTCHA rejected: token issued for hostname {}", response.getHostname());
+                return false;
             }
 
             return true;
 
+        } catch (RecaptchaException e) {
+            throw e;
         } catch (Exception e) {
-            if (e instanceof RecaptchaException) {
-                throw e;
-            }
             errors.add("Unexpected error: " + e.getMessage());
             throw new RecaptchaException("Internal error",
                     ErrorCodes.RECAPTCHA_INTERNAL_ERROR, errors);

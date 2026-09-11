@@ -6,6 +6,7 @@ import { authInterceptor } from './core/interceptors/auth-interceptor';
 import { errorInterceptor } from './core/interceptors/error-interceptor';
 import { tokenRefreshInterceptor } from './core/interceptors/token-refresh-interceptor';
 import { adGateInterceptor } from './core/interceptors/ad-gate-interceptor';
+import { recaptchaInterceptor } from './core/interceptors/recaptcha-interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -20,7 +21,16 @@ export const appConfig: ApplicationConfig = {
     // user owes an ad; and before the error interceptor, so a 402 is turned
     // into a playable ad rather than surfacing to the user as a failure.
     provideHttpClient(
-      withInterceptors([authInterceptor, tokenRefreshInterceptor, adGateInterceptor, errorInterceptor]),
+      withInterceptors([
+        // First: the token has to be on the request before anything else
+        // looks at it, and it must survive a replay by the refresh
+        // interceptor below.
+        recaptchaInterceptor,
+        authInterceptor,
+        tokenRefreshInterceptor,
+        adGateInterceptor,
+        errorInterceptor,
+      ]),
     ),
   ],
 };

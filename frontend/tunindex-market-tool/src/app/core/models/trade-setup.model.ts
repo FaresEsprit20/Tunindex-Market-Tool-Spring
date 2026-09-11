@@ -17,6 +17,8 @@ export type Phase =
 
 export interface TradeSetup {
   symbol: string;
+  /** The price the plan was drawn against. */
+  lastPrice: number | null;
   stance: Stance;
   headline: string;
 

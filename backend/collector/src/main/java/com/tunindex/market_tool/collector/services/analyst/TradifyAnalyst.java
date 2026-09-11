@@ -71,6 +71,10 @@ public class TradifyAnalyst {
         if (price == null || price.signum() <= 0 || bars.size() < MIN_BARS) {
             return TradeSetupDto.builder()
                     .symbol(symbol)
+                    // Null-safe: this branch is reached precisely when the
+                    // price may be missing, and a missing price should read as
+                    // unknown rather than as zero.
+                    .lastPrice(round(price))
                     .stance(TradeSetupDto.Stance.NO_SETUP)
                     .headline("Not enough trading history to place an entry")
                     .phase(reversal == null ? null : reversal.phase().name())
@@ -204,6 +208,7 @@ public class TradifyAnalyst {
 
         return TradeSetupDto.builder()
                 .symbol(symbol)
+                .lastPrice(round(price))
                 .stance(stance)
                 .headline(headline(stance, zoneLow, zoneHigh, distanceToZone))
                 .buyZoneLow(round(zoneLow))

@@ -81,7 +81,12 @@ export const tokenRefreshInterceptor: HttpInterceptorFn = (req, next) => {
         // the component is still waiting on.
         switchMap(() => next(req)),
         catchError((refreshError: unknown) => {
-          router.navigate(['/login'], { queryParams: { expired: 'true' } });
+          // '/auth/login', not '/login'. The sign-in screen lives under the
+          // auth shell, and the shorter path matches no route at all - so a
+          // user whose session expired was navigated nowhere and left on a
+          // dead page ("NG04002: Cannot match any routes"), with every request
+          // failing and no way back to signing in.
+          router.navigate(['/auth/login'], { queryParams: { expired: 'true' } });
           return throwError(() => refreshError);
         }),
       );

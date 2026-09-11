@@ -14,7 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Limit;
+
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 
 @RestController
@@ -31,16 +34,30 @@ public class AnalysisController {
     @Value("${internal.api.key}")
     private String internalApiKey;
 
+    /**
+     * @param bars how many trading days to feed the indicators, counted in
+     *             bars rather than calendar days - see below
+     */
     @GetMapping("/{symbol}/technical")
     public TechnicalAnalysisDto technical(
             @PathVariable String symbol,
-            @RequestParam(defaultValue = "180") int days,
+            @RequestParam(defaultValue = "250") int bars,
             @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
 
         validateApiKey(apiKey);
-        var history = priceHistoryRepository.findBySymbolAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
-                symbol, LocalDate.now().minusDays(days));
-        return technicalAnalysisCalculator.compute(history);
+
+        // Bars, not a date window. The two are the same only for a stock that
+        // trades every day; for a thinly traded one they are not close. UADH
+        // holds 119 bars of which 9 fall inside 180 days, so the old window
+        // returned too few rows to compute anything and every indicator came
+        // back null - while the data needed to compute them sat in the table.
+        var newestFirst = priceHistoryRepository.findBySymbolOrderByTradeDateDesc(
+                symbol, Limit.of(Math.max(1, bars)));
+
+        // The calculator walks forward through time.
+        var ascending = new ArrayList<>(newestFirst);
+        Collections.reverse(ascending);
+        return technicalAnalysisCalculator.compute(ascending);
     }
 
     @GetMapping("/{symbol}/fundamental")

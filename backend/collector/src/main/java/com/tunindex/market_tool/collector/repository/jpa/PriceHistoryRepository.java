@@ -31,4 +31,19 @@ public interface PriceHistoryRepository extends JpaRepository<PriceHistory, Long
 
     /** The next N trading days strictly after a date, ascending. */
     List<PriceHistory> findBySymbolAndTradeDateGreaterThanOrderByTradeDateAsc(String symbol, LocalDate date, Limit limit);
+
+    /**
+     * The most recent N bars, however far back they reach.
+     *
+     * <p>Counted in bars rather than calendar days, which is what every
+     * indicator actually asks for: RSI(14) means fourteen <em>trades</em>, not
+     * fourteen days. A date window silently conflates the two, and for a
+     * thinly traded name the difference is the whole answer - UADH holds 119
+     * bars but only 9 of them fall inside 180 days, so every derived indicator
+     * came back null while the data to compute them sat in the table.
+     *
+     * <p>Returned newest-first, since that is the only way to take "the last
+     * N" in SQL; callers reverse it before computing.
+     */
+    List<PriceHistory> findBySymbolOrderByTradeDateDesc(String symbol, Limit limit);
 }

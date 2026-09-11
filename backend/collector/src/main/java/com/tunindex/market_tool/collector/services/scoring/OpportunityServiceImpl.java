@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -40,7 +42,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OpportunityServiceImpl implements OpportunityService {
 
-    private static final int TECHNICAL_HISTORY_DAYS = 180;
+    /**
+     * Bars fed to the indicators. Comfortably more than the longest lookback
+     * any of them uses (ADX needs about 40, SMA50 needs 50), with room to
+     * spare so the readings settle rather than starting cold.
+     */
+    private static final int TECHNICAL_HISTORY_BARS = 250;
     private static final int NEWS_PER_SYMBOL = 15;
 
     private final StockRepository stockRepository;
@@ -106,9 +113,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     private OpportunityScoreDto scoreStock(Stock stock, boolean includeNews) {
-        List<PriceHistory> history = priceHistoryRepository
-                .findBySymbolAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
-                        stock.getSymbol(), LocalDate.now().minusDays(TECHNICAL_HISTORY_DAYS));
+        List<PriceHistory> history = recentBars(stock.getSymbol());
 
         TechnicalAnalysisDto technical = computeTechnical(history, stock.getSymbol());
         List<NewsImpactDto> news = includeNews ? loadClassifiedNews(stock.getSymbol()) : List.of();
@@ -117,6 +122,33 @@ public class OpportunityServiceImpl implements OpportunityService {
         // at the bottom.
         ReversalDetector.ReversalSignal reversal = reversalDetector.detect(history, technical);
         return scorer.score(stock, technical, news, oneYearReturnPct(stock.getSymbol()), reversal);
+    }
+
+    /**
+     * The last {@value #TECHNICAL_HISTORY_BARS} trading days for a symbol.
+     *
+     * <p>Counted in bars, not calendar days. The old window asked for 180
+     * days, which is the same thing only for a stock that trades daily. For a
+     * thinly traded one it is not close: UADH holds 119 bars but just 9 of
+     * them fall inside 180 days, so RSI, MACD, the moving averages, Bollinger,
+     * Stochastic, Williams %R, ATR and ADX all came back null - and with no
+     * technicals the timing and momentum halves of its score had nothing to
+     * work from.
+     *
+     * <p>What this does not do is make a stale series fresh. UADH last traded
+     * weeks ago, and its indicators now describe that day rather than today.
+     * That is the honest reading of the data we have, and it is the caller's
+     * job to say so - {@code scoreStock} already warns when the last quote is
+     * old.
+     */
+    private List<PriceHistory> recentBars(String symbol) {
+        List<PriceHistory> newestFirst = priceHistoryRepository
+                .findBySymbolOrderByTradeDateDesc(symbol, Limit.of(TECHNICAL_HISTORY_BARS));
+
+        // The indicators all walk forward through time.
+        List<PriceHistory> ascending = new ArrayList<>(newestFirst);
+        Collections.reverse(ascending);
+        return ascending;
     }
 
     /**

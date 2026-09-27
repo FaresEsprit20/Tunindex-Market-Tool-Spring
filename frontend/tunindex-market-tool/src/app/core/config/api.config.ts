@@ -52,3 +52,21 @@ export const RECAPTCHA_PROTECTED_PATHS: readonly string[] = [
   '/accounts/management/user/create',
   '/password-reset',
 ];
+
+/**
+ * Google AdSense publisher id, e.g. "ca-pub-1234567890123456".
+ *
+ * <p>Public by design - it is visible in the page source of every AdSense
+ * site. The secret half of the relationship is the account itself.
+ *
+ * <p>Empty until a real approved account exists. While it is empty no
+ * AdSense script is loaded at all, so an unconfigured build does not ship a
+ * third-party tag to every visitor for nothing.
+ */
+export const ADSENSE_PUBLISHER_ID = '';
+
+/**
+ * Google Ad Manager network code, for publishers using GAM rather than
+ * plain AdSense. Empty disables the GPT integration the same way.
+ */
+export const AD_MANAGER_NETWORK_CODE = '';

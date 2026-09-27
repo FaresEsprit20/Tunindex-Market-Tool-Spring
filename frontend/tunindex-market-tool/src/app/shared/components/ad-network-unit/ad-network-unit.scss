@@ -1,0 +1,29 @@
+/* No fixed height and no placeholder frame. A network unit that does not
+   fill should collapse to nothing - reserving space for an ad that never
+   arrives leaves a hole in the page and earns the same as no ad at all. */
+.net {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.net-label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary, #8a8a95);
+}
+
+.gam-slot {
+  display: block;
+  min-width: 0;
+}
+
+/* Keeps a wide creative from pushing the page sideways. */
+:host ::ng-deep .adsbygoogle,
+.gam-slot > div {
+  max-width: 100%;
+}

@@ -5,6 +5,7 @@ import { AdBanner } from '../ad-banner/ad-banner';
 import { AdVideo } from '../ad-video/ad-video';
 import { AdNative } from '../ad-native/ad-native';
 import { AdInterstitial } from '../ad-interstitial/ad-interstitial';
+import { AdNetworkUnit } from '../ad-network-unit/ad-network-unit';
 
 /**
  * One tag a page can drop anywhere, which resolves to whatever format the slot
@@ -21,7 +22,7 @@ import { AdInterstitial } from '../ad-interstitial/ad-interstitial';
  */
 @Component({
   selector: 'app-ad-slot',
-  imports: [AdBanner, AdVideo, AdNative, AdInterstitial],
+  imports: [AdBanner, AdVideo, AdNative, AdInterstitial, AdNetworkUnit],
   templateUrl: './ad-slot.html',
   styleUrl: './ad-slot.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

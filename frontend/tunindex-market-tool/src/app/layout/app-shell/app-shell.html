@@ -24,10 +24,12 @@
   <router-outlet />
 </main>
 
-<!-- The one ad every authenticated page carries. Below the content, so it
-     is the last thing on the page rather than something to scroll past. -->
-<!-- <app-ad-slot placement="GLOBAL_FOOTER" />
- -->
+<!-- No site-wide footer ad. It sat under every page on the app and made the
+     product look like it was hosting advertising rather than running a
+     market tool; the per-page slots earn their place, a permanent banner
+     under everything does not. The GLOBAL_FOOTER placement still exists
+     server-side, so nothing breaks if it is ever wanted back. -->
+
 <!-- Raised whenever the server answers a gated call with 402. Mounted here
      so it works for any page, including ones that know nothing about ads. -->
 <app-ad-gate-overlay />

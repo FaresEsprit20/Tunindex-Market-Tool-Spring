@@ -5,7 +5,6 @@ import { PrimaryNav } from '../../shared/components/primary-nav/primary-nav';
 import { Navbar } from '../../shared/components/navbar/navbar';
 import { MarketTicker } from '../../shared/components/market-ticker/market-ticker';
 import { CommandPalette } from '../../shared/components/command-palette/command-palette';
-import { AdSlot } from '../../shared/components/ad-slot/ad-slot';
 import { AdNavigationInterstitial } from '../../shared/components/ad-navigation-interstitial/ad-navigation-interstitial';
 import { AdGateOverlay } from '../../shared/components/ad-gate-overlay/ad-gate-overlay';
 
@@ -26,7 +25,6 @@ import { AdGateOverlay } from '../../shared/components/ad-gate-overlay/ad-gate-o
     MarketTicker,
     CommandPalette,
     PrimaryNav,
-    AdSlot,
     AdNavigationInterstitial,
     AdGateOverlay,
   ],

@@ -1,5 +1,10 @@
 /**
- * Every backend call goes through the API gateway on port 8080.
+ * Every backend call goes through the API gateway on port 8070.
+ *
+ * <p>8070 rather than the usual 8080, because another project on this machine
+ * already listens there. Sharing the port meant whichever booted first served
+ * both apps, and Market Tool's requests came back 403 from a gateway that had
+ * never heard of them.
  *
  * <p>The path is unchanged - the gateway forwards
  * /tunindex/market/tool/v1/stocks/** to the api service verbatim - so only
@@ -11,7 +16,7 @@
  * port, and without the gateway using it from here would need a second base
  * URL and a second CORS origin to keep in step with this one.
  */
-export const API_BASE_URL = 'http://localhost:8080/tunindex/market/tool/v1/stocks';
+export const API_BASE_URL = 'http://localhost:8070/tunindex/market/tool/v1/stocks';
 
 /**
  * The ads API, also through the gateway.
@@ -20,7 +25,7 @@ export const API_BASE_URL = 'http://localhost:8080/tunindex/market/tool/v1/stock
  * same origin, so one CORS configuration covers both and the browser sends
  * session cookies to each without further setup.
  */
-export const ADS_BASE_URL = 'http://localhost:8080/api/v1/ads';
+export const ADS_BASE_URL = 'http://localhost:8070/api/v1/ads';
 
 /**
  * Google reCAPTCHA v3 site key.

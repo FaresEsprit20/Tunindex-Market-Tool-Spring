@@ -18,6 +18,16 @@
     </properties>
 
     <dependencies>
+        <!-- Reads backend/.env into Spring properties. Lives here rather than
+             in one service so every module shares the same loader, and so the
+             fix for the old one (which printed every secret value to stdout)
+             does not have to be repeated per service. -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
         <!-- WebFlux for reactive and HTTP client support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

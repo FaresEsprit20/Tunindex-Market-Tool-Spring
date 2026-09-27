@@ -4,7 +4,17 @@
 # The single entry point. Routes by service name through Eureka rather than
 # host:port, so a service can move or scale without the browser knowing.
 server:
-  port: 8080
+  # 8070, not 8080.
+  #
+  # Another project on this machine (its own gateway, auth and merchant
+  # services) already listens on 8080, and whichever started first won - so
+  # requests meant for Market Tool were answered by a stranger's gateway with
+  # a 403 that looked like a bug here. Moving is cheaper than contending for
+  # a port, and the two stacks now run side by side.
+  #
+  # The frontend's API_BASE_URL and ADS_BASE_URL point here; they are the only
+  # other place the number appears.
+  port: 8070
 
 spring:
   application:

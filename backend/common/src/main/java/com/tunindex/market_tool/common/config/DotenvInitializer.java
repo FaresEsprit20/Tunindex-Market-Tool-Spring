@@ -43,7 +43,18 @@ public class DotenvInitializer implements ApplicationContextInitializer<Configur
                     .load();
 
             Map<String, Object> properties = new HashMap<>();
-            dotenv.entries().forEach(entry -> properties.put(entry.getKey(), entry.getValue()));
+            // Just what the file declares.
+            //
+            // The default set also contains every system environment
+            // variable - about a hundred here - and since this source is
+            // added first, each of them would outrank application.properties.
+            // PATH and TEMP winning a property lookup is harmless until the
+            // day a variable name happens to collide with a Spring key, at
+            // which point the override is invisible. Spring already reads the
+            // real environment on its own; this initializer exists only to
+            // add the file.
+            dotenv.entries(Dotenv.Filter.DECLARED_IN_ENV_FILE)
+                    .forEach(entry -> properties.put(entry.getKey(), entry.getValue()));
 
             if (properties.isEmpty()) {
                 log.info("No .env entries found; relying on system environment variables");

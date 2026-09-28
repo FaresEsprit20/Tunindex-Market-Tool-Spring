@@ -218,9 +218,76 @@
 }
 
 .tape-find {
-  margin-left: auto;
   color: var(--sky);
   font-weight: 600;
+}
+
+/* Hovering a bar swaps the caption for that company's figure. Occupying the
+   same row rather than floating above it means the strip never jumps. */
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.readout-sym {
+  font-weight: 650;
+  color: var(--paper);
+  letter-spacing: 0.01em;
+}
+
+.readout-chg {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+
+  &.up { color: var(--up); }
+  &.down { color: var(--down); }
+  &.flat { color: var(--muted); }
+}
+
+/* The hovered bar lifts out of the crowd without moving its neighbours. */
+.bar.hot {
+  background: var(--paper);
+  filter: none;
+}
+
+.stamp {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+
+/* ── The plan, attached to the sentence that announced it ─────────────── */
+
+.ticket {
+  align-self: stretch;
+  /* Indented to the bubbles' text column, so it reads as part of the turn
+     rather than a separate panel that happens to sit below it. */
+  margin: 2px 0 4px 31px;
+  animation: rise 0.4s cubic-bezier(0.22, 0.9, 0.36, 1) 0.1s both;
+}
+
+.ticket-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  padding: 8px 15px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--sky), var(--indigo));
+  color: #08101f;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+
+  svg { width: 15px; height: 15px; }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgb(79 124 255 / 0.35);
+  }
 }
 
 /* ── The conversation ────────────────────────────────────────────────── */

@@ -98,7 +98,11 @@
               @if (setup.priceInBuyZone) {
                 <span class="call-flag">in zone now</span>
               } @else if (setup.distanceToZonePct !== null) {
-                <span class="call-flag muted">{{ setup.distanceToZonePct | number: '1.0-0' }}% below</span>
+                <!-- TradifyAnalyst only sets this when the price is ABOVE the
+                     zone, i.e. currently too expensive. It read "% below",
+                     which inverted the one figure a reader uses to decide
+                     whether to buy now or wait. -->
+                <span class="call-flag muted">{{ setup.distanceToZonePct | number: '1.0-0' }}% above zone</span>
               }
             </div>
           }

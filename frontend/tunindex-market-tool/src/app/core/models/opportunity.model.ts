@@ -49,13 +49,22 @@ export const VERDICT_LABELS: Record<Verdict, string> = {
   AVOID: 'Avoid',
 };
 
-/** Component weights, kept in sync with TunindexScorer's constants. */
+/**
+ * Component weights, mirroring TunindexScorer's WEIGHT_* constants.
+ *
+ * <p>These are rendered beside each score bar, so a stale copy here tells the
+ * reader the scorer weighs something it does not — and there is no way for
+ * them to catch it. They had drifted once already (timing 25, health 20,
+ * income 10) after the scorer was rebalanced to put timing level with
+ * valuation; if you change TunindexScorer, change this in the same commit.
+ * The set must total 100.
+ */
 export const SCORE_COMPONENTS = [
   { key: 'valuationScore', label: 'Valuation', weight: 30 },
-  { key: 'timingScore', label: 'Timing', weight: 25 },
-  { key: 'financialHealthScore', label: 'Financial health', weight: 20 },
-  { key: 'incomeScore', label: 'Income', weight: 10 },
+  { key: 'timingScore', label: 'Timing', weight: 30 },
+  { key: 'financialHealthScore', label: 'Financial health', weight: 18 },
   { key: 'momentumScore', label: 'Momentum', weight: 10 },
+  { key: 'incomeScore', label: 'Income', weight: 7 },
   { key: 'newsScore', label: 'News', weight: 5 },
 ] as const satisfies ReadonlyArray<{ key: keyof OpportunityScore; label: string; weight: number }>;
 

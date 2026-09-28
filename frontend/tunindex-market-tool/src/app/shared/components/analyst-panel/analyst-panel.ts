@@ -37,6 +37,14 @@ export class AnalystPanel {
   /** Compact form for the opportunities list, where space is tight. */
   readonly compact = input(false);
 
+  /**
+   * Drops the panel's own header when it sits inside something that has
+   * already named the analyst — the companion briefing, for instance, where
+   * a second "Tradify Analyst" byline two inches below the first reads as a
+   * templating accident rather than a design.
+   */
+  readonly embedded = input(false);
+
   protected readonly stanceLabels = STANCE_LABELS;
   protected readonly stanceBlurbs = STANCE_BLURBS;
   protected readonly phaseLabels = PHASE_LABELS;

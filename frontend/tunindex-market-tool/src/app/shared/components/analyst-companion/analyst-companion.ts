@@ -4,17 +4,37 @@ import {
   DestroyRef,
   OnDestroy,
   computed,
+  effect,
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { Market } from '../../../core/services/market';
 import { Stock } from '../../../core/services/stock';
+import { User } from '../../../core/services/user';
+import { AnalystPanel } from '../analyst-panel/analyst-panel';
 import { MarketSession } from '../../../core/models/market.model';
 import { StockDto } from '../../../core/models/stock.model';
-import { OpportunityScore } from '../../../core/models/opportunity.model';
+import { OpportunityScore, VERDICT_LABELS, Verdict } from '../../../core/models/opportunity.model';
+
+/**
+ * The scorer's own call, ordered.
+ *
+ * <p>Needed because a verdict is not a score: a STRONG_BUY at 74 is a
+ * stronger recommendation than a BUY at 78, and ranking on the number alone
+ * throws away the judgement the scorer already made.
+ */
+const VERDICT_RANK: Record<Verdict, number> = {
+  STRONG_BUY: 4,
+  BUY: 3,
+  WATCH: 2,
+  HOLD: 1,
+  AVOID: 0,
+};
 
 /** Where the companion is speaking from; it says different things on each. */
 export type CompanionContext = 'dashboard' | 'opportunities';
@@ -85,7 +105,7 @@ interface FollowUp {
  */
 @Component({
   selector: 'app-analyst-companion',
-  imports: [],
+  imports: [RouterLink, AnalystPanel],
   templateUrl: './analyst-companion.html',
   styleUrl: './analyst-companion.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -93,6 +113,7 @@ interface FollowUp {
 export class AnalystCompanion implements OnDestroy {
   private readonly market = inject(Market);
   private readonly stock = inject(Stock);
+  private readonly user = inject(User);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly context = input<CompanionContext>('dashboard');
@@ -131,6 +152,9 @@ export class AnalystCompanion implements OnDestroy {
   protected readonly answering = signal(false);
   private readonly askedIds = signal<string[]>([]);
 
+  /** The bar under the pointer, read out beside the strip. */
+  protected readonly hovered = signal<ScanBar | null>(null);
+
   private timers: ReturnType<typeof setTimeout>[] = [];
   private scanTimer?: ReturnType<typeof setInterval>;
 
@@ -138,16 +162,27 @@ export class AnalystCompanion implements OnDestroy {
     forkJoin({
       session: this.market.getSession().pipe(catchError(() => of(null))),
       breadth: this.market.getBreadth().pipe(catchError(() => of(null))),
+      // Who we are talking to, by name. Failure is non-fatal: the greeting
+      // just goes without one.
+      who: this.user.getAuthUser().pipe(catchError(() => of(null))),
       // null on failure, never [] — see the note on `scored`.
-      opportunities: this.stock.getOpportunities(20, 0).pipe(catchError(() => of(null))),
+      //
+      // The whole scored universe, not a top-20 slice. He says "I went
+      // through all 86 companies" and then names the strongest buy; if the
+      // ranking only ever saw the top 20 by score, both halves of that could
+      // be true separately while the sentence as a whole was not. The right
+      // name can sit at rank 30 precisely because the names above it are too
+      // expensive to buy — which is the case he exists to catch.
+      opportunities: this.stock.getOpportunities(100, 0).pipe(catchError(() => of(null))),
       // Every listed company, for the strip. Priced from lastPrice against
       // prevClose so each bar is a real move, not a decoration.
       all: this.stock.filter({ page: 1, size: 120 }).pipe(
         map((res) => res.content),
         catchError(() => of(null)),
       ),
-    }).subscribe(({ session, breadth, opportunities, all }) => {
+    }).subscribe(({ session, breadth, opportunities, all, who }) => {
       this.session.set(session);
+      this.profileName.set(who?.firstName ?? null);
       this.scored.set(opportunities);
       this.listedTotal.set(breadth?.total ?? null);
       this.listFailed.set(all === null);
@@ -158,6 +193,32 @@ export class AnalystCompanion implements OnDestroy {
 
       this.phase.set('reading');
       this.runScan();
+    });
+
+    // The name can land after the greeting has already been spoken — a slow
+    // auth round trip, a sign-in in another tab, a retry that succeeded. The
+    // briefing is a frozen list of strings once composed, so without this the
+    // reader keeps a nameless "Good evening." for the life of the page.
+    //
+    // Reads of `said` are untracked deliberately: writing a freshly mapped
+    // array to a signal this effect also depended on would retrigger it
+    // forever, since the new array is never reference-equal to the old one.
+    effect(() => {
+      const who = this.firstName();
+      if (!who) return;
+
+      untracked(() => {
+        const lines = this.said();
+        const hello = lines.find((l) => l.id === 'hello');
+        if (!hello || hello.text.includes(who)) return;
+        this.said.set(
+          lines.map((l) =>
+            l.id === 'hello'
+              ? { ...l, text: `${this.greeting()}, ${who}. ${this.marketLine()}` }
+              : l,
+          ),
+        );
+      });
     });
 
     this.destroyRef.onDestroy(() => this.clearTimers());
@@ -202,11 +263,6 @@ export class AnalystCompanion implements OnDestroy {
   protected barLit(index: number): boolean {
     const total = Math.max(1, this.bars().length);
     return (index / total) * 100 <= this.scanPct();
-  }
-
-  protected barTitle(bar: ScanBar): string {
-    if (bar.changePct === null) return `${bar.symbol}: not priced today`;
-    return `${bar.symbol}: ${bar.changePct >= 0 ? '+' : ''}${bar.changePct.toFixed(2)}%`;
   }
 
   private runScan(): void {
@@ -273,9 +329,94 @@ export class AnalystCompanion implements OnDestroy {
     return { up, down, flat, unpriced, read: this.bars().length };
   });
 
+  /**
+   * Names actually worth recommending, strongest first.
+   *
+   * <p>Two independent judgements have to agree, and this used to check only
+   * one of them. TunindexScorer's <em>verdict</em> says whether the business
+   * is worth owning; TradifyAnalyst's <em>stance</em> says whether today's
+   * price is worth paying. Filtering on stance alone let a name whose only
+   * merit was sitting inside its zone get recommended over a STRONG_BUY —
+   * a good price on a weak company, which is still a weak company, and
+   * exactly the kind of call that costs a reader money.
+   *
+   * <p>The ordering is deliberate. Verdict outranks score because a
+   * STRONG_BUY at 74 is a stronger recommendation than a BUY at 78; the
+   * scorer already weighed that and we should not silently re-weigh it.
+   * Confidence and data completeness break the remaining ties, so a
+   * thinly-covered name never wins on an equal score.
+   *
+   * <p>Sorted here rather than trusting the order the API sent: "he
+   * recommends the strongest one" is a promise this component makes, and a
+   * promise resting on a remote sort is one broken silently.
+   */
   private readonly liveEntries = computed(() =>
-    (this.scored() ?? []).filter((r) => r.tradeSetup?.stance === 'ACCUMULATE_NOW'),
+    (this.scored() ?? [])
+      .filter((r) => r.tradeSetup?.stance === 'ACCUMULATE_NOW')
+      .filter((r) => r.verdict === 'STRONG_BUY' || r.verdict === 'BUY')
+      .sort(
+        (a, b) =>
+          VERDICT_RANK[b.verdict] - VERDICT_RANK[a.verdict] ||
+          b.overallScore - a.overallScore ||
+          (b.tradeSetup?.confidence ?? 0) - (a.tradeSetup?.confidence ?? 0) ||
+          b.dataCompleteness - a.dataCompleteness,
+      ),
   );
+
+  /**
+   * In their buy zone, but the business does not clear the bar.
+   *
+   * <p>Tracked separately so this case gets its own sentence. "Nothing is in
+   * a buy zone" and "things are in a buy zone but none of them is worth
+   * owning" are different market conditions, and collapsing them into one
+   * message loses the more interesting of the two.
+   */
+  private readonly inZoneButWeak = computed(() =>
+    (this.scored() ?? []).filter(
+      (r) =>
+        r.tradeSetup?.stance === 'ACCUMULATE_NOW' &&
+        r.verdict !== 'STRONG_BUY' &&
+        r.verdict !== 'BUY',
+    ),
+  );
+
+  /** The highest-scoring name overall — buyable today or not. */
+  private readonly topRanked = computed(() => {
+    const all = [...(this.scored() ?? [])].sort((a, b) => b.overallScore - a.overallScore);
+    return all[0] ?? null;
+  });
+
+  /** Names scoring above the one being recommended. */
+  private readonly outscoring = computed(() => {
+    const best = this.found();
+    if (!best) return [];
+    return (this.scored() ?? []).filter((r) => r.overallScore > best.overallScore);
+  });
+
+  /**
+   * Why a higher-scoring name is not the recommendation.
+   *
+   * <p>Always a fact about that stock's own setup, never a generality — the
+   * reader can check every one of these against the row it came from.
+   */
+  private whyNot(row: OpportunityScore): string {
+    const s = row.tradeSetup;
+    if (!s) return 'I have no entry plan on it';
+    switch (s.stance) {
+      case 'BUY_THE_DIP':
+        return s.distanceToZonePct !== null
+          ? `it is trading about ${Math.round(s.distanceToZonePct)}% above my buy zone`
+          : 'it is trading above my buy zone';
+      case 'WAIT_FOR_CONFIRMATION':
+        return 'its turn has not confirmed yet';
+      case 'HOLD_OFF':
+        return 'its trend does not support buying it here';
+      case 'NO_SETUP':
+        return 'it has too little history for me to place a level on it';
+      default:
+        return 'it is not at a price I would pay';
+    }
+  }
 
   private readonly nearZone = computed(() =>
     (this.scored() ?? [])
@@ -308,6 +449,44 @@ export class AnalystCompanion implements OnDestroy {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   });
+
+  /**
+   * The reader's first name, as they gave it when they registered.
+   *
+   * <p>This was originally guessed from the email address, which was the
+   * wrong instinct twice over. It was unreliable — "faresbenslama95" has a
+   * first name in it that no safe rule extracts, so the greeting silently
+   * gave up — and it was guessing at something the database already knows.
+   * GET /users/auth-user returns the stored profile; a name the user typed
+   * themselves is the only one worth greeting them by.
+   */
+  private readonly profileName = signal<string | null>(null);
+
+  protected readonly firstName = computed(() => {
+    const name = this.profileName()?.trim();
+    if (!name) return null;
+    // Guard the empty-ish values a profile can legitimately hold rather than
+    // greeting someone as "".
+    const first = name.split(/\s+/)[0] ?? '';
+    return first.length >= 2 ? first : null;
+  });
+
+  /**
+   * When the reading happened, Tunis time.
+   *
+   * <p>A briefing with no timestamp is a briefing you cannot tell is stale.
+   * Taken from the exchange clock rather than the browser's, because the
+   * figures are the exchange's and a reader in another timezone should see
+   * the market's hour, not their own.
+   */
+  protected readonly readAt = computed(() => this.session()?.tunisTime?.slice(11, 16) ?? null);
+
+  /** "+2.14%" / "−0.80%" / "no price", for the strip readout. */
+  protected change(bar: ScanBar): string {
+    if (bar.changePct === null) return 'no price today';
+    const sign = bar.changePct > 0 ? '+' : bar.changePct < 0 ? '−' : '';
+    return `${sign}${Math.abs(bar.changePct).toFixed(2)}%`;
+  }
 
   private marketLine(): string {
     const s = this.session();
@@ -354,8 +533,13 @@ export class AnalystCompanion implements OnDestroy {
     const live = this.liveEntries().length;
     const near = this.nearZone().length;
 
+    const who = this.firstName();
     const lines: Line[] = [
-      { id: 'hello', from: 'analyst', text: `${this.greeting()}. ${this.marketLine()}` },
+      {
+        id: 'hello',
+        from: 'analyst',
+        text: `${this.greeting()}${who ? `, ${who}` : ''}. ${this.marketLine()}`,
+      },
     ];
 
     if (this.listFailed() || t.read === 0) {
@@ -410,17 +594,49 @@ export class AnalystCompanion implements OnDestroy {
     if (best?.tradeSetup) {
       const s = best.tradeSetup;
       const zone = this.band(s.buyZoneLow, s.buyZoneHigh, best.currency);
+
+      // Deal with the higher-scoring names before naming the pick, because
+      // the reader can see them at the top of the table and will otherwise
+      // conclude the recommendation is simply wrong. Passing over the best
+      // score IS the judgement being sold here — it only works if it is
+      // stated out loud, with the reason attached.
+      const above = this.outscoring();
+      const top = this.topRanked();
+      if (above.length > 0 && top) {
+        const others =
+          above.length > 1
+            ? ` ${above.length - 1} other${above.length > 2 ? 's' : ''} score above it too, for much the same reason.`
+            : '';
+        lines.push({
+          id: 'passed-over',
+          from: 'analyst',
+          text: `${top.symbol} scores highest today at ${top.overallScore}, but ${this.whyNot(top)} — so it is not the one I would put money into this morning.${others}`,
+        });
+      }
       // target1 is genuinely nullable, and "a first target of null" is the
       // kind of sentence that destroys trust in everything around it.
       const target =
         s.target1 !== null
-          ? ` against a first target of ${this.price(s.target1, best.currency)}.`
-          : '. I do not have a clean first target on it yet.';
+          ? ` First target ${this.price(s.target1, best.currency)}.`
+          : ' I do not have a clean first target on it yet.';
       lines.push({
         id: 'verdict',
         from: 'analyst',
         emphasis: true,
-        text: `${best.symbol} is trading inside its buy zone — ${zone}${target}`,
+        // The verdict is stated alongside the score, because they are not the
+        // same claim and the reader is entitled to both.
+        text: `${best.symbol} is the one: ${VERDICT_LABELS[best.verdict].toLowerCase()} on my numbers at ${best.overallScore}/100, and trading inside its buy zone at ${zone}.${target}`,
+      });
+    } else if (this.inZoneButWeak().length > 0) {
+      const n = this.inZoneButWeak().length;
+      lines.push({
+        id: 'verdict',
+        from: 'analyst',
+        emphasis: true,
+        text:
+          n === 1
+            ? 'One name is sitting in a buy zone today, but it does not clear my bar as a business — and a good price on a weak company is still a weak company.'
+            : `${n} names are sitting in a buy zone today, but none of them clears my bar as a business — and a good price on a weak company is still a weak company.`,
       });
     } else if (near > 0) {
       const n = this.nearZone()[0];
@@ -458,6 +674,14 @@ export class AnalystCompanion implements OnDestroy {
     const best = this.found();
 
     if (best) out.push({ id: 'why', label: `Why ${best.symbol}?` });
+
+    // The obvious objection, offered as a question rather than waiting to be
+    // raised: the reader can see a higher score at the top of the table.
+    const top = this.topRanked();
+    if (best && top && top.symbol !== best.symbol && top.overallScore > best.overallScore) {
+      out.push({ id: 'nottop', label: `Why not ${top.symbol}?` });
+    }
+
     if (this.nearZone().length > 0) out.push({ id: 'waiting', label: 'What are you waiting for?' });
     if (best?.tradeSetup?.risks?.length || best?.warnings?.length) {
       out.push({ id: 'risk', label: 'Anything worry you?' });
@@ -500,6 +724,16 @@ export class AnalystCompanion implements OnDestroy {
         const why =
           s.evidence?.slice(0, 2).join('; ') || s.regimeSummary || 'the structure turned up';
         return `${best.symbol} scores ${best.overallScore} out of 100, and the turn is confirmed — ${why}. That is why the zone is live rather than something to watch.`;
+      }
+      case 'nottop': {
+        const top = this.topRanked();
+        if (!top || !best) return 'Nothing outscores what I picked today.';
+        const s = top.tradeSetup;
+        const level =
+          s?.buyZoneLow != null && s?.buyZoneHigh != null
+            ? ` It trades at ${this.price(top.lastPrice, top.currency)} against a zone of ${this.band(s.buyZoneLow, s.buyZoneHigh, top.currency)}.`
+            : '';
+        return `${top.symbol} scores ${top.overallScore} to ${best.symbol}'s ${best.overallScore}, and on the business alone it is the better company — ${this.whyNot(top)}.${level} I would rather own the second-best company at the right price than the best one at the wrong price, because what you pay is the part of the return you control. If ${top.symbol} comes back into the zone, it becomes the call.`;
       }
       case 'waiting': {
         const near = this.nearZone().slice(0, 3);

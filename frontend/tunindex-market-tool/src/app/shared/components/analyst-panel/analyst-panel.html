@@ -4,21 +4,23 @@
     <!-- Who is speaking. The point of the whole panel is that a reader feels
          covered by someone who has done the work, so the source is named
          rather than left as an anonymous number. -->
-    <div class="analyst-head">
-      <span class="analyst-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-          <path d="M12 3l7 4v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V7l7-4z" />
-          <path d="M9 12l2 2 4-4" />
-        </svg>
-      </span>
-      <div class="analyst-id">
-        <p class="analyst-name">Tradify Analyst</p>
-        <p class="analyst-role">Entry plan for {{ s.symbol }}</p>
+    @if (!embedded()) {
+      <div class="analyst-head">
+        <span class="analyst-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+            <path d="M12 3l7 4v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V7l7-4z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+        </span>
+        <div class="analyst-id">
+          <p class="analyst-name">Tradify Analyst</p>
+          <p class="analyst-role">Entry plan for {{ s.symbol }}</p>
+        </div>
+        <span class="analyst-confidence" [title]="'How much of this rests on data we actually have'">
+          {{ s.confidence }}% confidence
+        </span>
       </div>
-      <span class="analyst-confidence" [title]="'How much of this rests on data we actually have'">
-        {{ s.confidence }}% confidence
-      </span>
-    </div>
+    }
 
     <!-- The call, first and largest. -->
     <div class="verdict">

@@ -127,26 +127,45 @@
        height by how far it moved and colour by which way. -->
   @if (bars().length > 0) {
     <figure class="tape" [attr.aria-label]="'Day moves across ' + bars().length + ' listed companies'">
-      <div class="bars">
+      <!-- No `title` attributes: the native tooltip takes a second to appear,
+           renders in the OS chrome and cannot be styled, which on a strip you
+           sweep across is the difference between an instrument and a toy. The
+           readout in the caption below updates immediately instead. -->
+      <div class="bars" (mouseleave)="hovered.set(null)">
         @for (bar of bars(); track bar.symbol; let i = $index) {
           <span
             class="bar"
             [class]="barClass(bar)"
             [class.lit]="barLit(i)"
             [class.found]="bar.found"
+            [class.hot]="hovered() === bar"
             [style.--h]="bar.magnitude * 100"
-            [title]="barTitle(bar)"
+            (mouseenter)="hovered.set(bar)"
           ></span>
         }
       </div>
       @if (phase() === 'reading') {
         <span class="sweep" [style.left.%]="scanPct()" aria-hidden="true"></span>
       }
+
       <figcaption class="tape-caption">
-        <span class="counter">{{ scanned() }}</span>
-        <span class="of">/ {{ bars().length }} read</span>
-        @if (found(); as f) {
-          <span class="tape-find">{{ f.symbol }} flagged</span>
+        @if (hovered(); as h) {
+          <span class="readout">
+            <span class="readout-sym">{{ h.symbol }}</span>
+            <span class="readout-chg" [class]="barClass(h)">{{ change(h) }}</span>
+          </span>
+        } @else {
+          <span class="counter">{{ scanned() }}</span>
+          <span class="of">/ {{ bars().length }} read</span>
+          @if (found(); as f) {
+            <span class="tape-find">{{ f.symbol }} flagged</span>
+          }
+        }
+
+        <!-- Provenance. A briefing you cannot date is a briefing you cannot
+             tell is stale. -->
+        @if (readAt(); as at) {
+          <span class="stamp">{{ at }} Tunis</span>
         }
       </figcaption>
     </figure>
@@ -161,6 +180,26 @@
         }
         <p class="bubble" [class.lead]="line.emphasis">{{ line.text }}</p>
       </div>
+
+      <!-- Saying "BHL is in its zone" and leaving the reader to go find the
+           levels is where most of these stop. The plan follows the sentence
+           that announced it, with the route to the stock attached, so the
+           briefing ends somewhere you can act rather than somewhere you have
+           to start searching. -->
+      @if (line.emphasis && found(); as best) {
+        @if (best.tradeSetup; as setup) {
+          <div class="ticket">
+            <app-analyst-panel [setup]="setup" [currency]="best.currency" [embedded]="true" [compact]="true" />
+            <a class="ticket-open" [routerLink]="['/app/stocks', best.symbol]">
+              Open {{ best.symbol }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+        }
+      }
     }
 
     @if (phase() === 'speaking' || answering()) {

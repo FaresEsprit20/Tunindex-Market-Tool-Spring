@@ -1,46 +1,188 @@
-@if (!loading()) {
-  <!-- Clicking anywhere skips the reveal. Nobody should have to sit through
-       an animation to read a sentence. -->
-  <div class="comp" (click)="reveal()">
-    <div class="comp-avatar" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">
-        <path d="M12 3l7 4v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V7l7-4z" />
-        <path d="M9 12l2 2 4-4" />
+<!-- The analyst's desk. Reads top to bottom as an introduction (who is
+     speaking), the work (every listed company, swept), then the conversation
+     itself — which is the part that has to feel like a person. -->
+<section
+  class="desk-card"
+  [class.is-reading]="phase() === 'reading'"
+  [attr.aria-label]="analyst.fullName + ', your analyst'"
+>
+  <div class="desk-glow" aria-hidden="true"></div>
+
+  <header class="nameplate">
+    <!-- Drawn rather than an emoji or a stock photo: this is a role, and the
+         ring around it carries the live state so the avatar is never inert. -->
+    <div class="avatar" [class.busy]="phase() === 'reading' || phase() === 'speaking' || answering()">
+      <!-- Drawn rather than photographed, deliberately. Mr Graham is a role
+           this app plays; putting a real person's face on it would misrepresent
+           whoever that face belongs to. An illustration is honest about being
+           one — and being vector, it stays crisp at any size and needs no
+           network request. Three candles sit on the tape behind the shoulder,
+           which is the desk the persona is speaking from. -->
+      <svg viewBox="0 0 96 96" aria-hidden="true">
+        <defs>
+          <linearGradient id="agBackdrop" x1="0" y1="0" x2="0.65" y2="1">
+            <stop offset="0%" stop-color="#2d3f63" />
+            <stop offset="100%" stop-color="#0f1829" />
+          </linearGradient>
+          <linearGradient id="agSuit" x1="0.15" y1="0" x2="0.85" y2="1">
+            <stop offset="0%" stop-color="#1e2b46" />
+            <stop offset="100%" stop-color="#0a1120" />
+          </linearGradient>
+          <linearGradient id="agSkin" x1="0.2" y1="0" x2="0.9" y2="1">
+            <stop offset="0%" stop-color="#f3d2b2" />
+            <stop offset="100%" stop-color="#d7a67c" />
+          </linearGradient>
+          <linearGradient id="agHair" x1="0.1" y1="0" x2="0.9" y2="1">
+            <stop offset="0%" stop-color="#584a3a" />
+            <stop offset="100%" stop-color="#2b231a" />
+          </linearGradient>
+          <linearGradient id="agTie" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#7dd3fc" />
+            <stop offset="100%" stop-color="#4f7cff" />
+          </linearGradient>
+          <radialGradient id="agLight" cx="0.27" cy="0.18" r="0.9">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.2" />
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+          </radialGradient>
+          <clipPath id="agClip"><circle cx="48" cy="48" r="48" /></clipPath>
+        </defs>
+
+        <g clip-path="url(#agClip)">
+          <rect width="96" height="96" fill="url(#agBackdrop)" />
+
+          <g opacity="0.28" stroke="#7dd3fc" stroke-width="2.6" stroke-linecap="round" fill="none">
+            <path d="M15 46V29" />
+            <path d="M26 52V35" />
+            <path d="M81 41V23" />
+          </g>
+
+          <rect width="96" height="96" fill="url(#agLight)" />
+
+          <!-- Neck first, so the jaw and the collar both sit over it. -->
+          <path d="M40 47h16v19l-8 8-8-8z" fill="#c89468" />
+
+          <path d="M2 96c2-18 15-28 31-32l15 13 15-13c16 4 29 14 31 32z" fill="url(#agSuit)" />
+
+          <!-- The open collar, then the tie knotted into it. -->
+          <path d="M36 61l12 20 12-20z" fill="#eaf1fa" />
+          <path d="M44 63h8l2 5-6 4-6-4z" fill="url(#agTie)" />
+          <path d="M46 73h4l3 23-5 5-5-5z" fill="url(#agTie)" />
+
+          <ellipse cx="48" cy="38" rx="16" ry="18" fill="url(#agSkin)" />
+
+          <!-- Side-parted, greying at the temple: a senior desk. -->
+          <path
+            d="M31 40c-1-15 8-23 18-23 9 0 15 6 15 13 0 3-1 6-2 8-1-7-5-11-12-11-5 0-9 2-12 5-3 3-5 5-7 8z"
+            fill="url(#agHair)"
+          />
+          <path d="M31 40c-1-8 2-14 7-18-4 6-6 12-5 18z" fill="#cfd8e4" opacity="0.35" />
+
+          <g fill="#3b3028">
+            <ellipse cx="41" cy="38" rx="1.7" ry="2" />
+            <ellipse cx="55" cy="38" rx="1.7" ry="2" />
+          </g>
+          <g stroke="#3b3028" stroke-width="1.7" stroke-linecap="round" fill="none" opacity="0.75">
+            <path d="M37.5 32.8c1.6-1.1 4.2-1.1 5.8 0" />
+            <path d="M52.7 32.8c1.6-1.1 4.2-1.1 5.8 0" />
+          </g>
+          <!-- Glasses. The one detail that reads as "reads things for a living". -->
+          <g stroke="#eaf1fa" stroke-width="1.5" fill="none" opacity="0.8">
+            <circle cx="41" cy="38" r="5.6" />
+            <circle cx="55" cy="38" r="5.6" />
+            <path d="M46.6 37.6h2.8" />
+            <path d="M35.4 37.2l-3.2 1.1" />
+            <path d="M60.6 37.2l3.2 1.1" />
+          </g>
+          <path
+            d="M44.4 46.6c2.1 1.7 5.1 1.7 7.2 0"
+            stroke="#a96f4d"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            fill="none"
+          />
+        </g>
       </svg>
-      <span class="comp-pulse"></span>
+      <span class="ring" aria-hidden="true"></span>
     </div>
 
-    <div class="comp-body">
-      <p class="comp-who">
-        <span class="comp-name">Tradify Analyst</span>
-        <span class="comp-status">
-          <span class="comp-status-dot"></span>
-          on duty
-        </span>
+    <div class="who">
+      <p class="name">
+        {{ analyst.fullName }}
+        <span class="tag">Tradify Analyst</span>
       </p>
-
-      <!-- aria-live so a screen reader is told once, when it settles,
-           rather than on every character of the reveal. -->
-      <p class="comp-say" [attr.aria-live]="finished() ? 'polite' : 'off'">
-        <span class="comp-greeting">{{ greeting() }}.</span>
-        {{ visibleText() }}<span class="comp-caret" [class.done]="finished()" aria-hidden="true"></span>
+      <p class="status" aria-live="polite">
+        <span class="pulse" aria-hidden="true"></span>
+        {{ status() }}
+        <span class="sep" aria-hidden="true">·</span>
+        <span class="desk-name">{{ analyst.desk }}</span>
       </p>
+    </div>
 
-      @if (finished()) {
-        <div class="comp-actions">
-          @if (topSymbol(); as sym) {
-            <a class="comp-cta primary" [routerLink]="['/app/analysis', sym]">
-              Show me {{ sym }}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h13M13 6l6 6-6 6" />
-              </svg>
-            </a>
-          }
-          @if (context() === 'dashboard') {
-            <a class="comp-cta" routerLink="/app/opportunities">Walk me through the ranking</a>
-          }
-        </div>
+    @if (phase() !== 'ready' && phase() !== 'loading') {
+      <button type="button" class="skip" (click)="skip()">Skip</button>
+    }
+  </header>
+
+  <!-- The work, shown before it is claimed. Every bar is one listed company,
+       height by how far it moved and colour by which way. -->
+  @if (bars().length > 0) {
+    <figure class="tape" [attr.aria-label]="'Day moves across ' + bars().length + ' listed companies'">
+      <div class="bars">
+        @for (bar of bars(); track bar.symbol; let i = $index) {
+          <span
+            class="bar"
+            [class]="barClass(bar)"
+            [class.lit]="barLit(i)"
+            [class.found]="bar.found"
+            [style.--h]="bar.magnitude * 100"
+            [title]="barTitle(bar)"
+          ></span>
+        }
+      </div>
+      @if (phase() === 'reading') {
+        <span class="sweep" [style.left.%]="scanPct()" aria-hidden="true"></span>
+      }
+      <figcaption class="tape-caption">
+        <span class="counter">{{ scanned() }}</span>
+        <span class="of">/ {{ bars().length }} read</span>
+        @if (found(); as f) {
+          <span class="tape-find">{{ f.symbol }} flagged</span>
+        }
+      </figcaption>
+    </figure>
+  }
+
+  <!-- The conversation. Analyst turns on the left, yours on the right. -->
+  <div class="thread">
+    @for (line of said(); track line.id) {
+      <div class="turn" [class.mine]="line.from === 'you'">
+        @if (line.from === 'analyst') {
+          <span class="turn-mark" aria-hidden="true">{{ analyst.initials }}</span>
+        }
+        <p class="bubble" [class.lead]="line.emphasis">{{ line.text }}</p>
+      </div>
+    }
+
+    @if (phase() === 'speaking' || answering()) {
+      <div class="turn">
+        <span class="turn-mark" aria-hidden="true">{{ analyst.initials }}</span>
+        <p class="bubble typing" [attr.aria-label]="analyst.shortName + ' is typing'">
+          <span></span><span></span><span></span>
+        </p>
+      </div>
+    }
+  </div>
+
+  <!-- Asking back is what makes it a person rather than a banner. Each of
+       these is answered from data already on the page. -->
+  @if (followUps().length > 0) {
+    <div class="asks">
+      <span class="asks-label">Ask {{ analyst.shortName }}</span>
+      @for (followUp of followUps(); track followUp.id) {
+        <button type="button" class="ask" (click)="ask(followUp)" [disabled]="answering()">
+          {{ followUp.label }}
+        </button>
       }
     </div>
-  </div>
-}
+  }
+</section>

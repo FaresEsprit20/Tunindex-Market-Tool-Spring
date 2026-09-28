@@ -1,184 +1,373 @@
-/* A speech panel, not a banner. The avatar sits outside the text block and
-   the corner nearest it is squared off, so the shape reads as coming *from*
-   the analyst rather than as another card on the page. */
-.comp {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px 18px;
-  border: 1px solid var(--color-border, #e3e3e8);
-  border-radius: var(--radius-lg, 14px);
-  border-top-left-radius: 4px;
-  background: var(--color-panel, #fff);
-  cursor: default;
-}
+/* The analyst's desk.
+   Deliberately a different world from the data panels around it: this is a
+   person speaking, not a readout, and the dark slate makes that shift
+   legible at a glance. The palette is cool — the Tradify spotlight owns
+   amber, and two gold blocks on one page would fight. */
+.desk-card {
+  --slate: #101826;
+  --slate-2: #182234;
+  --sky: #7dd3fc;
+  --indigo: #4f7cff;
+  --paper: #e8eef7;
+  --muted: #8494ab;
+  --up: #3ddc97;
+  --down: #f2647a;
 
-/* ── Who is speaking ───────────────────────────────────────────────── */
-.comp-avatar {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: none;
-  border-radius: 11px;
-  background: rgb(47 111 237 / 0.12);
-  color: var(--color-brand, #2f6fed);
-
-  svg { width: 21px; height: 21px; }
-}
-
-/* A slow ring, once every few seconds: present, not demanding. */
-.comp-pulse {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 0 0 0 rgb(47 111 237 / 0.4);
-  animation: comp-pulse 3.2s ease-out infinite;
-}
-
-@keyframes comp-pulse {
-  0%   { box-shadow: 0 0 0 0 rgb(47 111 237 / 0.35); }
-  70%  { box-shadow: 0 0 0 11px rgb(47 111 237 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(47 111 237 / 0); }
-}
-
-.comp-body {
-  flex: 1;
-  min-width: 0;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 18px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  background:
+    radial-gradient(110% 130% at 12% 0%, #1d2a42 0%, transparent 58%),
+    linear-gradient(140deg, var(--slate) 0%, var(--slate-2) 100%);
+  color: var(--paper);
 }
 
-.comp-who {
+.desk-glow {
+  position: absolute;
+  z-index: -1;
+  inset: -50% 55% -50% -20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(79 124 255 / 0.18) 0%, transparent 66%);
+  pointer-events: none;
+}
+
+/* ── Who is speaking ─────────────────────────────────────────────────── */
+
+.nameplate {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 13px;
+}
+
+.avatar {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 46px;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+  }
+}
+
+/* The ring is the tell that someone is actually working: it only turns while
+   the desk is reading or typing, and rests as a quiet outline otherwise. */
+.avatar .ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid rgb(125 211 252 / 0.22);
+}
+
+.avatar.busy .ring {
+  border-color: transparent;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--sky) 90deg, transparent 200deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 0);
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(1turn); }
+}
+
+.who { min-width: 0; }
+
+.name {
   margin: 0;
-}
-
-.comp-name {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--color-text-primary, #14141a);
-}
-
-.comp-status {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 9.5px;
+  gap: 8px;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.tag {
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(125 211 252 / 0.3);
+  background: rgb(125 211 252 / 0.09);
+  color: var(--sky);
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #1a8f5a;
 }
 
-.comp-status-dot {
-  width: 5px;
-  height: 5px;
+.status {
+  margin: 2px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.pulse {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #1a8f5a;
+  background: var(--up);
+  box-shadow: 0 0 0 0 rgb(61 220 151 / 0.6);
+  animation: breathe 2.4s ease-out infinite;
 }
 
-/* ── What it says ──────────────────────────────────────────────────── */
-.comp-say {
+@keyframes breathe {
+  70%, 100% { box-shadow: 0 0 0 7px rgb(61 220 151 / 0); }
+}
+
+.sep { opacity: 0.45; }
+.desk-name { opacity: 0.8; }
+
+.skip {
+  margin-left: auto;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgb(232 238 247 / 0.16);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover { color: var(--paper); border-color: rgb(232 238 247 / 0.4); }
+}
+
+/* ── The tape: one bar per listed company ────────────────────────────── */
+
+.tape {
+  position: relative;
   margin: 0;
-  /* Roughly 70 characters: long enough to carry a sentence, short enough
-     that the eye finds the next line without hunting. */
-  max-width: 72ch;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--color-text-secondary, #55555f);
-  /* The text grows as it types; reserving two lines stops the panel from
-     jumping the page around while it speaks. */
-  min-height: 2.9em;
+  padding: 12px 14px 9px;
+  border-radius: 11px;
+  background: rgb(0 0 0 / 0.22);
+  border: 1px solid rgb(232 238 247 / 0.06);
 }
 
-.comp-greeting {
-  font-weight: 650;
-  color: var(--color-text-primary, #14141a);
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 38px;
 }
 
-/* Blinks while speaking, disappears when the sentence is finished - a caret
-   that keeps blinking afterwards suggests more is coming. */
-.comp-caret {
-  display: inline-block;
+/* Height carries the size of the move, colour its direction. Bars stay dark
+   until the sweep reaches them, so the reader watches the reading happen
+   rather than being told it did. */
+.bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  height: max(3px, calc(var(--h) * 1%));
+  border-radius: 1.5px;
+  background: rgb(232 238 247 / 0.09);
+  transition: background-color 0.28s ease, opacity 0.28s ease;
+}
+
+.bar.lit.up { background: var(--up); }
+.bar.lit.down { background: var(--down); }
+.bar.lit.flat { background: rgb(232 238 247 / 0.26); }
+
+/* The one name the desk actually flagged, marked in the crowd it came from. */
+.bar.found {
+  outline: 1.5px solid var(--sky);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.bar.lit.found { animation: found-pop 0.5s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+
+@keyframes found-pop {
+  0% { transform: scaleY(1); }
+  55% { transform: scaleY(1.35); }
+  100% { transform: scaleY(1); }
+}
+
+.sweep {
+  position: absolute;
+  top: 8px;
+  bottom: 26px;
   width: 2px;
-  height: 1em;
-  margin-left: 2px;
-  vertical-align: text-bottom;
-  background: var(--color-brand, #2f6fed);
-  animation: comp-blink 1s steps(2, start) infinite;
-
-  &.done { display: none; }
+  margin-left: -1px;
+  background: linear-gradient(to bottom, transparent, var(--sky), transparent);
+  box-shadow: 0 0 10px 1px rgb(125 211 252 / 0.6);
+  pointer-events: none;
 }
 
-@keyframes comp-blink {
-  to { visibility: hidden; }
+.tape-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.7rem;
+  color: var(--muted);
 }
 
-/* ── What to do next ───────────────────────────────────────────────── */
-.comp-actions {
+.counter {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--paper);
+}
+
+.tape-find {
+  margin-left: auto;
+  color: var(--sky);
+  font-weight: 600;
+}
+
+/* ── The conversation ────────────────────────────────────────────────── */
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.turn {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  max-width: 88%;
+  animation: rise 0.34s cubic-bezier(0.22, 0.9, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+
+.turn.mine {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.turn-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sky), var(--indigo));
+  color: #0b1220;
+  /* Sized for two initials rather than one — "SG" has to sit inside 22px
+     without touching the edge. */
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bubble {
+  margin: 0;
+  padding: 9px 13px;
+  border-radius: 13px 13px 13px 4px;
+  background: rgb(232 238 247 / 0.07);
+  border: 1px solid rgb(232 238 247 / 0.07);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* The one sentence carrying the finding gets the weight; everything else is
+   the run-up to it. */
+.bubble.lead {
+  font-size: 0.98rem;
+  font-weight: 560;
+  background: rgb(79 124 255 / 0.14);
+  border-color: rgb(125 211 252 / 0.26);
+}
+
+.turn.mine .bubble {
+  border-radius: 13px 13px 4px;
+  background: rgb(125 211 252 / 0.15);
+  border-color: rgb(125 211 252 / 0.2);
+}
+
+.bubble.typing {
+  display: flex;
+  gap: 4px;
+  padding: 12px 13px;
+
+  span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: blink 1.3s ease-in-out infinite;
+
+    &:nth-child(2) { animation-delay: 0.18s; }
+    &:nth-child(3) { animation-delay: 0.36s; }
+  }
+}
+
+@keyframes blink {
+  0%, 60%, 100% { opacity: 0.28; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* ── Asking back ─────────────────────────────────────────────────────── */
+
+.asks {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 3px;
-  /* Arrives after the sentence finishes, so the offer follows the thought
-     rather than competing with it. */
-  animation: comp-rise 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-@keyframes comp-rise {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: none; }
-}
-
-.comp-cta {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
-  border: 1px solid var(--color-border, #e3e3e8);
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-decoration: none;
-  color: var(--color-text-secondary, #55555f);
-  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
-
-  svg { width: 12px; height: 12px; }
-
-  &:hover {
-    border-color: var(--color-brand, #2f6fed);
-    color: var(--color-brand, #2f6fed);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-brand, #2f6fed);
-    outline-offset: 2px;
-  }
-
-  /* Only the one that points at a live entry is filled in. If every button
-     looked equally urgent, none of them would be. */
-  &.primary {
-    border-color: transparent;
-    background: var(--color-brand, #2f6fed);
-    color: #fff;
-
-    &:hover { background: #2559c4; color: #fff; }
-  }
+  gap: 7px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .comp-pulse,
-  .comp-caret { animation: none; }
-  .comp-actions { animation: none; opacity: 1; transform: none; }
+.asks-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ask {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgb(125 211 252 / 0.3);
+  background: rgb(125 211 252 / 0.06);
+  color: var(--sky);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  animation: rise 0.3s cubic-bezier(0.22, 0.9, 0.36, 1) both;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgb(125 211 252 / 0.15);
+    border-color: var(--sky);
+    transform: translateY(-1px);
+  }
+
+  &:disabled { opacity: 0.45; cursor: default; }
 }
 
 @media (max-width: 640px) {
-  .comp { padding: 14px; gap: 10px; }
-  .comp-avatar { width: 32px; height: 32px; }
+  .desk-card { padding: 18px 16px; }
+  .turn { max-width: 96%; }
+  .desk-name, .sep { display: none; }
+}
+
+/* Every effect above is decoration over content that is already correct, so
+   it all comes off cleanly. */
+@media (prefers-reduced-motion: reduce) {
+  .avatar.busy .ring,
+  .pulse,
+  .bar.lit.found,
+  .turn,
+  .ask,
+  .bubble.typing span {
+    animation: none;
+  }
+
+  .ask:hover:not(:disabled) { transform: none; }
 }

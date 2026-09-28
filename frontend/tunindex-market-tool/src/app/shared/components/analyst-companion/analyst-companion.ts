@@ -13,13 +13,17 @@ import {
 import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { AnalystJournal } from '../../../core/services/analyst-journal';
 import { Market } from '../../../core/services/market';
 import { Stock } from '../../../core/services/stock';
 import { User } from '../../../core/services/user';
+import { Watchlist } from '../../../core/services/watchlist';
+import { SettledCall } from '../../../core/models/analyst-call.model';
 import { AnalystPanel } from '../analyst-panel/analyst-panel';
 import { MarketSession } from '../../../core/models/market.model';
 import { StockDto } from '../../../core/models/stock.model';
 import { OpportunityScore, VERDICT_LABELS, Verdict } from '../../../core/models/opportunity.model';
+import { STANCE_LABELS } from '../../../core/models/trade-setup.model';
 
 /**
  * The scorer's own call, ordered.
@@ -114,6 +118,8 @@ export class AnalystCompanion implements OnDestroy {
   private readonly market = inject(Market);
   private readonly stock = inject(Stock);
   private readonly user = inject(User);
+  private readonly journal = inject(AnalystJournal);
+  private readonly watchlist = inject(Watchlist);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly context = input<CompanionContext>('dashboard');
@@ -155,6 +161,9 @@ export class AnalystCompanion implements OnDestroy {
   /** The bar under the pointer, read out beside the strip. */
   protected readonly hovered = signal<ScanBar | null>(null);
 
+  /** Today's price per symbol, used to re-price calls made on earlier days. */
+  private readonly prices = signal<Map<string, number>>(new Map());
+
   private timers: ReturnType<typeof setTimeout>[] = [];
   private scanTimer?: ReturnType<typeof setInterval>;
 
@@ -188,8 +197,15 @@ export class AnalystCompanion implements OnDestroy {
       this.listFailed.set(all === null);
 
       const stocks = all ?? [];
-      const live = opportunities?.find((o) => o.tradeSetup?.stance === 'ACCUMULATE_NOW');
-      this.bars.set(this.toBars(stocks, live?.symbol ?? null));
+      const priced = new Map<string, number>();
+      for (const s of stocks) {
+        if (s.lastPrice !== null) priced.set(s.symbol, s.lastPrice);
+      }
+      this.prices.set(priced);
+
+      // found() reads the signals set above, so it is correct by this point.
+      this.bars.set(this.toBars(stocks, this.found()?.symbol ?? null));
+      this.recordCall();
 
       this.phase.set('reading');
       this.runScan();
@@ -428,6 +444,97 @@ export class AnalystCompanion implements OnDestroy {
 
   protected readonly found = computed(() => this.liveEntries()[0] ?? null);
 
+  // ── Memory: what he has already told you ─────────────────────────────
+
+  /** Calendar date in Tunis, so a call is dated by the exchange's day. */
+  private today(): string {
+    return this.session()?.tunisTime?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+  }
+
+  /**
+   * Writes today's call into the journal.
+   *
+   * <p>Only the price is worth arguing about, and it is deliberately
+   * `best.lastPrice` — the price the reader could actually have paid when
+   * told — rather than the zone midpoint, which would flatter the record by
+   * assuming a fill that may never have been available.
+   */
+  private recordCall(): void {
+    const best = this.found();
+    const setup = best?.tradeSetup;
+    if (!best || !setup || best.lastPrice === null) return;
+
+    this.journal.record({
+      symbol: best.symbol,
+      price: best.lastPrice,
+      currency: best.currency,
+      madeOn: this.today(),
+      zoneLow: setup.buyZoneLow,
+      zoneHigh: setup.buyZoneHigh,
+      target: setup.target1,
+      verdict: best.verdict,
+      score: best.overallScore,
+    });
+  }
+
+  /**
+   * Past calls priced against today.
+   *
+   * <p>Calls made today are excluded. A recommendation given four minutes ago
+   * showing "+0.0%" is not a track record, it is noise dressed as one.
+   */
+  private readonly settled = computed<SettledCall[]>(() => {
+    const prices = this.prices();
+    const today = this.today();
+
+    return this.journal
+      .calls()
+      .filter((c) => c.madeOn < today)
+      .map((c) => {
+        const now = prices.get(c.symbol) ?? null;
+        return {
+          ...c,
+          nowPrice: now,
+          changePct: now !== null && c.price !== 0 ? ((now - c.price) / c.price) * 100 : null,
+          daysHeld: Math.max(
+            1,
+            Math.round(
+              (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${c.madeOn}T00:00:00Z`)) / 86400000,
+            ),
+          ),
+        };
+      });
+  });
+
+  /** Past calls we can actually score. Priceless ones are excluded, not zeroed. */
+  private readonly scoredCalls = computed(() =>
+    this.settled().filter((c) => c.changePct !== null),
+  );
+
+  // ── Your names ───────────────────────────────────────────────────────
+
+  /**
+   * The watchlist, scored.
+   *
+   * <p>The single cheapest way to stop being a generic market summary: these
+   * are the names the reader chose, so this is the part of the briefing that
+   * is about them rather than about the exchange.
+   */
+  private readonly myNames = computed(() => {
+    const watched = new Set(this.watchlist.symbols());
+    if (watched.size === 0) return [];
+    return (this.scored() ?? []).filter((r) => watched.has(r.symbol));
+  });
+
+  /** Watched names that are both recommended and at a payable price. */
+  private readonly myBuyable = computed(() =>
+    this.myNames().filter(
+      (r) =>
+        r.tradeSetup?.stance === 'ACCUMULATE_NOW' &&
+        (r.verdict === 'STRONG_BUY' || r.verdict === 'BUY'),
+    ),
+  );
+
   /** Under the name, so the reader always knows what the desk is doing. */
   protected readonly status = computed(() => {
     switch (this.phase()) {
@@ -541,6 +648,21 @@ export class AnalystCompanion implements OnDestroy {
         text: `${this.greeting()}${who ? `, ${who}` : ''}. ${this.marketLine()}`,
       },
     ];
+
+    // Before today's view: how the last thing he said has actually gone. An
+    // analyst who never revisits a call is one you have no reason to believe
+    // on the next one.
+    const history = this.scoredCalls();
+    if (history.length > 0) {
+      const last = history[0];
+      const move = last.changePct!;
+      const days = last.daysHeld === 1 ? 'a day' : `${last.daysHeld} days`;
+      lines.push({
+        id: 'track',
+        from: 'analyst',
+        text: `Last time we spoke I flagged ${last.symbol} at ${this.price(last.price, last.currency)}. It is ${this.price(last.nowPrice, last.currency)} now — ${move >= 0 ? 'up' : 'down'} ${Math.abs(move).toFixed(1)}% in ${days}.`,
+      });
+    }
 
     if (this.listFailed() || t.read === 0) {
       lines.push({
@@ -656,6 +778,23 @@ export class AnalystCompanion implements OnDestroy {
         text: 'I checked every name I score and none of them is worth acting on today. I would rather tell you that than invent something.',
       });
     }
+
+    // Finally, the reader's own names. Last because it is the part they will
+    // come back for, and it should be what the briefing leaves them on.
+    const mine = this.myNames();
+    if (mine.length > 0) {
+      const buyable = this.myBuyable();
+      const count = `${mine.length} name${mine.length === 1 ? '' : 's'}`;
+      lines.push({
+        id: 'watchlist',
+        from: 'analyst',
+        text:
+          buyable.length > 0
+            ? `On your own list: you are watching ${count}, and ${buyable.map((b) => b.symbol).join(' and ')} ${buyable.length === 1 ? 'is' : 'are'} at a price I would pay today.`
+            : `On your own list: you are watching ${count}, and none of them is at a price I would pay today.`,
+      });
+    }
+
     return lines;
   }
 
@@ -685,6 +824,10 @@ export class AnalystCompanion implements OnDestroy {
     if (this.nearZone().length > 0) out.push({ id: 'waiting', label: 'What are you waiting for?' });
     if (best?.tradeSetup?.risks?.length || best?.warnings?.length) {
       out.push({ id: 'risk', label: 'Anything worry you?' });
+    }
+    if (this.myNames().length > 0) out.push({ id: 'mine', label: 'What about my watchlist?' });
+    if (this.scoredCalls().length > 0) {
+      out.push({ id: 'record', label: 'How have your calls done?' });
     }
     out.push({ id: 'how', label: 'How do you decide?' });
 
@@ -724,6 +867,48 @@ export class AnalystCompanion implements OnDestroy {
         const why =
           s.evidence?.slice(0, 2).join('; ') || s.regimeSummary || 'the structure turned up';
         return `${best.symbol} scores ${best.overallScore} out of 100, and the turn is confirmed — ${why}. That is why the zone is live rather than something to watch.`;
+      }
+      case 'record': {
+        const past = this.scoredCalls();
+        if (past.length === 0) return 'I have not made a call here before today.';
+
+        const up = past.filter((c) => c.changePct! > 0).length;
+        const down = past.filter((c) => c.changePct! < 0).length;
+        const ranked = [...past].sort((a, b) => b.changePct! - a.changePct!);
+        const top = ranked[0];
+        const bottom = ranked[ranked.length - 1];
+
+        const fmt = (c: SettledCall) =>
+          `${c.symbol} ${c.changePct! >= 0 ? '+' : '−'}${Math.abs(c.changePct!).toFixed(1)}%`;
+
+        // The extremes are only worth quoting when there are two of them;
+        // with a single call, "best and worst" is the same call twice.
+        const spread =
+          past.length > 1 ? ` Best ${fmt(top)}, worst ${fmt(bottom)}.` : ` That one is ${fmt(top)}.`;
+
+        // The caveat is not modesty, it is accuracy — and an analyst who
+        // oversells a handful of calls as a track record has told you
+        // something about every other number they quote.
+        return `${past.length} call${past.length === 1 ? '' : 's'} I can price so far: ${up} up, ${down} down.${spread} That is every call I have made to you, not a selection of the good ones — though it is a short record kept in this browser, so read it as a log rather than a verified track record.`;
+      }
+      case 'mine': {
+        const mine = this.myNames();
+        if (mine.length === 0) return 'You are not watching anything yet.';
+        const list = mine
+          .slice(0, 6)
+          .map((r) => {
+            const s = r.tradeSetup;
+            if (!s) return `${r.symbol}: no entry plan`;
+            const where = s.priceInBuyZone
+              ? `in the zone at ${this.band(s.buyZoneLow, s.buyZoneHigh, r.currency)}`
+              : s.distanceToZonePct !== null
+                ? `${Math.round(s.distanceToZonePct)}% above my zone`
+                : 'not near an entry';
+            return `${r.symbol} — ${STANCE_LABELS[s.stance].toLowerCase()}, ${where}`;
+          })
+          .join('; ');
+        const more = mine.length > 6 ? ` …and ${mine.length - 6} more.` : '';
+        return `Here is where your list stands: ${list}.${more}`;
       }
       case 'nottop': {
         const top = this.topRanked();

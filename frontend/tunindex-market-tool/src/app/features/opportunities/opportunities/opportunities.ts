@@ -8,6 +8,7 @@ import { SkeletonBlock } from '../../../shared/components/skeleton-block/skeleto
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { WatchlistStar } from '../../../shared/components/watchlist-star/watchlist-star';
 import { AnalystPanel } from '../../../shared/components/analyst-panel/analyst-panel';
+import { AnalystCompanion } from '../../../shared/components/analyst-companion/analyst-companion';
 import { STANCE_LABELS, STANCE_TONE } from '../../../core/models/trade-setup.model';
 
 const MIN_SCORE_OPTIONS = [0, 50, 65, 80];
@@ -20,7 +21,7 @@ const MIN_SCORE_OPTIONS = [0, 50, 65, 80];
  */
 @Component({
   selector: 'app-opportunities',
-  imports: [DecimalPipe, SkeletonBlock, EmptyState, WatchlistStar, AnalystPanel],
+  imports: [DecimalPipe, SkeletonBlock, EmptyState, WatchlistStar, AnalystPanel, AnalystCompanion],
   templateUrl: './opportunities.html',
   styleUrl: './opportunities.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

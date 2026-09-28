@@ -18,6 +18,12 @@
   </div>
 </div>
 
+<!-- The analyst orients the reader before the table does. A ranked list of
+     twenty names does not say which of them are worth acting on today; that
+     distinction is the whole value, and it should be said in words before
+     anyone starts reading rows. -->
+<app-analyst-companion context="opportunities" />
+
 @if (!loading() && !error() && rows().length > 0) {
   <div class="summary-strip">
     <span class="summary-item"><strong>{{ rows().length }}</strong> ranked</span>

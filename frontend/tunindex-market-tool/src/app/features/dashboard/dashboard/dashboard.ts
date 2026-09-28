@@ -11,6 +11,7 @@ import { MacroPanel } from '../../../shared/components/macro-panel/macro-panel';
 import { CommoditiesBanner } from '../../../shared/components/commodities-banner/commodities-banner';
 import { AdSlot } from '../../../shared/components/ad-slot/ad-slot';
 import { TradifySpotlight } from '../../../shared/components/tradify-spotlight/tradify-spotlight';
+import { AnalystCompanion } from '../../../shared/components/analyst-companion/analyst-companion';
 import { MarketCarousel } from '../../../shared/components/market-carousel/market-carousel';
 
 @Component({
@@ -28,6 +29,7 @@ import { MarketCarousel } from '../../../shared/components/market-carousel/marke
     CommoditiesBanner,
     AdSlot,
     TradifySpotlight,
+    AnalystCompanion,
     MarketCarousel,
   ],
   templateUrl: './dashboard.html',

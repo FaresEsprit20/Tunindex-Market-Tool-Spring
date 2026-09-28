@@ -1,0 +1,184 @@
+/* A speech panel, not a banner. The avatar sits outside the text block and
+   the corner nearest it is squared off, so the shape reads as coming *from*
+   the analyst rather than as another card on the page. */
+.comp {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-border, #e3e3e8);
+  border-radius: var(--radius-lg, 14px);
+  border-top-left-radius: 4px;
+  background: var(--color-panel, #fff);
+  cursor: default;
+}
+
+/* ── Who is speaking ───────────────────────────────────────────────── */
+.comp-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 11px;
+  background: rgb(47 111 237 / 0.12);
+  color: var(--color-brand, #2f6fed);
+
+  svg { width: 21px; height: 21px; }
+}
+
+/* A slow ring, once every few seconds: present, not demanding. */
+.comp-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgb(47 111 237 / 0.4);
+  animation: comp-pulse 3.2s ease-out infinite;
+}
+
+@keyframes comp-pulse {
+  0%   { box-shadow: 0 0 0 0 rgb(47 111 237 / 0.35); }
+  70%  { box-shadow: 0 0 0 11px rgb(47 111 237 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(47 111 237 / 0); }
+}
+
+.comp-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.comp-who {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+}
+
+.comp-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary, #14141a);
+}
+
+.comp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1a8f5a;
+}
+
+.comp-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #1a8f5a;
+}
+
+/* ── What it says ──────────────────────────────────────────────────── */
+.comp-say {
+  margin: 0;
+  /* Roughly 70 characters: long enough to carry a sentence, short enough
+     that the eye finds the next line without hunting. */
+  max-width: 72ch;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--color-text-secondary, #55555f);
+  /* The text grows as it types; reserving two lines stops the panel from
+     jumping the page around while it speaks. */
+  min-height: 2.9em;
+}
+
+.comp-greeting {
+  font-weight: 650;
+  color: var(--color-text-primary, #14141a);
+}
+
+/* Blinks while speaking, disappears when the sentence is finished - a caret
+   that keeps blinking afterwards suggests more is coming. */
+.comp-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--color-brand, #2f6fed);
+  animation: comp-blink 1s steps(2, start) infinite;
+
+  &.done { display: none; }
+}
+
+@keyframes comp-blink {
+  to { visibility: hidden; }
+}
+
+/* ── What to do next ───────────────────────────────────────────────── */
+.comp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 3px;
+  /* Arrives after the sentence finishes, so the offer follows the thought
+     rather than competing with it. */
+  animation: comp-rise 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes comp-rise {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.comp-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid var(--color-border, #e3e3e8);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-text-secondary, #55555f);
+  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+
+  svg { width: 12px; height: 12px; }
+
+  &:hover {
+    border-color: var(--color-brand, #2f6fed);
+    color: var(--color-brand, #2f6fed);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand, #2f6fed);
+    outline-offset: 2px;
+  }
+
+  /* Only the one that points at a live entry is filled in. If every button
+     looked equally urgent, none of them would be. */
+  &.primary {
+    border-color: transparent;
+    background: var(--color-brand, #2f6fed);
+    color: #fff;
+
+    &:hover { background: #2559c4; color: #fff; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comp-pulse,
+  .comp-caret { animation: none; }
+  .comp-actions { animation: none; opacity: 1; transform: none; }
+}
+
+@media (max-width: 640px) {
+  .comp { padding: 14px; gap: 10px; }
+  .comp-avatar { width: 32px; height: 32px; }
+}

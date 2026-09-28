@@ -1,0 +1,46 @@
+@if (!loading()) {
+  <!-- Clicking anywhere skips the reveal. Nobody should have to sit through
+       an animation to read a sentence. -->
+  <div class="comp" (click)="reveal()">
+    <div class="comp-avatar" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">
+        <path d="M12 3l7 4v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V7l7-4z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+      <span class="comp-pulse"></span>
+    </div>
+
+    <div class="comp-body">
+      <p class="comp-who">
+        <span class="comp-name">Tradify Analyst</span>
+        <span class="comp-status">
+          <span class="comp-status-dot"></span>
+          on duty
+        </span>
+      </p>
+
+      <!-- aria-live so a screen reader is told once, when it settles,
+           rather than on every character of the reveal. -->
+      <p class="comp-say" [attr.aria-live]="finished() ? 'polite' : 'off'">
+        <span class="comp-greeting">{{ greeting() }}.</span>
+        {{ visibleText() }}<span class="comp-caret" [class.done]="finished()" aria-hidden="true"></span>
+      </p>
+
+      @if (finished()) {
+        <div class="comp-actions">
+          @if (topSymbol(); as sym) {
+            <a class="comp-cta primary" [routerLink]="['/app/analysis', sym]">
+              Show me {{ sym }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h13M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          }
+          @if (context() === 'dashboard') {
+            <a class="comp-cta" routerLink="/app/opportunities">Walk me through the ranking</a>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

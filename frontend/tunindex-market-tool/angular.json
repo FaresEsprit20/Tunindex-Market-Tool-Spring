@@ -25,7 +25,12 @@
             "inlineStyleLanguage": "scss",
             "stylePreprocessorOptions": {
               "sass": {
-                "silenceDeprecations": ["import", "global-builtin", "color-functions", "if-function"]
+                "silenceDeprecations": [
+                  "import",
+                  "global-builtin",
+                  "color-functions",
+                  "if-function"
+                ]
               }
             },
             "assets": [
@@ -53,7 +58,13 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ]
             },
             "development": {
               "optimization": false,

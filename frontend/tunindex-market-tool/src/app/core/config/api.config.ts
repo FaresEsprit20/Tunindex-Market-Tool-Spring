@@ -1,22 +1,18 @@
+import { environment } from '../../../environments/environment';
+
 /**
- * Every backend call goes through the API gateway on port 8070.
+ * Every backend call goes through the API gateway.
  *
- * <p>8070 rather than the usual 8080, because another project on this machine
- * already listens there. Sharing the port meant whichever booted first served
- * both apps, and Market Tool's requests came back 403 from a gateway that had
- * never heard of them.
+ * <p>Derived from the environment rather than hard-coded. These were literal
+ * "http://localhost:8070/..." strings, which built a production bundle that
+ * asked the visitor's own machine for market data - a failure with no error
+ * message anywhere, just an app that loads and stays empty.
  *
- * <p>The path is unchanged - the gateway forwards
- * /tunindex/market/tool/v1/stocks/** to the api service verbatim - so only
- * the port moved. Rewriting the path at the gateway instead would have meant
- * touching every service that already answers on it.
- *
- * <p>Pointing at the gateway rather than a service directly is what keeps this
- * a single constant as the platform grows: the ad module listens on its own
- * port, and without the gateway using it from here would need a second base
- * URL and a second CORS origin to keep in step with this one.
+ * <p>The path is unchanged: the gateway forwards
+ * /tunindex/market/tool/v1/stocks/** to the api service verbatim, so only the
+ * origin varies between environments.
  */
-export const API_BASE_URL = 'http://localhost:8070/tunindex/market/tool/v1/stocks';
+export const API_BASE_URL = `${environment.gatewayUrl}/tunindex/market/tool/v1/stocks`;
 
 /**
  * The ads API, also through the gateway.
@@ -25,20 +21,19 @@ export const API_BASE_URL = 'http://localhost:8070/tunindex/market/tool/v1/stock
  * same origin, so one CORS configuration covers both and the browser sends
  * session cookies to each without further setup.
  */
-export const ADS_BASE_URL = 'http://localhost:8070/api/v1/ads';
+export const ADS_BASE_URL = `${environment.gatewayUrl}/api/v1/ads`;
 
 /**
  * Google reCAPTCHA v3 site key.
  *
- * <p>Public by design - it is embedded in the page and readable by anyone.
- * The secret half lives on the recaptcha service and never reaches the
- * browser, which is what makes a token forgeable only by Google.
+ * <p>Public by design - it is embedded in the page and readable by anyone. The
+ * secret half lives on the recaptcha service and never reaches the browser,
+ * which is what makes a token forgeable only by Google.
  *
- * <p>Matches recaptcha.site-key in the api service's configuration. The two
- * must refer to the same reCAPTCHA project or every token will be rejected as
- * belonging to a different site.
+ * <p>Keys are registered per hostname, so development and production need
+ * different ones; both come from the environment for that reason.
  */
-export const RECAPTCHA_SITE_KEY = '6LeiiU0rAAAAAKs_QaJjbyQnFAznRuacFNNTZkdW';
+export const RECAPTCHA_SITE_KEY = environment.recaptchaSiteKey;
 
 /**
  * Calls that carry a reCAPTCHA token.
@@ -64,14 +59,16 @@ export const RECAPTCHA_PROTECTED_PATHS: readonly string[] = [
  * <p>Public by design - it is visible in the page source of every AdSense
  * site. The secret half of the relationship is the account itself.
  *
- * <p>Empty until a real approved account exists. While it is empty no
- * AdSense script is loaded at all, so an unconfigured build does not ship a
- * third-party tag to every visitor for nothing.
+ * <p>Empty until a real approved account exists. While it is empty no AdSense
+ * script is loaded at all, so an unconfigured build does not ship a
+ * third-party tag to every visitor for nothing - and, more importantly, does
+ * not register test impressions against a live account from localhost, which
+ * is a policy violation rather than merely untidy.
  */
-export const ADSENSE_PUBLISHER_ID = '';
+export const ADSENSE_PUBLISHER_ID = environment.adsensePublisherId;
 
 /**
- * Google Ad Manager network code, for publishers using GAM rather than
- * plain AdSense. Empty disables the GPT integration the same way.
+ * Google Ad Manager network code, for publishers using GAM rather than plain
+ * AdSense. Empty disables the GPT integration the same way.
  */
-export const AD_MANAGER_NETWORK_CODE = '';
+export const AD_MANAGER_NETWORK_CODE = environment.adManagerNetworkCode;

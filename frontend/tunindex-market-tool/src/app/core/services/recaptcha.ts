@@ -68,6 +68,17 @@ export class Recaptcha {
    * the script tag.
    */
   private load(): Promise<Grecaptcha | null> {
+    // No key configured, no script.
+    //
+    // A key is registered against specific hostnames, so a deploy to a new
+    // domain needs its own; until one is set, loading the library with an
+    // empty render parameter fetches a tag that can never mint a valid token
+    // and fails on every protected call. Returning null here means the
+    // interceptor simply sends the request without a token, which the server
+    // already handles.
+    if (!RECAPTCHA_SITE_KEY || RECAPTCHA_SITE_KEY.trim().length === 0) {
+      return Promise.resolve(null);
+    }
     if (this.loader) {
       return this.loader;
     }

@@ -175,7 +175,19 @@ gateway:
   cors:
     # Explicit origins, never "*": the browser refuses to send cookies to a
     # wildcard origin, and this platform authenticates with HttpOnly cookies.
-    allowed-origins: http://localhost:4200,http://127.0.0.1:4200
+    #
+    # Overridable so a deploy does not need a rebuild - set CORS_ORIGINS to
+    # the production site, e.g.
+    #   CORS_ORIGINS=https://tunindex.tn,https://www.tunindex.tn
+    #
+    # Both the apex and the www form, if both resolve: an origin is matched
+    # exactly, so a visitor arriving on www with only the apex listed gets a
+    # site that loads and then fails every request with a CORS error.
+    #
+    # Serving the app and the gateway from one hostname behind a reverse proxy
+    # avoids this section entirely - the requests are then same-origin and CORS
+    # never applies.
+    allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}
   # Real reverse proxies in front of this gateway, if any. Empty means the
   # browser reaches us directly, which is the safe assumption: trusting a
   # host that is not actually a proxy lets any caller forge its own address.

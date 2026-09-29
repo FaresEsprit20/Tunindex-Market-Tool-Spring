@@ -203,8 +203,10 @@ export class AnalystCompanion implements OnDestroy {
       }
       this.prices.set(priced);
 
-      // found() reads the signals set above, so it is correct by this point.
-      this.bars.set(this.toBars(stocks, this.found()?.symbol ?? null));
+      // spotlight() reads the signals set above, so it is correct by now. The
+      // strip marks whichever name he is actually talking about — the live
+      // call if there is one, otherwise the one he is waiting on.
+      this.bars.set(this.toBars(stocks, this.spotlight()?.symbol ?? null));
       this.recordCall();
 
       this.phase.set('reading');
@@ -454,10 +456,18 @@ export class AnalystCompanion implements OnDestroy {
   /**
    * Writes today's call into the journal.
    *
-   * <p>Only the price is worth arguing about, and it is deliberately
+   * <p>Only the price is worth arguing about. It is deliberately
    * `best.lastPrice` — the price the reader could actually have paid when
    * told — rather than the zone midpoint, which would flatter the record by
    * assuming a fill that may never have been available.
+   *
+   * <p>And deliberately NOT planPrice(), despite that being the right choice
+   * everywhere a price is compared to a zone. The journal is re-priced later
+   * against the prices map, which is built from StockDto.lastPrice; recording
+   * from one source and re-pricing from another would invent returns out of
+   * the gap between them. For TRE that gap is 8.67 against 13.20, which would
+   * have shown as a 34% loss that never happened. Entry and exit have to come
+   * from the same series — change both or neither.
    */
   private recordCall(): void {
     const best = this.found();
@@ -525,6 +535,36 @@ export class AnalystCompanion implements OnDestroy {
     if (watched.size === 0) return [];
     return (this.scored() ?? []).filter((r) => watched.has(r.symbol));
   });
+
+  /**
+   * The best name he would own, that is not buyable today.
+   *
+   * <p>Without this the "nothing to buy" briefing is a shrug. On a typical day
+   * the strongest names on the exchange are recommended but not yet at a price
+   * or a moment worth acting on — as of writing, TRE at 77 is a BUY whose turn
+   * has not confirmed, while the only two names sitting in a buy zone are
+   * WATCH-rated. Naming what he is waiting for, and why, is the difference
+   * between an analyst with nothing to say today and one who tells you what to
+   * have ready.
+   */
+  private readonly bestWaiting = computed(() =>
+    (this.scored() ?? [])
+      .filter((r) => r.verdict === 'STRONG_BUY' || r.verdict === 'BUY')
+      .filter((r) => r.tradeSetup?.stance !== 'ACCUMULATE_NOW')
+      .sort(
+        (a, b) =>
+          VERDICT_RANK[b.verdict] - VERDICT_RANK[a.verdict] ||
+          b.overallScore - a.overallScore ||
+          b.dataCompleteness - a.dataCompleteness,
+      )[0] ?? null,
+  );
+
+  /**
+   * The name the attached plan belongs to: the live call if there is one,
+   * otherwise the one he is waiting on. Either way the reader leaves with
+   * levels rather than a verdict alone.
+   */
+  protected readonly spotlight = computed(() => this.found() ?? this.bestWaiting());
 
   /** Watched names that are both recommended and at a payable price. */
   private readonly myBuyable = computed(() =>
@@ -616,6 +656,20 @@ export class AnalystCompanion implements OnDestroy {
   private price(value: number | null, currency: string | null): string {
     if (value === null) return '—';
     return currency ? `${value.toFixed(2)} ${currency}` : value.toFixed(2);
+  }
+
+  /**
+   * The price a plan's levels were drawn against.
+   *
+   * <p>Never the row's own `lastPrice`. The two can disagree badly — TRE
+   * currently carries 8.67 on the stock record and 13.20 on its setup, whose
+   * zone is 12.90–13.03 — and quoting a zone against a price it was not
+   * computed from produces a sentence that is arithmetically absurd on its
+   * face. TradeSetup.lastPrice is documented as the price the plan was drawn
+   * against, so it is the only one that can be compared to the zone.
+   */
+  private planPrice(row: OpportunityScore): number | null {
+    return row.tradeSetup?.lastPrice ?? row.lastPrice;
   }
 
   /** "7.40–8.10 TND", with the unit stated once. */
@@ -749,34 +803,50 @@ export class AnalystCompanion implements OnDestroy {
         // same claim and the reader is entitled to both.
         text: `${best.symbol} is the one: ${VERDICT_LABELS[best.verdict].toLowerCase()} on my numbers at ${best.overallScore}/100, and trading inside its buy zone at ${zone}.${target}`,
       });
-    } else if (this.inZoneButWeak().length > 0) {
-      const n = this.inZoneButWeak().length;
-      lines.push({
-        id: 'verdict',
-        from: 'analyst',
-        emphasis: true,
-        text:
-          n === 1
-            ? 'One name is sitting in a buy zone today, but it does not clear my bar as a business — and a good price on a weak company is still a weak company.'
-            : `${n} names are sitting in a buy zone today, but none of them clears my bar as a business — and a good price on a weak company is still a weak company.`,
-      });
-    } else if (near > 0) {
-      const n = this.nearZone()[0];
-      const gap = n.tradeSetup!.distanceToZonePct;
-      const how = gap !== null ? ` — about ${Math.round(gap)}% above where I would step in` : '';
-      lines.push({
-        id: 'verdict',
-        from: 'analyst',
-        emphasis: true,
-        text: `Nothing is worth buying at today’s prices. ${n.symbol} is the closest${how}.`,
-      });
     } else {
-      lines.push({
-        id: 'verdict',
-        from: 'analyst',
-        emphasis: true,
-        text: 'I checked every name I score and none of them is worth acting on today. I would rather tell you that than invent something.',
-      });
+      // No live entry. Name what he is waiting for rather than stopping at
+      // "nothing today", which is true but useless.
+      const waiting = this.bestWaiting();
+      if (waiting) {
+        lines.push({
+          id: 'verdict',
+          from: 'analyst',
+          emphasis: true,
+          text: `Nothing is worth buying at today’s prices. The name I want is ${waiting.symbol} — ${VERDICT_LABELS[waiting.verdict].toLowerCase()} at ${waiting.overallScore}/100 — but ${this.whyNot(waiting)}, so I am not paying for it yet.`,
+        });
+      } else if (near > 0) {
+        const n = this.nearZone()[0];
+        const gap = n.tradeSetup!.distanceToZonePct;
+        const how = gap !== null ? ` — about ${Math.round(gap)}% above where I would step in` : '';
+        lines.push({
+          id: 'verdict',
+          from: 'analyst',
+          emphasis: true,
+          text: `Nothing is worth buying at today’s prices. ${n.symbol} is the closest${how}.`,
+        });
+      } else {
+        lines.push({
+          id: 'verdict',
+          from: 'analyst',
+          emphasis: true,
+          text: 'I checked every name I score and none of them is worth acting on today. I would rather tell you that than invent something.',
+        });
+      }
+
+      // The trap worth naming out loud: something IS in a buy zone, and it is
+      // the wrong thing to buy. A reader scanning the table for "in zone now"
+      // badges would otherwise draw the opposite conclusion.
+      const weak = this.inZoneButWeak();
+      if (weak.length > 0) {
+        lines.push({
+          id: 'zone-trap',
+          from: 'analyst',
+          text:
+            weak.length === 1
+              ? `${weak[0].symbol} is sitting in a buy zone, but it does not clear my bar as a business — and a good price on a weak company is still a weak company.`
+              : `${weak.length} names are sitting in a buy zone — ${weak.slice(0, 3).map((w) => w.symbol).join(', ')} — but none of them clears my bar as a business, and a good price on a weak company is still a weak company.`,
+        });
+      }
     }
 
     // Finally, the reader's own names. Last because it is the part they will
@@ -812,7 +882,10 @@ export class AnalystCompanion implements OnDestroy {
     const out: FollowUp[] = [];
     const best = this.found();
 
-    if (best) out.push({ id: 'why', label: `Why ${best.symbol}?` });
+    // Always offered for the name in the spotlight, whether he is buying it
+    // or waiting on it — "why that one?" is the first question either way.
+    const focus = this.spotlight();
+    if (focus) out.push({ id: 'why', label: `Why ${focus.symbol}?` });
 
     // The obvious objection, offered as a question rather than waiting to be
     // raised: the reader can see a higher score at the top of the table.
@@ -862,11 +935,23 @@ export class AnalystCompanion implements OnDestroy {
 
     switch (id) {
       case 'why': {
-        if (!best?.tradeSetup) return 'I have no live entry to explain right now.';
-        const s = best.tradeSetup;
+        const focus = this.spotlight();
+        if (!focus?.tradeSetup) return 'I have nothing in the spotlight to explain right now.';
+        const s = focus.tradeSetup;
         const why =
           s.evidence?.slice(0, 2).join('; ') || s.regimeSummary || 'the structure turned up';
-        return `${best.symbol} scores ${best.overallScore} out of 100, and the turn is confirmed — ${why}. That is why the zone is live rather than something to watch.`;
+
+        // A live call and a name he is waiting on need different answers; one
+        // explains why to act, the other why not to yet.
+        if (focus === best) {
+          return `${focus.symbol} scores ${focus.overallScore} out of 100, and the turn is confirmed — ${why}. That is why the zone is live rather than something to watch.`;
+        }
+
+        const level =
+          s.buyZoneLow !== null && s.buyZoneHigh !== null
+            ? ` The level I want is ${this.band(s.buyZoneLow, s.buyZoneHigh, focus.currency)}, against ${this.price(this.planPrice(focus), focus.currency)} now.`
+            : '';
+        return `${focus.symbol} is the best business on my list right now — ${VERDICT_LABELS[focus.verdict].toLowerCase()} at ${focus.overallScore} out of 100, and ${why}. I am not buying it yet because ${this.whyNot(focus)}.${level}`;
       }
       case 'record': {
         const past = this.scoredCalls();
@@ -916,7 +1001,7 @@ export class AnalystCompanion implements OnDestroy {
         const s = top.tradeSetup;
         const level =
           s?.buyZoneLow != null && s?.buyZoneHigh != null
-            ? ` It trades at ${this.price(top.lastPrice, top.currency)} against a zone of ${this.band(s.buyZoneLow, s.buyZoneHigh, top.currency)}.`
+            ? ` It trades at ${this.price(this.planPrice(top), top.currency)} against a zone of ${this.band(s.buyZoneLow, s.buyZoneHigh, top.currency)}.`
             : '';
         return `${top.symbol} scores ${top.overallScore} to ${best.symbol}'s ${best.overallScore}, and on the business alone it is the better company — ${this.whyNot(top)}.${level} I would rather own the second-best company at the right price than the best one at the wrong price, because what you pay is the part of the return you control. If ${top.symbol} comes back into the zone, it becomes the call.`;
       }

@@ -157,8 +157,8 @@
         } @else {
           <span class="counter">{{ scanned() }}</span>
           <span class="of">/ {{ bars().length }} read</span>
-          @if (found(); as f) {
-            <span class="tape-find">{{ f.symbol }} flagged</span>
+          @if (spotlight(); as s) {
+            <span class="tape-find">{{ s.symbol }} {{ found() ? 'flagged' : 'watching' }}</span>
           }
         }
 
@@ -186,7 +186,7 @@
            that announced it, with the route to the stock attached, so the
            briefing ends somewhere you can act rather than somewhere you have
            to start searching. -->
-      @if (line.emphasis && found(); as best) {
+      @if (line.emphasis && spotlight(); as best) {
         @if (best.tradeSetup; as setup) {
           <div class="ticket">
             <app-analyst-panel [setup]="setup" [currency]="best.currency" [embedded]="true" [compact]="true" />

@@ -1,0 +1,38 @@
+:host {
+  display: inline-flex;
+}
+
+.star-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // Sized to the row, not to a comfortable tap target: in a grid this
+  // sits in every row and was single-handedly setting the row height.
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color 0.14s ease, background-color 0.14s ease, transform 0.1s ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    color: var(--color-warning);
+    background: var(--color-warning-dim);
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
+
+  &.active {
+    color: var(--color-warning);
+  }
+}

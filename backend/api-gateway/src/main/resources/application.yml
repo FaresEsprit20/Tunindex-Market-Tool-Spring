@@ -1,0 +1,293 @@
+# ========================
+# API GATEWAY
+# ========================
+# The single entry point. Routes by service name through Eureka rather than
+# host:port, so a service can move or scale without the browser knowing.
+server:
+  # 8070, not 8080.
+  #
+  # Another project on this machine (its own gateway, auth and merchant
+  # services) already listens on 8080, and whichever started first won - so
+  # requests meant for Market Tool were answered by a stranger's gateway with
+  # a 403 that looked like a bug here. Moving is cheaper than contending for
+  # a port, and the two stacks now run side by side.
+  #
+  # The frontend's API_BASE_URL and ADS_BASE_URL point here; they are the only
+  # other place the number appears.
+  port: 8070
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # Spring Cloud 2025.0.0 moved routing configuration under
+      # server.webflux. The old spring.cloud.gateway.routes prefix still binds
+      # through a compatibility mapping, but it logs a deprecation for every
+      # entry and relying on it means the next upgrade quietly stops routing.
+      server:
+        webflux:
+          # Routes are listed explicitly rather than using discovery-locator,
+          # which would publish every registered service under a predictable
+          # URL - including the collector's internal scraping endpoints.
+          # Listing them means registering a service with Eureka does not by
+          # itself expose it to the internet.
+          discovery:
+            locator:
+              enabled: false
+
+          # Both the gateway and each service behind it set their own CORS
+          # headers - the services because they must still be safe to reach
+          # directly, the gateway because it is what the browser talks to.
+          # Proxied through, that produces two Access-Control-Allow-Origin
+          # headers on one response, and a browser rejects that outright
+          # ("contains multiple values, but only one is allowed"). curl does
+          # not care, which is why this only shows up in a real browser.
+          #
+          # RETAIN_FIRST keeps the gateway's own value for the two headers
+          # where exactly one is legal. Expose-Headers and Vary are merged
+          # instead: the two layers legitimately expose different headers,
+          # and dropping the service's list would break file downloads,
+          # which rely on Content-Disposition being exposed.
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+            - DedupeResponseHeader=Access-Control-Expose-Headers Vary, RETAIN_UNIQUE
+
+          routes:
+            # Server-sent event streams, matched BEFORE the general API route
+            # because routes are evaluated in order and the first match wins.
+            #
+            # These carry no response-timeout on purpose. An SSE connection is
+            # meant to stay open indefinitely, so the 30s timeout applied to
+            # ordinary calls would sever the live price feed every thirty
+            # seconds and the client would reconnect in a loop. -1 disables it
+            # for these paths only.
+            #
+            # No CircuitBreaker either: a breaker measures request duration,
+            # and a stream that never "completes" looks like a permanent
+            # failure to it - it would trip open and stay there.
+            - id: api-service-streams
+              uri: lb://API-SERVICE
+              predicates:
+                - Path=/tunindex/market/tool/v1/stocks/prices/stream,/tunindex/market/tool/v1/stocks/notifications/stream,/tunindex/market/tool/v1/stocks/pipeline/status
+              metadata:
+                response-timeout: -1
+                connect-timeout: 5000
+
+            # The endpoints that read outside publishers, on their own
+            # breaker. Listed BEFORE the general api route because the first
+            # match wins, and these must not fall into the shared one.
+            #
+            # Without this split a Yahoo rate limit opened the breaker that
+            # every api route shares, and the dashboard lost its news feed,
+            # its gainers list and its stock table - none of which depend on
+            # Yahoo. The fix is not a longer timeout; it is that one slow
+            # dependency should only be able to break itself.
+            - id: api-service-external-data
+              uri: lb://API-SERVICE
+              predicates:
+                - Path=/tunindex/market/tool/v1/stocks/market/macro,/tunindex/market/tool/v1/stocks/market/commodities,/tunindex/market/tool/v1/stocks/exchange-rates
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: externalDataCircuitBreaker
+                    fallbackUri: forward:/fallback/market
+
+            # The main application API. The path is preserved exactly: the
+            # frontend's base URL is /tunindex/market/tool/v1/stocks, and
+            # rewriting it here would break every call in the app.
+            - id: api-service
+              uri: lb://API-SERVICE
+              predicates:
+                - Path=/tunindex/market/tool/v1/stocks/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: apiCircuitBreaker
+                    fallbackUri: forward:/fallback/api
+
+            # Ads. A separate route so ad traffic can be limited or pulled out
+            # of rotation without touching the application API.
+            - id: ad-module
+              uri: lb://AD-MODULE
+              predicates:
+                - Path=/api/v1/ads/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: adCircuitBreaker
+                    fallbackUri: forward:/fallback/ads
+
+            # Market data, read-only. The collector's /internal/** endpoints
+            # are deliberately not routed: they trigger scrapes and pipeline
+            # runs, and the api service already proxies the ones the UI needs.
+            - id: collector-public
+              uri: lb://COLLECTOR-SERVICE
+              predicates:
+                - Path=/api/v1/market/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: collectorCircuitBreaker
+                    fallbackUri: forward:/fallback/market
+
+          # Spring's own forwarding-header filter is off, and ours
+          # (ClientAddressFilter) writes these headers instead.
+          #
+          # Measured, not assumed: with trusted-proxies unset this filter
+          # emits no X-Forwarded-* header at all, so the services fell back
+          # to the socket address and bound every session to the gateway's
+          # own IP. Set wide enough to cover local callers, it passed a
+          # caller's own X-Forwarded-For through untouched - so a client
+          # could name its own address. Neither behaviour is what we want,
+          # and both are version-specific. One filter we control is easier
+          # to reason about than a regex whose meaning shifts under us.
+          x-forwarded:
+            enabled: false
+
+          httpclient:
+            connect-timeout: 5000
+            # Longer than a normal call needs, short enough that a hung
+            # service does not hold a browser connection open indefinitely.
+            response-timeout: 30s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# The ad module signs watch-to-unlock grants with this; the gateway verifies
+# them with it. The two MUST match or every grant is refused and every gated
+# feature stays shut. Set AD_GRANT_SECRET in any real environment: a signing
+# key committed to a repository signs nothing, because anyone who can read it
+# can mint their own grants and skip every ad.
+ads:
+  grant:
+    secret: ${AD_GRANT_SECRET:tunindex-dev-ad-grant-secret-change-me}
+
+# ========================
+# GATEWAY POLICY
+# ========================
+gateway:
+  cors:
+    # Explicit origins, never "*": the browser refuses to send cookies to a
+    # wildcard origin, and this platform authenticates with HttpOnly cookies.
+    #
+    # Overridable so a deploy does not need a rebuild - set CORS_ORIGINS to
+    # the production site, e.g.
+    #   CORS_ORIGINS=https://tunindex.tn,https://www.tunindex.tn
+    #
+    # Both the apex and the www form, if both resolve: an origin is matched
+    # exactly, so a visitor arriving on www with only the apex listed gets a
+    # site that loads and then fails every request with a CORS error.
+    #
+    # Serving the app and the gateway from one hostname behind a reverse proxy
+    # avoids this section entirely - the requests are then same-origin and CORS
+    # never applies.
+    allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}
+  # Real reverse proxies in front of this gateway, if any. Empty means the
+  # browser reaches us directly, which is the safe assumption: trusting a
+  # host that is not actually a proxy lets any caller forge its own address.
+  trusted-upstream-proxies:
+
+  # ── WATCH-TO-UNLOCK ──────────────────────────────────────────────────
+  # Paths that cost an ad, and which feature's grant opens them.
+  #
+  # Enforced here rather than in the browser, which is the whole point: a
+  # gate drawn by the frontend is skipped by calling the endpoint directly.
+  # With the rule here there is no request shape that reaches the service
+  # without a valid grant - the app, curl and a script all get 402.
+  #
+  # Only the pipeline is gated to begin with. Every entry added takes a
+  # working screen away from anyone who has not watched an ad, so each one
+  # wants deciding on purpose; the frontend must handle 402 for that path
+  # before it is listed here.
+  # The bracket-quoted keys are required, not decoration. Spring Boot's
+  # relaxed binding rewrites map keys - stripping and lower-casing characters
+  # like "/" - unless the key is wrapped in [...]. Written plainly, these
+  # bind to a mangled key that matches no path, the filter finds no rule, and
+  # every gated endpoint silently opens. That failure is invisible: nothing
+  # errors, the gate is simply not there.
+  ad-gate:
+    enabled: true
+    rules:
+      "[/tunindex/market/tool/v1/stocks/pipeline/start]": PIPELINE_RUN
+
+  rate-limit:
+    enabled: true
+    # Generous by design. The dashboard opens several panels at once, and a
+    # limit tuned for a single call would throttle ordinary use.
+    requests-per-minute: 300
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 20
+        # Half the window failing is a service in trouble, not a bad request.
+        failureRateThreshold: 50
+        waitDurationInOpenState: 20s
+        permittedNumberOfCallsInHalfOpenState: 4
+        # A breaker that opens on the first few calls after a restart is
+        # measuring a cold cache, not a broken service. Nothing is judged
+        # until there is a window's worth of evidence.
+        minimumNumberOfCalls: 10
+        registerHealthIndicator: true
+
+      # For the routes that read external publishers.
+      #
+      # These are slow by nature - a cold cache reaches Yahoo, the central
+      # bank and the World Bank - and they were tripping the shared breaker
+      # and taking the whole api service down with them. That is how a Yahoo
+      # rate limit blanked the news feed, the stock table and the gainers
+      # list, none of which touch Yahoo at all.
+      externalData:
+        slidingWindowSize: 20
+        # Slower to open: these endpoints already degrade to an empty panel
+        # on their own, so the breaker is protecting against a hung upstream
+        # rather than against a wrong answer.
+        failureRateThreshold: 70
+        minimumNumberOfCalls: 8
+        # Quicker to retry, because recovery here is usually a cache filling
+        # rather than a service restarting.
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+
+    instances:
+      apiCircuitBreaker:
+        baseConfig: default
+      # Separate instance, so a slow macro call cannot open the breaker that
+      # the portfolio, the stock table and the news feed share. One breaker
+      # per service made every endpoint as fragile as its slowest sibling.
+      externalDataCircuitBreaker:
+        baseConfig: externalData
+      adCircuitBreaker:
+        baseConfig: default
+      collectorCircuitBreaker:
+        baseConfig: default
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      # Lets the route table be inspected at runtime, which is the quickest
+      # way to tell a misconfigured predicate from an unreachable service.
+      access: unrestricted
+
+logging:
+  level:
+    com.tunindex.market_tool.gateway: INFO
+    org.springframework.cloud.gateway: INFO
+  pattern:
+    # The correlation id on every line, so a request can be followed across
+    # services instead of matched up by timestamp.
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{correlationId:-no-trace}] %logger{36} - %msg%n"

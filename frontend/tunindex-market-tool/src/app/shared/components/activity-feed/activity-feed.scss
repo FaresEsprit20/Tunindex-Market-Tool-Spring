@@ -1,0 +1,166 @@
+:host {
+  display: block;
+}
+
+.feed-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.feed-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 7px;
+  background: none;
+  border: none;
+  // Drawn on a transparent border so active and inactive tabs occupy the
+  // same box — a border that only exists when active shifts every label.
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    color: var(--color-text-secondary);
+  }
+
+  &.active {
+    color: var(--color-brand);
+    border-bottom-color: var(--color-brand);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: -2px;
+  }
+}
+
+.feed-count {
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--color-panel-alt);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.feed-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+
+  & + .feed-item {
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+.feed-rail {
+  width: 3px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--color-border-strong);
+
+  &.positive {
+    background: var(--color-positive);
+  }
+
+  &.negative {
+    background: var(--color-negative);
+  }
+}
+
+// Unread is marked by weight on the title alone. A tinted row background
+// would put a coloured block behind every new item, which competes with the
+// tone rail that already carries meaning.
+.feed-item.unread .feed-title {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.feed-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.feed-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.feed-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-time {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-text {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-text-tertiary);
+}
+
+.feed-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1px;
+}
+
+.feed-category {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-alt);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+}
+
+.feed-symbol {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-brand);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.feed-empty {
+  margin: 0;
+  padding: 18px 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--color-text-tertiary);
+}

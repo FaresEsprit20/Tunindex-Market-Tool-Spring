@@ -1,0 +1,11 @@
+# Reinstalled fresh inside the image - a host node_modules is a different
+# platform/arch than the Linux container and would otherwise shadow npm ci.
+node_modules/
+
+# Rebuilt inside the image; copying a stale host build in would make the
+# COPY --from=build step in the Dockerfile ambiguous about which one is live.
+dist/
+
+.git/
+.idea/
+*.log

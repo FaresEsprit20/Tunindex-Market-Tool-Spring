@@ -1,0 +1,204 @@
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { API_BASE_URL } from '../config/api.config';
+import { OwnershipStatEntry, SectorStatEntry } from '../models/market-statistics.model';
+import { PagedResponse, PaginationAndFilteringRequest } from '../models/pagination.model';
+import { StockDto } from '../models/stock.model';
+import { PriceHistoryPoint } from '../models/price-history.model';
+import { FundamentalAnalysis, TechnicalAnalysis } from '../models/analysis.model';
+import { TradeSetup } from '../models/trade-setup.model';
+import { StockNews } from '../models/stock-news.model';
+import { NewsImpact } from '../models/news-impact.model';
+import { OpportunityScore, ScoreHistoryPoint } from '../models/opportunity.model';
+
+/**
+ * Keys accepted by the backend's filters map (collector's StockServiceImpl
+ * buildSpecification), confirmed by reading the actual key-by-key mapping —
+ * every key not listed here is silently ignored server-side, not rejected.
+ */
+export interface StockFilters {
+  /**
+   * Free-text box: matched server-side against the ticker OR the company
+   * name. Prefer this over symbol/name for anything a user typed — those two
+   * are exact-field filters and AND together, so putting a company name in
+   * `symbol` (as the list used to, for any query without a space) matches
+   * nothing.
+   */
+  search?: string;
+  symbol?: string;
+  name?: string;
+  exchange?: string;
+  sector?: string;
+  ownershipType?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  minCloseTo52WeekLow?: string;
+  maxCloseTo52WeekLow?: string;
+  near52WeekLow?: 'true';
+  near52WeekHigh?: 'true';
+  minProfitMargin?: string;
+  maxProfitMargin?: string;
+  minMarginOfSafety?: string;
+  maxMarginOfSafety?: string;
+  minGrahamFairValue?: string;
+  maxGrahamFairValue?: string;
+  minDebtToEquity?: string;
+  maxDebtToEquity?: string;
+  minEps?: string;
+  maxEps?: string;
+  minBvps?: string;
+  maxBvps?: string;
+  minPeRatio?: string;
+  maxPeRatio?: string;
+  minDividendYield?: string;
+  maxDividendYield?: string;
+  // Boolean flags — "true" applies the filter, anything else (including
+  // "false") is treated as "no filter", per the backend's own comment.
+  profitable?: 'true';
+  undervalued?: 'true';
+  overvalued?: 'true';
+  priceBelowGrahamValue?: 'true';
+  priceAboveGrahamValue?: 'true';
+  lowDebt?: 'true';
+  highDebt?: 'true';
+  lowPeRatio?: 'true';
+  highDividend?: 'true';
+  // Investor presets — mutually exclusive by convention, not enforced.
+  valueInvestorFavorites?: 'true';
+  growthInvestorFavorites?: 'true';
+  incomeInvestorFavorites?: 'true';
+  contrarianFavorites?: 'true';
+  grahamCriteria?: 'true';
+}
+
+@Injectable({ providedIn: 'root' })
+export class Stock {
+  private readonly http = inject(HttpClient);
+
+  findBySymbol(symbol: string): Observable<StockDto> {
+    return this.http.get<StockDto>(`${API_BASE_URL}/symbol/${encodeURIComponent(symbol)}`);
+  }
+
+  findBySymbolAndExchange(symbol: string, exchange: string): Observable<StockDto> {
+    return this.http.get<StockDto>(
+      `${API_BASE_URL}/symbol/${encodeURIComponent(symbol)}/exchange/${encodeURIComponent(exchange)}`,
+    );
+  }
+
+  filter(
+    request: Omit<PaginationAndFilteringRequest, 'filters'> & { filters?: StockFilters },
+  ): Observable<PagedResponse<StockDto>> {
+    return this.http.post<PagedResponse<StockDto>>(`${API_BASE_URL}/filter`, request);
+  }
+
+  countBySector(): Observable<SectorStatEntry[]> {
+    return this.http.get<SectorStatEntry[]>(`${API_BASE_URL}/statistics/by-sector`);
+  }
+
+  countByOwnership(): Observable<OwnershipStatEntry[]> {
+    return this.http.get<OwnershipStatEntry[]>(`${API_BASE_URL}/statistics/by-ownership`);
+  }
+
+  refresh(symbol: string): Observable<void> {
+    return this.http.put<void>(`${API_BASE_URL}/refresh/${encodeURIComponent(symbol)}`, {});
+  }
+
+  /**
+   * Real daily OHLCV history, scraped from ilboursa.com — see
+   * IlBoursaHistoryProvider on the collector. Slow (a few seconds) the very
+   * first time a symbol has nothing cached yet, since that triggers a live
+   * scrape; fast on every call after that.
+   */
+  getHistory(symbol: string, days = 180): Observable<PriceHistoryPoint[]> {
+    return this.http.get<PriceHistoryPoint[]>(`${API_BASE_URL}/history/${encodeURIComponent(symbol)}`, {
+      params: { days },
+    });
+  }
+
+  /**
+   * Closing prices for several symbols in one request — what the stock
+   * table's row sparklines draw. Reads stored rows only, so it never
+   * triggers a scrape.
+   */
+  getSparklines(symbols: string[], days = 30): Observable<Record<string, number[]>> {
+    return this.http.get<Record<string, number[]>>(`${API_BASE_URL}/history/sparklines`, {
+      params: { symbols: symbols.join(','), days },
+    });
+  }
+
+  /**
+   * @param bars how many trading days to feed the indicators.
+   *
+   * Bars, not calendar days: for a thinly traded stock the two differ sharply,
+   * and asking by date returned too few rows to compute anything at all.
+   */
+  getTechnicalAnalysis(symbol: string, bars = 250): Observable<TechnicalAnalysis> {
+    return this.http.get<TechnicalAnalysis>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/technical`, {
+      params: { bars },
+    });
+  }
+
+  /**
+   * The Tradify Analyst's plan: where to buy, where it fails, what it targets.
+   *
+   * <p>Separate from the indicators because it answers a different question.
+   * The indicators describe the stock; this says what to do about it.
+   */
+  getTradeSetup(symbol: string): Observable<TradeSetup> {
+    return this.http.get<TradeSetup>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/setup`);
+  }
+
+  getFundamentalAnalysis(symbol: string): Observable<FundamentalAnalysis> {
+    return this.http.get<FundamentalAnalysis>(`${API_BASE_URL}/analysis/${encodeURIComponent(symbol)}/fundamental`);
+  }
+
+  /**
+   * Real headlines scraped from ilboursa.com's per-stock news feed — see
+   * IlBoursaNewsProvider on the collector.
+   */
+  getNews(symbol: string, limit = 20): Observable<StockNews[]> {
+    return this.http.get<StockNews[]>(`${API_BASE_URL}/news/${encodeURIComponent(symbol)}`, {
+      params: { limit },
+    });
+  }
+
+  /**
+   * Each headline paired with a rule-based sentiment tag and the real price
+   * move over the following tradingDaysAfter trading days — see
+   * NewsSentimentClassifier / NewsImpactServiceImpl on the collector.
+   */
+  getNewsImpact(symbol: string, limit = 10, tradingDaysAfter = 3): Observable<NewsImpact[]> {
+    return this.http.get<NewsImpact[]>(`${API_BASE_URL}/news/${encodeURIComponent(symbol)}/impact`, {
+      params: { limit, tradingDaysAfter },
+    });
+  }
+
+  /**
+   * Ranked buy opportunities across every tracked stock — the Tunindex
+   * Score (see TunindexScorer on the collector). Heavier than a normal
+   * lookup: the backend rescores the whole exchange per call.
+   */
+  getOpportunities(limit = 20, minScore = 0): Observable<OpportunityScore[]> {
+    return this.http.get<OpportunityScore[]>(`${API_BASE_URL}/opportunities`, {
+      params: { limit, minScore },
+    });
+  }
+
+  /**
+   * The stock's score over time, one point per day the snapshot ran.
+   * Accumulates forward only — see ScoringController.snapshot on the
+   * collector for why there is no backfill.
+   */
+  getScoreHistory(symbol: string, days = 90): Observable<ScoreHistoryPoint[]> {
+    return this.http.get<ScoreHistoryPoint[]>(
+      `${API_BASE_URL}/score/${encodeURIComponent(symbol)}/history`,
+      { params: { days } },
+    );
+  }
+
+  /** One stock's Tunindex Score with its component breakdown. */
+  getScore(symbol: string): Observable<OpportunityScore> {
+    return this.http.get<OpportunityScore>(`${API_BASE_URL}/score/${encodeURIComponent(symbol)}`);
+  }
+}

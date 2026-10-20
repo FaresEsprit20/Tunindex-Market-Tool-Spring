@@ -1,0 +1,93 @@
+.legend-skeleton {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.donut-layout {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.donut {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.donut-hole {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  background: var(--color-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.donut-pct {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-label {
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: 0 4px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+}
+
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+
+  &.private {
+    background: var(--color-brand);
+  }
+
+  &.government {
+    background: #b7791b;
+  }
+}
+
+.legend-label {
+  color: var(--color-text-secondary);
+}
+
+.legend-value {
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-pct {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}

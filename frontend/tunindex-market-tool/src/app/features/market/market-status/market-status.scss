@@ -1,0 +1,124 @@
+.session-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  border-left-width: 3px;
+  border-left-style: solid;
+
+  &.open {
+    border-left-color: var(--color-positive);
+  }
+
+  &.auction {
+    border-left-color: var(--color-warning);
+  }
+
+  &.closed,
+  &.weekend {
+    border-left-color: var(--color-border-strong);
+  }
+}
+
+.session-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.session-indicator {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.session-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-text-tertiary);
+  position: relative;
+
+  .open & {
+    background: var(--color-positive);
+  }
+
+  .auction & {
+    background: var(--color-warning);
+  }
+
+  // A ring that expands out of the dot only while the market can trade —
+  // the one moving thing on the card, so "open" reads without being read.
+  &.pulsing::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: pulse-ring 1.8s ease-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &.pulsing::after {
+      animation: none;
+    }
+  }
+}
+
+.session-state {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.session-next {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.countdown {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.session-meta {
+  display: flex;
+  gap: 26px;
+  flex-shrink: 0;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-label {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.meta-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.session-footnote {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin: 7px 2px 0;
+  line-height: 1.5;
+}

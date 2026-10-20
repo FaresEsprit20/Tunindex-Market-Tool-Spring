@@ -1,0 +1,150 @@
+package com.tunindex.market_tool.collector.providers.ilboursa;
+
+import com.google.common.net.HttpHeaders;
+import com.tunindex.market_tool.collector.services.scraping.PageFetcher;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
+
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * ilboursa.com's plain quote page (no CSRF form, unlike the CSV download) --
+ * a genuine live snapshot for the current session. Used as the authoritative
+ * source for today's price/volume fields: stockanalysis.com (the main
+ * pipeline's source) was found to lag by a full trading day for this
+ * market, confirmed by comparing its "current" price against both
+ * ilboursa's live page and our own scraped history for the same date.
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class IlBoursaQuoteProvider {
+
+    private static final String BASE_URL = "https://www.ilboursa.com/marches/cotation_";
+
+    // Strips every kind of whitespace Jsoup might hand back for these
+    // number fields, including &#xA0; (U+00A0 non-breaking space) which a
+    // plain ASCII-space replace silently fails to remove.
+    private static final Pattern ANY_WHITESPACE = Pattern.compile("[\\s\\u00A0]+");
+
+    private final PageFetcher pageFetcher;
+
+
+    public record LiveQuote(BigDecimal lastPrice, BigDecimal open, BigDecimal prevClose,
+                             BigDecimal dayHigh, BigDecimal dayLow, Long volume) {
+    }
+
+    public Mono<LiveQuote> fetchQuote(String symbol) {
+        // PageFetcher, not Selenium directly: this page answers a plain HTTP
+        // GET in about 0.4s with the markup we parse, and only escalates to a
+        // browser if the site actually starts refusing us.
+        return Mono.fromCallable(() -> pageFetcher.fetch(BASE_URL + symbol))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(html -> parse(symbol, html))
+                .timeout(Duration.ofSeconds(60))
+                .retryWhen(Retry.backoff(2, Duration.ofSeconds(2)))
+                .doOnError(e -> log.warn("ilboursa live quote failed for {}: {}", symbol, e.getMessage()))
+                .onErrorResume(e -> Mono.empty());
+    }
+
+    private LiveQuote parse(String symbol, String html) {
+        Document doc = Jsoup.parse(html);
+
+        BigDecimal lastPrice = textOf(doc.selectFirst(".cot_v1b"));
+
+        Element leftBlock = doc.selectFirst(".cot_v2 .cot_v21");
+        Element rightBlock = doc.selectFirst(".cot_v2 .cot_v22");
+        BigDecimal open = nthValue(leftBlock, 0);
+        BigDecimal dayHigh = nthValue(leftBlock, 1);
+        BigDecimal prevClose = nthValue(rightBlock, 0);
+        BigDecimal dayLow = nthValue(rightBlock, 1);
+
+        Long volume = longOf(doc.selectFirst("#vol"));
+
+        if (lastPrice == null) {
+            log.debug("Could not parse live quote for {} (page may not have loaded expected markup)", symbol);
+        }
+
+        return new LiveQuote(lastPrice, open, prevClose, dayHigh, dayLow, volume);
+    }
+
+    /**
+     * Inside .cot_v21 / .cot_v22, direct children alternate label/value
+     * pairs (label, value, label, value); index 0 = first value, index 1 =
+     * second value.
+     */
+    private BigDecimal nthValue(Element container, int valueIndex) {
+        if (container == null) return null;
+        var children = container.children();
+        int pos = valueIndex * 2 + 1;
+        if (pos >= children.size()) return null;
+        return textOf(children.get(pos));
+    }
+
+    /**
+     * Reads a number out of a cell that may also carry a currency label.
+     *
+     * <p>The quote cell is not consistently formatted: some symbols render
+     * "91,15" and others "84,68&nbsp;TND" on the same template. Parsing the
+     * whole string meant {@code new BigDecimal("84.68TND")} threw, {@code
+     * textOf} returned null, and the caller quietly kept the fundamentals
+     * provider's price — which lags a full trading day. Two thirds of the
+     * exchange was going stale this way with nothing in the logs above DEBUG.
+     *
+     * <p>So the digits are extracted rather than assumed: everything outside
+     * the leading numeric run is discarded. A cell with no digits at all
+     * still returns null, which is a real "no value", not a parse failure.
+     */
+    private BigDecimal textOf(Element el) {
+        if (el == null) return null;
+        String raw = stripWhitespace(el.text());
+        if (raw.isEmpty()) return null;
+
+        Matcher matcher = LEADING_NUMBER.matcher(raw.replace(",", "."));
+        if (!matcher.find()) {
+            log.debug("No numeric value in quote cell: '{}'", raw);
+            return null;
+        }
+        try {
+            return new BigDecimal(matcher.group());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Same tolerance as {@link #textOf} — volume cells carry labels too. */
+    private Long longOf(Element el) {
+        if (el == null) return null;
+        String raw = stripWhitespace(el.text());
+        if (raw.isEmpty()) return null;
+
+        Matcher matcher = LEADING_NUMBER.matcher(raw);
+        if (!matcher.find()) return null;
+        try {
+            return new BigDecimal(matcher.group()).longValue();
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * The numeric run at the start of a cell: optional sign, digits, optional
+     * decimal part. Anchored so a trailing currency or unit is dropped but a
+     * cell that merely mentions a number later is not misread.
+     */
+    private static final Pattern LEADING_NUMBER = Pattern.compile("^[+-]?\\d+(?:\\.\\d+)?");
+
+    private String stripWhitespace(String raw) {
+        return ANY_WHITESPACE.matcher(raw).replaceAll("");
+    }
+}

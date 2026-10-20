@@ -1,0 +1,77 @@
+<div class="page-head">
+  <div>
+    <p class="page-title">Dashboard</p>
+    <p class="page-sub">Overview of the Tunisian stock market (BVMT).</p>
+  </div>
+</div>
+
+<!-- The analyst speaks first, then points. Arriving at a wall of figures
+     alone is the feeling this removes: someone was already here, went
+     through the exchange, and has something to say about it. -->
+<app-analyst-companion context="dashboard" />
+
+<!-- The house's own pitch, and the only thing on this page selling anything.
+     Placed under the greeting because it is what the greeting is pointing
+     at - the live finding, with its levels. -->
+<app-tradify-spotlight />
+
+<!-- Above the fold but below the page title, so the first thing on screen
+     is still what the reader came for. -->
+<app-ad-slot placement="DASHBOARD_TOP" />
+
+<app-market-status />
+
+<!-- The day in one band: what moved, and what was written about it. Both
+     were already on this page, three panels down; the two things that change
+     daily belong at the top. -->
+<div class="section">
+  <app-market-carousel />
+</div>
+
+<div class="section">
+  <app-market-pulse />
+</div>
+
+<!-- The macro backdrop. Placed directly under the market pulse because it
+     answers the question the pulse raises: the market moved, but against what
+     hurdle? A 7% policy rate is what every stock here has to beat. -->
+<div class="panel-card section">
+  <div class="panel-head">
+    <p class="panel-title">Tunisia — rates &amp; economy</p>
+  </div>
+  <div class="panel-body">
+    <app-macro-panel />
+  </div>
+</div>
+
+<!-- The alternatives. What a Tunisian investor is choosing against when they
+     choose equities — and, for gold especially, the traditional store of
+     value here. -->
+<div class="panel-card section">
+  <div class="panel-head">
+    <p class="panel-title">Commodities &amp; crypto</p>
+  </div>
+  <div class="panel-body">
+    <app-commodities-banner />
+  </div>
+</div>
+
+<app-market-summary />
+
+<div class="two-col-grid section">
+  <app-top-opportunities />
+  <app-market-news />
+</div>
+
+<!-- Between two content blocks rather than interrupting one. -->
+<app-ad-slot placement="DASHBOARD_INLINE" />
+
+<div class="section">
+  <p class="section-label">Movers</p>
+  <app-top-movers />
+</div>
+
+<div class="two-col-grid section">
+  <app-sector-distribution />
+  <app-ownership-distribution />
+</div>

@@ -1,0 +1,111 @@
+@if (!loading()) {
+  <section class="spot" [class.revealed]="revealed()">
+    <!-- A single sweep across the card on first paint. It fires once: a
+         looping shimmer stops reading as a discovery and starts reading as a
+         banner ad. -->
+    <span class="spot-sheen" aria-hidden="true"></span>
+    <span class="spot-glow" aria-hidden="true"></span>
+
+    <div class="spot-pitch">
+      <p class="spot-eyebrow">
+        <span class="spot-live-dot" aria-hidden="true"></span>
+        Tradify Scorer &amp; Analyst
+      </p>
+
+      <h2 class="spot-headline">
+        @if (find()) {
+          Someone had to read every listed company this morning.
+          <em>It wasn&rsquo;t you.</em>
+        } @else {
+          Every listed company, scored before you woke up.
+        }
+      </h2>
+
+      <p class="spot-sub">
+        The scorer ranks the whole exchange on valuation, financial health, timing,
+        income, momentum and news. The analyst then says the part a score leaves
+        out &mdash; the price worth paying.
+      </p>
+
+      <div class="spot-stats">
+        <div class="stat">
+          <span class="stat-value mono">{{ universe() ?? rows().length }}</span>
+          <span class="stat-label">companies read</span>
+        </div>
+        <span class="stat-rule" aria-hidden="true"></span>
+        <div class="stat">
+          <span class="stat-value mono accent">{{ liveCount() }}</span>
+          <span class="stat-label">entries live now</span>
+        </div>
+        <span class="stat-rule" aria-hidden="true"></span>
+        <div class="stat">
+          <span class="stat-value mono">{{ watchCount() }}</span>
+          <span class="stat-label">on the watchlist</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- The proof. A claim about the tool is worth less than one thing it
+         actually found, with the levels attached. -->
+    @if (find(); as row) {
+      <a class="spot-find" [routerLink]="['/app/analysis', row.symbol]">
+        <p class="find-flag">Live entry</p>
+
+        <div class="find-id">
+          <span class="find-symbol mono">{{ row.symbol }}</span>
+          <span class="find-score mono">{{ row.overallScore }}<span class="find-score-max">/100</span></span>
+        </div>
+        <p class="find-name">{{ row.name }}</p>
+
+        @if (row.tradeSetup; as setup) {
+          @if (setup.expectedReturnPct !== null) {
+            <p class="find-upside mono">
+              <span class="find-upside-sign">+</span>{{ setup.expectedReturnPct | number: '1.1-1' }}<span class="find-upside-pct">%</span>
+            </p>
+            <p class="find-upside-note">to first target, from the buy zone</p>
+          }
+
+          <div class="find-levels">
+            <div class="lvl">
+              <span class="lvl-label">Buy between</span>
+              <span class="lvl-value mono">
+                {{ setup.buyZoneLow | number: '1.3-3' }}&ndash;{{ setup.buyZoneHigh | number: '1.3-3' }}
+              </span>
+            </div>
+            <div class="lvl">
+              <span class="lvl-label">Trading at</span>
+              <span class="lvl-value mono">{{ setup.lastPrice | number: '1.3-3' }}</span>
+            </div>
+          </div>
+        }
+
+        <span class="find-cta">
+          See the full plan
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h13M13 6l6 6-6 6" />
+          </svg>
+        </span>
+      </a>
+    } @else {
+      <!-- Nothing live. Said plainly rather than dressed up: a spotlight that
+           always has a find is one nobody believes the second time. -->
+      <div class="spot-find empty">
+        <p class="find-flag quiet">Nothing live</p>
+        <p class="empty-text">
+          No stock is currently inside its buy zone with the turn confirmed.
+          @if (nextBest(); as next) {
+            The closest is <strong class="mono">{{ next.symbol }}</strong>, about
+            <strong class="mono">{{ next.tradeSetup!.distanceToZonePct | number: '1.0-0' }}%</strong>
+            above where it becomes worth buying.
+          }
+        </p>
+        <a class="find-cta" routerLink="/app/opportunities">
+          Browse the ranking
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h13M13 6l6 6-6 6" />
+          </svg>
+        </a>
+      </div>
+    }
+  </section>
+}

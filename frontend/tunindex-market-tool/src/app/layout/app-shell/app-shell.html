@@ -1,0 +1,42 @@
+<!-- Masthead: brand + search + utilities, then sections across the width.
+     A finance site is read top-down from a header, not operated from a
+     left rail — this is the structural difference from an admin console. -->
+<header class="shell-masthead">
+  <a class="shell-brand" routerLink="/app/dashboard">
+    <span class="brand-dot"></span>
+    <!-- "Market Tool" is the product and carries the weight; "Tunindex" is
+         the index it reads, so it sits above as a qualifier rather than as
+         the name. It also read "Tunidex" here - a missing n in the masthead
+         of every page. -->
+    <span class="brand-lockup">
+      <span class="brand-index">Tunindex</span>
+      <span class="brand-word">Market Tool</span>
+    </span>
+  </a>
+  <app-navbar />
+</header>
+
+<app-primary-nav />
+
+<app-market-ticker />
+
+<main class="shell-content">
+  <router-outlet />
+</main>
+
+<!-- No site-wide footer ad. It sat under every page on the app and made the
+     product look like it was hosting advertising rather than running a
+     market tool; the per-page slots earn their place, a permanent banner
+     under everything does not. The GLOBAL_FOOTER placement still exists
+     server-side, so nothing breaks if it is ever wanted back. -->
+
+<!-- Raised whenever the server answers a gated call with 402. Mounted here
+     so it works for any page, including ones that know nothing about ads. -->
+<app-ad-gate-overlay />
+
+<app-command-palette />
+
+<!-- Triggered by navigation, not by a page. Rate-limited inside the
+     component: without that cap this would raise a full-screen ad on every
+     click in the app. -->
+<app-ad-navigation-interstitial />

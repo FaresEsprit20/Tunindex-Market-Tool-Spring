@@ -1,0 +1,21 @@
+@if (isAdsense()) {
+  <div class="net" #unit>
+    <span class="net-label">Sponsored</span>
+    <!-- AdSense replaces this element in place. data-ad-client and
+         data-ad-slot are what tie the impression to the account that gets
+         paid; without both, the unit renders blank. -->
+    <ins class="adsbygoogle"
+         style="display:block"
+         [attr.data-ad-client]="publisherId"
+         [attr.data-ad-slot]="slotId"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+  </div>
+} @else if (isAdManager()) {
+  <div class="net" #unit>
+    <span class="net-label">Sponsored</span>
+    <!-- Ad Manager finds its slot by element id, so the id must be unique
+         on the page and must already exist when display() is called. -->
+    <div [id]="domId" class="gam-slot"></div>
+  </div>
+}

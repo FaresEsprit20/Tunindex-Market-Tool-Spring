@@ -1,0 +1,102 @@
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { OpportunityScore, SCORE_COMPONENTS, VERDICT_LABELS, Verdict } from '../../../core/models/opportunity.model';
+import { Stock } from '../../../core/services/stock';
+import { SkeletonBlock } from '../skeleton-block/skeleton-block';
+import { ScoreRing } from '../score-ring/score-ring';
+import { Sparkline } from '../sparkline/sparkline';
+import { ScoreHistoryPoint } from '../../../core/models/opportunity.model';
+import { RouterLink } from '@angular/router';
+import { reasonToFilter } from '../../../core/utils/reason-filters';
+
+/**
+ * One symbol's Tunindex Score with its component breakdown and the real
+ * figures behind it. Shares the model and thresholds with the Opportunities
+ * page so a stock reads identically in both places.
+ */
+@Component({
+  selector: 'app-score-panel',
+  imports: [SkeletonBlock, ScoreRing, RouterLink, Sparkline],
+  templateUrl: './score-panel.html',
+  styleUrl: './score-panel.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class ScorePanel {
+  /** Null when a reason has no screener equivalent — it then renders inert. */
+  protected readonly reasonToFilter = reasonToFilter;
+
+  protected filterParams(reason: string): Record<string, string> {
+    const filter = reasonToFilter(reason);
+    return filter ? { [filter.param]: filter.value } : {};
+  }
+
+  readonly symbol = input.required<string>();
+
+  private readonly stockService = inject(Stock);
+
+  protected readonly verdictLabels = VERDICT_LABELS;
+  protected readonly scoreComponents = SCORE_COMPONENTS;
+
+  protected readonly loading = signal(true);
+  protected readonly error = signal(false);
+  protected readonly score = signal<OpportunityScore | null>(null);
+  protected readonly history = signal<ScoreHistoryPoint[]>([]);
+
+  /** Score series for the sparkline. */
+  protected readonly historyPoints = computed(() => this.history().map((p) => p.overallScore));
+
+  /** Change since the first recorded day, or null with fewer than two points. */
+  protected readonly historyDelta = computed(() => {
+    const points = this.historyPoints();
+    if (points.length < 2) return null;
+    return points[points.length - 1] - points[0];
+  });
+
+  constructor() {
+    effect(() => {
+      const symbol = this.symbol();
+      if (!symbol) return;
+
+      this.loading.set(true);
+      this.error.set(false);
+      this.stockService.getScoreHistory(symbol, 90).subscribe({
+        next: (points) => this.history.set(points),
+        error: () => this.history.set([]),
+      });
+
+      this.stockService.getScore(symbol).subscribe({
+        next: (res) => {
+          this.score.set(res);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loading.set(false);
+          this.error.set(true);
+        },
+      });
+    });
+  }
+
+  protected verdictClass(verdict: Verdict): string {
+    switch (verdict) {
+      case 'STRONG_BUY':
+        return 'strong-buy';
+      case 'BUY':
+        return 'buy';
+      case 'WATCH':
+        return 'watch';
+      default:
+        return 'hold';
+    }
+  }
+
+  protected scoreClass(score: number): string {
+    if (score >= 80) return 'excellent';
+    if (score >= 65) return 'good';
+    if (score >= 50) return 'fair';
+    return 'weak';
+  }
+
+  protected componentValue(row: OpportunityScore, key: string): number | null {
+    return row[key as keyof OpportunityScore] as number | null;
+  }
+}

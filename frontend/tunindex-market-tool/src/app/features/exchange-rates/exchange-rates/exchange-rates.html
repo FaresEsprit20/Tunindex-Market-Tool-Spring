@@ -1,0 +1,112 @@
+<div class="page-head">
+  <div>
+    <p class="page-title">Exchange Rates</p>
+    <p class="page-sub">Live TND rates against major and regional currencies.</p>
+  </div>
+  @if (data(); as d) {
+    <span class="updated-label">Updated {{ d.lastUpdated | date: 'MMM d, HH:mm' }}</span>
+  }
+</div>
+
+@if (loading()) {
+  <div class="two-col-grid section">
+    <app-skeleton-block height="220px" radius="12px" />
+    <app-skeleton-block height="220px" radius="12px" />
+  </div>
+} @else if (error() || !data()) {
+  <app-empty-state title="Couldn't load exchange rates" message="Please try again shortly." />
+} @else if (data(); as d) {
+  <div class="two-col-grid section">
+    <!-- Converter -->
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Currency converter</p></div>
+      <div class="panel-body">
+        <div class="convert-row">
+          <div class="convert-field">
+            <span class="field-label">Tunisian Dinar</span>
+            <div class="convert-input-wrap">
+              <input
+                class="field-input mono"
+                type="text"
+                inputmode="decimal"
+                [value]="tndAmount()"
+                (input)="onTndInput($any($event.target).value)"
+              />
+              <span class="convert-unit">TND</span>
+            </div>
+          </div>
+
+          <div class="convert-swap">⇄</div>
+
+          <div class="convert-field">
+            <span class="field-label">Foreign currency</span>
+            <div class="convert-input-wrap">
+              <input
+                class="field-input mono"
+                type="text"
+                inputmode="decimal"
+                [value]="foreignAmount()"
+                (input)="onForeignInput($any($event.target).value)"
+              />
+              <select class="convert-select" [value]="selectedCode()" (change)="onSelectCurrency($any($event.target).value)">
+                @for (r of d.rates; track r.code) {
+                  <option [value]="r.code">{{ r.code }}</option>
+                }
+              </select>
+            </div>
+          </div>
+        </div>
+
+        @if (selectedRate(); as r) {
+          <p class="rate-footnote">1 {{ r.code }} = {{ r.rateToTnd | number: '1.4-4' }} TND &middot; 1 TND = {{ (1 / r.rateToTnd) | number: '1.4-4' }} {{ r.code }}</p>
+        }
+
+        <!-- Ready-reckoner for the amounts people convert most, so the
+             common case needs no typing at all. -->
+        @if (quickConversions().length > 0 && selectedRate(); as r) {
+          <div class="quick-table">
+            <p class="quick-title">Common amounts</p>
+            @for (row of quickConversions(); track row.tnd) {
+              <div class="quick-row">
+                <span class="quick-tnd mono">{{ row.tnd | number }} TND</span>
+                <span class="quick-arrow">→</span>
+                <span class="quick-foreign mono">{{ row.foreign | number: '1.2-2' }} {{ r.code }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Rates table -->
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">All rates</p></div>
+      <div class="table-scroll">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Currency</th>
+              <th class="num">1 unit = TND</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of d.rates; track r.code) {
+              <tr class="stock-row" [class.active-row]="r.code === selectedCode()" (click)="onSelectCurrency(r.code)">
+                <td>
+                  <span class="currency-cell">
+                    <app-country-flag class="flag" [code]="flagFor(r.code)" [title]="r.name" [width]="22" />
+                    <span class="currency-text">
+                      <span class="symbol-cell">{{ r.code }}</span>
+                      <span class="currency-name">{{ r.name }}</span>
+                    </span>
+                  </span>
+                </td>
+                <td class="num mono">{{ r.rateToTnd | number: '1.2-4' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}

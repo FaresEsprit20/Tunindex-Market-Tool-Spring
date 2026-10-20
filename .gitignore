@@ -1,0 +1,36 @@
+# H2 database files.
+#
+# The collector's database moved from in-memory to file-backed so that scraped
+# price history survives a restart - re-fetching a year of daily bars for ~70
+# symbols takes about twenty minutes and has to stay slow to be polite to the
+# source site. That makes the file valuable locally and useless in version
+# control: it is a multi-megabyte binary that changes on every scrape, so every
+# pipeline run would show up as an unreviewable diff.
+backend/data/
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Build output
+target/
+build/
+dist/
+*.class
+*.jar.original
+
+# Node
+node_modules/
+.angular/
+npm-debug.log*
+
+# IDE and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs and local environment
+*.log
+.env
+.env.local

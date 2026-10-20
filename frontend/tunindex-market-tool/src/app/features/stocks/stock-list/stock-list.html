@@ -1,0 +1,320 @@
+<div class="workspace">
+  <div class="workspace-bar">
+    <p class="workspace-title">Stocks</p>
+    <span class="workspace-count">{{ totalElements() }} listed</span>
+<div class="filter-inline">
+  <div class="search-wrap">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Search by name…"
+      [value]="searchInput()"
+      (input)="onSearchInput($any($event.target).value)"
+      (keydown.enter)="onSearchSubmit()"
+    />
+  </div>
+
+  <select class="sector-select" [value]="sector()" (change)="onSectorChange($any($event.target).value)">
+    <option value="">All sectors</option>
+    @for (s of sectorOptions; track s) {
+      <option [value]="s">{{ sectorLabels[s] }}</option>
+    }
+  </select>
+
+  <div class="preset-chips">
+    @for (key of primaryFlags; track key) {
+      <button type="button" class="chip" [class.active]="isFlagActive(key)" (click)="toggleFlag(key)">{{ flagLabels[key] }}</button>
+    }
+  </div>
+
+  <div class="col-picker">
+    <button
+      type="button"
+      class="chip"
+      [class.active]="columnMenuOpen()"
+      (click)="columnMenuOpen.set(!columnMenuOpen())"
+      aria-label="Choose which columns to show"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4zM10 4v16M16 4v16"></path></svg>
+      Columns
+    </button>
+    @if (columnMenuOpen()) {
+      <div class="col-menu">
+        @for (col of hideableColumns; track col.label) {
+          <label class="col-item">
+            <input type="checkbox" [checked]="isColumnVisible(col.label)" (change)="toggleColumn(col.label)" />
+            <span>{{ col.label }}</span>
+          </label>
+        }
+      </div>
+    }
+  </div>
+
+  <button type="button" class="chip more-toggle" [class.active]="showAdvanced()" (click)="toggleAdvanced()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>
+    More filters
+    @if (activeAdvancedCount() > 0) {
+      <span class="filter-count">{{ activeAdvancedCount() }}</span>
+    }
+  </button>
+    </div>
+  </div>
+
+@if (showAdvanced()) {
+    <div class="panel-card advanced-panel">
+    <div class="panel-body">
+      <p class="filter-group-label">Investor strategies <span class="group-hint">pick one</span></p>
+      <div class="advanced-presets">
+        @for (key of presetKeys; track key) {
+          <button type="button" class="chip" [class.active]="preset() === key" (click)="togglePreset(key)">{{ presetLabels[key] }}</button>
+        }
+      </div>
+
+      <p class="filter-group-label">Conditions <span class="group-hint">combine freely</span></p>
+      <div class="advanced-presets">
+        @for (key of moreFlags; track key) {
+          <button type="button" class="chip" [class.active]="isFlagActive(key)" (click)="toggleFlag(key)">{{ flagLabels[key] }}</button>
+        }
+      </div>
+
+      <p class="filter-group-label">Ownership</p>
+      <div class="advanced-presets">
+        <select class="sector-select" [value]="ownershipType()" (change)="onOwnershipChange($any($event.target).value)">
+          <option value="">Any ownership</option>
+          @for (option of ownershipOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+
+      <p class="filter-group-label">Ranges</p>
+      <div class="range-grid">
+        <div class="range-field">
+          <span class="range-field-label">Price (TND)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="priceRange().min" (input)="priceRange.set({ min: $any($event.target).value, max: priceRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="priceRange().max" (input)="priceRange.set({ min: priceRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">P/E ratio</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="peRange().min" (input)="peRange.set({ min: $any($event.target).value, max: peRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="peRange().max" (input)="peRange.set({ min: peRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Dividend yield (%)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="dividendYieldRange().min" (input)="dividendYieldRange.set({ min: $any($event.target).value, max: dividendYieldRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="dividendYieldRange().max" (input)="dividendYieldRange.set({ min: dividendYieldRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Debt / equity</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="debtToEquityRange().min" (input)="debtToEquityRange.set({ min: $any($event.target).value, max: debtToEquityRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="debtToEquityRange().max" (input)="debtToEquityRange.set({ min: debtToEquityRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Margin of safety (%)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="marginOfSafetyRange().min" (input)="marginOfSafetyRange.set({ min: $any($event.target).value, max: marginOfSafetyRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="marginOfSafetyRange().max" (input)="marginOfSafetyRange.set({ min: marginOfSafetyRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Profit margin (%)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="profitMarginRange().min" (input)="profitMarginRange.set({ min: $any($event.target).value, max: profitMarginRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="profitMarginRange().max" (input)="profitMarginRange.set({ min: profitMarginRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">EPS (TND)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="epsRange().min" (input)="epsRange.set({ min: $any($event.target).value, max: epsRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="epsRange().max" (input)="epsRange.set({ min: epsRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Book value / share</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="bvpsRange().min" (input)="bvpsRange.set({ min: $any($event.target).value, max: bvpsRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="bvpsRange().max" (input)="bvpsRange.set({ min: bvpsRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">Graham fair value (TND)</span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="grahamFairValueRange().min" (input)="grahamFairValueRange.set({ min: $any($event.target).value, max: grahamFairValueRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="grahamFairValueRange().max" (input)="grahamFairValueRange.set({ min: grahamFairValueRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+
+        <div class="range-field">
+          <span class="range-field-label">
+            Position in 52W range (%)
+            <span class="field-hint">100 = at the low</span>
+          </span>
+          <div class="range-inputs">
+            <input type="number" placeholder="Min" [value]="closeTo52WeekLowRange().min" (input)="closeTo52WeekLowRange.set({ min: $any($event.target).value, max: closeTo52WeekLowRange().max })" />
+            <span>–</span>
+            <input type="number" placeholder="Max" [value]="closeTo52WeekLowRange().max" (input)="closeTo52WeekLowRange.set({ min: closeTo52WeekLowRange().min, max: $any($event.target).value })" />
+          </div>
+        </div>
+      </div>
+
+      <div class="advanced-actions">
+        <button type="button" class="btn btn-secondary" (click)="clearAdvancedFilters()">Clear</button>
+        <button type="button" class="btn btn-primary" (click)="applyAdvancedFilters()">Apply filters</button>
+      </div>
+    </div>
+  </div>
+}
+
+  <app-split-pane class="workspace-row" storageKey="stocks" [initialRatio]="0.63" [minRatio]="0.3">
+    <div paneA class="panel-card fill">
+      <div
+        class="table-scroll"
+        tabindex="0"
+        role="grid"
+        aria-label="Stocks — use arrow keys to move between rows, Enter to open"
+        (keydown)="onGridKeydown($event)"
+      >
+    <table class="stock-table">
+      <thead>
+        <tr>
+          <th class="star-col"></th>
+          @for (col of tableColumns; track col.label) {
+            @if (!isColumnVisible(col.label)) {
+              <!-- hidden by the column picker -->
+            } @else if (col.field === null) {
+              <!-- Change is derived client-side from lastPrice vs prevClose,
+                   so there is no server-side column to sort it by. -->
+              <th [class.num]="col.numeric">{{ col.label }}</th>
+            } @else {
+              <th
+                [class.num]="col.numeric"
+                class="sortable"
+                [class.sorted]="sortField() === col.field"
+                [attr.aria-sort]="sortField() === col.field ? (sortDirection() === 'ASC' ? 'ascending' : 'descending') : 'none'"
+                (click)="toggleSort(col.field)"
+              >
+                <span class="th-inner">
+                  {{ col.label }}
+                  <svg class="sort-caret" [class.desc]="sortField() === col.field && sortDirection() === 'DESC'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 15l6-6 6 6"></path>
+                  </svg>
+                </span>
+              </th>
+            }
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+            <tr class="skeleton-row">
+              <td [attr.colspan]="visibleColumnCount()"><app-skeleton-block height="18px" /></td>
+            </tr>
+          }
+        } @else if (error()) {
+          <tr><td [attr.colspan]="visibleColumnCount()" class="empty-cell">Couldn't load stocks. Try again shortly.</td></tr>
+        } @else if (rows().length === 0) {
+          <tr><td [attr.colspan]="visibleColumnCount()" class="empty-cell">No stocks match these filters.</td></tr>
+        } @else {
+          @for (stock of rows(); track stock.id; let idx = $index) {
+            <tr
+              class="stock-row"
+              [class.active]="activeRow() === idx"
+              [class.selected]="selectedSymbol() === stock.symbol"
+              (click)="selectStock(stock.symbol, idx)"
+              (dblclick)="openStock(stock.symbol)"
+            >
+              <td class="star-col"><app-watchlist-star [symbol]="stock.symbol" /></td>
+              <td class="symbol-cell" [style.view-transition-name]="transitioningSymbol() === stock.symbol ? 'stock-symbol' : null"><app-country-flag class="row-flag" [code]="exchangeCountry(stock.exchange)" [width]="15" [title]="stock.exchange ?? ''" />{{ stock.symbol }}</td>
+              @if (isColumnVisible('Name')) {<td class="name-cell">{{ stock.name }}</td>}
+              @if (isColumnVisible('Sector')) {
+              <td>
+                @if (stock.sector) {
+                  <span class="sector-tag">{{ sectorLabels[stock.sector] }}</span>
+                }
+              </td>
+              }
+              @if (isColumnVisible('Price')) {
+              <td
+                class="num mono price-cell"
+                [class.tick-up]="flashFor(stock.symbol) === 'up'"
+                [class.tick-down]="flashFor(stock.symbol) === 'down'"
+              >{{ livePrice(stock) !== null ? (livePrice(stock) | number: '1.2-2') + ' ' + (stock.currency ?? '') : '—' }}</td>
+              }
+              @if (isColumnVisible('Change')) {
+              <td class="num mono">
+                @if (liveChangePct(stock); as chg) {
+                  <span [class.positive]="chg > 0" [class.negative]="chg < 0">{{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%</span>
+                } @else {
+                  —
+                }
+              </td>
+              }
+              @if (isColumnVisible('30D trend')) {
+              <td class="spark-cell">
+                <app-sparkline [points]="sparklineFor(stock.symbol)" />
+              </td>
+              }
+              @if (isColumnVisible('52W range')) {
+              <td class="range-cell">
+                <app-range-bar [min]="stock.week52Low" [max]="stock.week52High" [current]="stock.lastPrice" [compact]="true" />
+              </td>
+              }
+              @if (isColumnVisible('P/E')) {<td class="num mono">{{ stock.peRatio !== null ? (stock.peRatio | number: '1.1-1') : '—' }}</td>}
+              @if (isColumnVisible('Margin of safety')) {
+              <td class="num mono" [class.positive]="(stock.marginOfSafety ?? 0) > 0" [class.negative]="(stock.marginOfSafety ?? 0) < 0">
+                {{ stock.marginOfSafety !== null ? (stock.marginOfSafety | number: '1.1-1') + '%' : '—' }}
+              </td>
+              }
+            </tr>
+          }
+        }
+      </tbody>
+        </table>
+      </div>
+
+      @if (!loading() && !error() && rows().length > 0) {
+        <div class="pagination-wrap">
+          <app-pagination [page]="page()" [totalPages]="totalPages()" [totalElements]="totalElements()" (pageChange)="onPageChange($event)" />
+        </div>
+      }
+
+      <!-- After the pagination control, so it never sits between a table
+           and the control that pages it. -->
+      <app-ad-slot placement="STOCK_LIST_INLINE" />
+    </div>
+
+    <div paneB class="panel-card fill preview-panel">
+      <div class="panel-body">
+        <app-stock-preview [symbol]="selectedSymbol()" />
+      </div>
+    </div>
+  </app-split-pane>
+</div>

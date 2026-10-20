@@ -1,0 +1,12 @@
+<button
+  type="button"
+  class="star-btn"
+  [class.active]="isWatched()"
+  [attr.aria-label]="isWatched() ? 'Remove ' + symbol() + ' from watchlist' : 'Add ' + symbol() + ' to watchlist'"
+  [attr.aria-pressed]="isWatched()"
+  (click)="toggle($event)"
+>
+  <svg viewBox="0 0 24 24" [attr.fill]="isWatched() ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.5-5.8-3.1-5.8 3.1 1.1-6.5-4.8-4.6 6.6-.9z" />
+  </svg>
+</button>

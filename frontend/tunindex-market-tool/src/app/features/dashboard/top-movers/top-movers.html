@@ -1,0 +1,55 @@
+<div class="movers-grid">
+  <div class="panel-card mover-panel">
+    <div class="panel-head">
+      <p class="panel-title">Top gainers</p>
+      <span class="mover-icon positive">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"></path><path d="M17 6h6v6"></path></svg>
+      </span>
+    </div>
+    <div class="mover-list">
+      @if (loading()) {
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="mover-row"><app-skeleton-block height="16px" /></div>
+        }
+      } @else if (error()) {
+        <p class="empty-msg">Couldn't load movers.</p>
+      } @else {
+        @for (m of gainers(); track m.stock.id) {
+          <button type="button" class="mover-row" (click)="openStock(m.stock.symbol)">
+            <span class="mover-symbol">{{ m.stock.symbol }}</span>
+            <span class="mover-name">{{ m.stock.name }}</span>
+            <span class="mover-price mono">{{ m.stock.lastPrice | number: '1.2-2' }}</span>
+            <span class="mover-change positive mono">+{{ m.changePct | number: '1.2-2' }}%</span>
+          </button>
+        }
+      }
+    </div>
+  </div>
+
+  <div class="panel-card mover-panel">
+    <div class="panel-head">
+      <p class="panel-title">Top losers</p>
+      <span class="mover-icon negative">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 18l-9.5-9.5-5 5L1 6"></path><path d="M17 18h6v-6"></path></svg>
+      </span>
+    </div>
+    <div class="mover-list">
+      @if (loading()) {
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="mover-row"><app-skeleton-block height="16px" /></div>
+        }
+      } @else if (error()) {
+        <p class="empty-msg">Couldn't load movers.</p>
+      } @else {
+        @for (m of losers(); track m.stock.id) {
+          <button type="button" class="mover-row" (click)="openStock(m.stock.symbol)">
+            <span class="mover-symbol">{{ m.stock.symbol }}</span>
+            <span class="mover-name">{{ m.stock.name }}</span>
+            <span class="mover-price mono">{{ m.stock.lastPrice | number: '1.2-2' }}</span>
+            <span class="mover-change negative mono">{{ m.changePct | number: '1.2-2' }}%</span>
+          </button>
+        }
+      }
+    </div>
+  </div>
+</div>

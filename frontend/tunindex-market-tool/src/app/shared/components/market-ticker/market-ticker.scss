@@ -1,0 +1,114 @@
+:host {
+  display: block;
+  overflow: hidden;
+  background: var(--color-panel);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent, black 4%, black 96%, transparent);
+}
+
+.ticker-track {
+  display: inline-flex;
+  animation: ticker-scroll 38s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.ticker-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-right: 1px solid var(--color-border);
+}
+
+// A one-shot wash when a price actually moves. The strip is already in
+// constant motion, so a change has to announce itself with colour rather
+// than movement to be noticed at all.
+.ticker-item.tick-up,
+.ticker-item.tick-down {
+  animation: ticker-tick 1.5s var(--ease-standard);
+}
+
+.ticker-item.tick-up {
+  --tick-color: var(--color-positive);
+}
+
+.ticker-item.tick-down {
+  --tick-color: var(--color-negative);
+}
+
+@keyframes ticker-tick {
+  0% {
+    background-color: color-mix(in srgb, var(--tick-color) 26%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-item.tick-up,
+  .ticker-item.tick-down {
+    animation: none;
+  }
+}
+
+.ticker-symbol {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: 0.02em;
+}
+
+.ticker-price {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ticker-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+
+  svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  &.up {
+    color: var(--color-positive);
+  }
+
+  &.down {
+    color: var(--color-negative);
+  }
+}
+
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}

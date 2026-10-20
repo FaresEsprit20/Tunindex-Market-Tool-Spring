@@ -1,0 +1,19 @@
+RUNNING TUNINDEX MARKET TOOL IN DOCKER
+=======================================
+
+1. Start Docker Desktop.
+
+2. Make sure backend/.env has real values for:
+   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI,
+   MAIL_USERNAME, MAIL_PASSWORD
+   (api and mailing-service won't start without these.)
+
+3. Open PowerShell in the market-tool folder and run:
+   powershell -ExecutionPolicy Bypass -File scripts\docker-run.ps1
+
+App:      http://localhost:4200
+Gateway:  http://localhost:8070
+Eureka:   http://localhost:8761
+
+Logs:  docker compose logs -f [service]
+Stop:  docker compose down

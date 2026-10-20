@@ -1,0 +1,94 @@
+<div class="search-wrap">
+  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+  <input
+    class="search-input"
+    type="text"
+    placeholder="Search symbol or company…"
+    [value]="searchQuery()"
+    (input)="onQueryInput($any($event.target).value)"
+    (focus)="onSearchFocus()"
+    (keydown.enter)="onSearchSubmit()"
+    (keydown.escape)="dropdownOpen.set(false)"
+  />
+  <!-- Discoverability affordance for the global command palette (⌘K), which
+       is a superset of this inline search. Hidden while typing so it never
+       sits on top of the query text. -->
+  @if (searchQuery().length === 0) {
+    <kbd class="search-kbd">{{ shortcutHint }}</kbd>
+  }
+  @if (dropdownOpen()) {
+    <div class="search-dropdown">
+      @if (searching()) {
+        <div class="dropdown-status">Searching…</div>
+      } @else if (results().length === 0) {
+        <div class="dropdown-status">No matches for "{{ searchQuery() }}"</div>
+      } @else {
+        @for (r of results(); track r.id) {
+          <button type="button" class="dropdown-item" (click)="openStock(r.symbol)">
+            <span class="dropdown-symbol">{{ r.symbol }}</span>
+            <span class="dropdown-name">{{ r.name }}</span>
+            @if (r.lastPrice !== null) {
+              <span class="dropdown-price mono">{{ r.lastPrice }} {{ r.currency }}</span>
+            }
+          </button>
+        }
+      }
+      <button type="button" class="dropdown-footer" (click)="onSearchSubmit()">
+        See all results for "{{ searchQuery() }}"
+      </button>
+    </div>
+  }
+</div>
+
+<!-- Centre of the masthead. Previously empty space between the search box
+     and the utility cluster; the exchange clock is the one fact worth that
+     position, since it governs whether anything else on screen can be acted on. -->
+<app-session-clock class="navbar-session" />
+
+<div class="navbar-right">
+  <div class="market-status" [title]="freshnessLabel()">
+    @if (freshness() === 'live') {
+      <app-pulse-dot variant="positive" size="sm" />
+    } @else if (freshness() === 'recent') {
+      <app-pulse-dot variant="warning" size="sm" />
+    } @else if (freshness() === 'stale') {
+      <app-pulse-dot variant="negative" size="sm" />
+    } @else {
+      <span class="status-dot-idle"></span>
+    }
+    <span>{{ freshnessLabel() }}</span>
+  </div>
+
+  <button
+    type="button"
+    class="density-toggle"
+    (click)="cycleDensity()"
+    [title]="'Density: ' + densityLabel() + ' — click to change'"
+    [attr.aria-label]="'Row density, currently ' + densityLabel() + '. Click to change.'"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      @if (density.mode() === 'comfortable') {
+        <path d="M4 7h16M4 12h16M4 17h16"></path>
+      } @else if (density.mode() === 'compact') {
+        <path d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+      } @else {
+        <path d="M4 5h16M4 8h16M4 11h16M4 14h16M4 17h16M4 20h16"></path>
+      }
+    </svg>
+  </button>
+
+  <app-notification-bell />
+
+  <button
+    type="button"
+    class="theme-toggle"
+    (click)="onThemeToggle($event)"
+    [attr.aria-label]="theme.mode() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+  >
+    @if (theme.mode() === 'dark') {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"></path></svg>
+    } @else {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path></svg>
+    }
+  </button>
+</div>

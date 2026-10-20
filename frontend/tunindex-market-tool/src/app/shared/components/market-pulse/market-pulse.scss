@@ -1,0 +1,483 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.pulse {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 14px 16px 18px;
+}
+
+.pulse-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pulse-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.pulse-asof {
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pulse-subtitle {
+  margin: 0 0 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+}
+
+.pulse-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Breadth ─────────────────────────────────────────────────────────────── */
+
+.breadth-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.breadth-avg {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.breadth-avg-value {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+
+  &.positive {
+    color: var(--color-positive);
+  }
+
+  &.negative {
+    color: var(--color-negative);
+  }
+}
+
+.breadth-avg-label {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+}
+
+.breadth-counts {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+
+  .count.up {
+    color: var(--color-positive);
+  }
+
+  .count.down {
+    color: var(--color-negative);
+  }
+
+  .count.flat {
+    color: var(--color-text-tertiary);
+  }
+}
+
+.count-sep {
+  color: var(--color-border-strong);
+  font-weight: 400;
+}
+
+.breadth-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-panel-alt);
+
+  .seg {
+    // Segments animate to their share on load, so the day's shape reads as a
+    // motion rather than a static bar the eye skips over.
+    transition: width 0.5s var(--ease-standard);
+
+    &.up {
+      background: var(--color-positive);
+    }
+
+    &.down {
+      background: var(--color-negative);
+    }
+
+    &.flat {
+      background: var(--color-border-strong);
+    }
+  }
+}
+
+.breadth-note {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+
+  .muted {
+    opacity: 0.8;
+  }
+}
+
+/* ── Movers ──────────────────────────────────────────────────────────────── */
+
+.movers-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.movers-tab {
+  padding: 5px 9px 6px;
+  background: none;
+  border: none;
+  // The underline is drawn on a transparent border so the active and inactive
+  // tabs occupy identical boxes — a border that appears only when active
+  // shifts every label by a pixel on each switch.
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    color: var(--color-text-secondary);
+  }
+
+  &.active {
+    color: var(--color-brand);
+    border-bottom-color: var(--color-brand);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: -2px;
+  }
+}
+
+.movers-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mover-row + .mover-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.mover-link {
+  display: grid;
+  // Symbol and both figures are fixed; the name is the only elastic column,
+  // matching how the main grid allocates width.
+  grid-template-columns: 52px minmax(0, 1fr) 62px 62px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.12s ease;
+
+  &:hover {
+    background: var(--color-panel-alt);
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: -2px;
+  }
+}
+
+.mover-symbol {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.mover-name {
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mover-figure {
+  font-size: 11.5px;
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mover-change {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+
+  &.positive {
+    color: var(--color-positive);
+  }
+
+  &.negative {
+    color: var(--color-negative);
+  }
+}
+
+.movers-empty {
+  margin: 10px 0;
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+}
+
+/* ── Sectors ─────────────────────────────────────────────────────────────── */
+
+.sector-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sector-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 54px 34px;
+  align-items: center;
+  gap: 8px;
+}
+
+.sector-name {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sector-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-panel-alt);
+}
+
+// The zero line. Every bar is measured from here, so it is drawn rather
+// than implied — without it a reader has to infer where neutral sits.
+.sector-axis {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--color-border-strong);
+}
+
+.sector-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transition: width 0.5s var(--ease-standard);
+
+  // Only the outer end is rounded; the end meeting the axis stays square so
+  // the bar reads as growing out of the zero line rather than floating near it.
+  &.up {
+    left: 50%;
+    background: var(--color-positive);
+    border-radius: 0 999px 999px 0;
+  }
+
+  &.down {
+    right: 50%;
+    background: var(--color-negative);
+    border-radius: 999px 0 0 999px;
+  }
+}
+
+.sector-value {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+
+  &.positive {
+    color: var(--color-positive);
+  }
+
+  &.negative {
+    color: var(--color-negative);
+  }
+
+  &.muted {
+    color: var(--color-text-tertiary);
+    font-weight: 400;
+    font-size: 9.5px;
+  }
+}
+
+.sector-count {
+  font-size: 9.5px;
+  text-align: right;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Unusual activity ────────────────────────────────────────────────────── */
+
+.unusual-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.unusual-link {
+  display: grid;
+  grid-template-columns: 52px 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.12s ease;
+
+  &:hover {
+    background: var(--color-panel-alt);
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: -2px;
+  }
+}
+
+.unusual-symbol {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+// A tinted tag rather than a filled pill: these rows sit under a table full
+// of coloured figures, and six saturated badges would outrank the prices.
+.unusual-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-alt);
+  color: var(--color-text-secondary);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: center;
+  white-space: nowrap;
+
+  &.bullish {
+    background: color-mix(in srgb, var(--color-positive) 14%, transparent);
+    color: var(--color-positive);
+  }
+
+  &.bearish {
+    background: color-mix(in srgb, var(--color-negative) 14%, transparent);
+    color: var(--color-negative);
+  }
+}
+
+.unusual-detail {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Loading / failure ───────────────────────────────────────────────────── */
+
+.pulse-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.pulse-loading-bar {
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-panel-alt);
+  animation: pulse-shimmer 1.4s ease-in-out infinite;
+
+  &:nth-child(2) {
+    height: 120px;
+    animation-delay: 0.1s;
+  }
+
+  &:nth-child(3) {
+    height: 150px;
+    animation-delay: 0.2s;
+  }
+}
+
+@keyframes pulse-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.pulse-failed {
+  padding: 20px 16px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breadth-bar .seg,
+  .sector-fill {
+    transition: none;
+  }
+
+  .pulse-loading-bar {
+    animation: none;
+  }
+}

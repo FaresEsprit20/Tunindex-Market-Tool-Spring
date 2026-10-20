@@ -1,0 +1,62 @@
+:host {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+// Deliberately not called `ring`: Tailwind ships a `.ring` utility that
+// applies a 1px ring shadow, and a bare `ring` class here silently picked
+// it up, drawing a dark box around the SVG.
+.score-ring-svg {
+  display: block;
+  overflow: visible;
+}
+
+circle {
+  fill: none;
+  stroke-linecap: butt;
+}
+
+.arc-track {
+  stroke: var(--color-border);
+}
+
+.arc-fill {
+  // Each segment grows from empty on first paint, so the ring assembles
+  // itself rather than appearing complete. Transitioning the dasharray
+  // (not a transform) keeps every arc anchored to its own slot.
+  transition: stroke-dasharray 0.6s var(--ease-standard);
+
+  &.excellent { stroke: var(--color-positive); }
+  &.good      { stroke: var(--color-brand); }
+  &.fair      { stroke: var(--color-warning); }
+  &.weak      { stroke: var(--color-negative); }
+  // A component with no data draws nothing, leaving its track visible —
+  // "unknown" must not look like "scored badly".
+  &.none      { stroke: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-fill { transition: none; }
+}
+
+.ring-value {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: var(--color-text-primary);
+
+  &.excellent { fill: var(--color-positive); }
+  &.good      { fill: var(--color-brand); }
+  &.fair      { fill: var(--color-warning); }
+}
+
+.ring-max {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-anchor: middle;
+  fill: var(--color-text-tertiary);
+}

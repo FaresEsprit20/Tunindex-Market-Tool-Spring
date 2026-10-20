@@ -1,0 +1,456 @@
+package com.tunindex.market_tool.api.services.portfolio;
+
+import com.tunindex.market_tool.api.dto.portfolio.PortfolioPositionDto;
+import com.tunindex.market_tool.api.dto.portfolio.PortfolioSummaryDto;
+import com.tunindex.market_tool.api.dto.portfolio.PortfolioTransactionDto;
+import com.tunindex.market_tool.api.dto.stock.StockResponseDto;
+import com.tunindex.market_tool.api.services.notification.NotificationService;
+import com.tunindex.market_tool.api.entities.PortfolioAccount;
+import com.tunindex.market_tool.api.entities.PortfolioPosition;
+import com.tunindex.market_tool.api.entities.PortfolioTransaction;
+import com.tunindex.market_tool.api.entities.User;
+import com.tunindex.market_tool.api.entities.enums.TransactionSide;
+import com.tunindex.market_tool.api.repository.PortfolioAccountRepository;
+import com.tunindex.market_tool.api.repository.PortfolioPositionRepository;
+import com.tunindex.market_tool.api.repository.PortfolioTransactionRepository;
+import com.tunindex.market_tool.api.repository.UserRepository;
+import com.tunindex.market_tool.common.exception.ErrorCodes;
+import com.tunindex.market_tool.common.exception.InvalidEntityException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PortfolioServiceImpl implements PortfolioService {
+
+    private static final String COLLECTOR_URL = "http://collector-service/internal/stock-data";
+    private static final int MONEY_SCALE = 3;
+
+    private final PortfolioAccountRepository portfolioAccountRepository;
+    private final PortfolioPositionRepository portfolioPositionRepository;
+    private final PortfolioTransactionRepository portfolioTransactionRepository;
+    private final UserRepository userRepository;
+    private final WebClient.Builder webClientBuilder;
+    private final NotificationService notificationService;
+    private final DayChangeCalculator dayChangeCalculator;
+
+    @Value("${internal.api.key:market-tool-internal-secret-key-2024}")
+    private String internalApiKey;
+
+    @Override
+    public PortfolioSummaryDto getPortfolio(Authentication authentication) {
+        User user = resolveUser(authentication);
+        PortfolioAccount account = getOrCreateAccount(user);
+        List<PortfolioPosition> positions = portfolioPositionRepository.findByAccountIdOrderBySymbolAsc(account.getId());
+
+        List<PortfolioPositionDto> positionDtos = new ArrayList<>();
+        BigDecimal totalMarketValue = BigDecimal.ZERO;
+        BigDecimal totalCostBasis = BigDecimal.ZERO;
+        BigDecimal totalDayChangeValue = BigDecimal.ZERO;
+        BigDecimal prevDayMarketValue = BigDecimal.ZERO;
+        Map<String, BigDecimal> quantityBoughtToday = quantityBoughtToday(account.getId());
+
+        for (PortfolioPosition position : positions) {
+            BigDecimal currentPrice = position.getAvgCostBasis();
+            String name = position.getSymbol();
+            BigDecimal prevClose = null;
+            try {
+                StockResponseDto stock = fetchStock(position.getSymbol());
+                if (stock.getLastPrice() != null) {
+                    currentPrice = stock.getLastPrice();
+                }
+                if (stock.getName() != null) {
+                    name = stock.getName();
+                }
+                prevClose = stock.getPrevClose();
+            } catch (Exception ex) {
+                log.warn("Live price refresh failed for {} while building portfolio, falling back to cost basis", position.getSymbol());
+            }
+
+            BigDecimal marketValue = currentPrice.multiply(position.getQuantity()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            BigDecimal costBasisTotal = position.getAvgCostBasis().multiply(position.getQuantity()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+            BigDecimal unrealizedPnl = marketValue.subtract(costBasisTotal);
+            BigDecimal unrealizedPnlPct = costBasisTotal.compareTo(BigDecimal.ZERO) == 0
+                    ? BigDecimal.ZERO
+                    : unrealizedPnl.divide(costBasisTotal, 6, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+
+            // Today's move, counted only on shares actually held through
+            // yesterday's close.
+            //
+            // Shares bought today were not exposed to the move from the
+            // previous close to now - that move happened before they were
+            // owned. Counting them credited a position with a gain (or debited
+            // a loss) it could not have experienced: buy at today's price and
+            // the portfolio immediately showed the whole day's move as profit.
+            //
+            // Computed from today's BUY transactions rather than a flag on the
+            // position, which also handles the partial case correctly: holding
+            // 100 shares from last week and buying 50 more today counts the
+            // day's move on 100, not 150 and not zero.
+            DayChangeCalculator.DayChange dayChange = dayChangeCalculator.calculate(
+                    position.getQuantity(),
+                    quantityBoughtToday.getOrDefault(position.getSymbol(), BigDecimal.ZERO),
+                    prevClose,
+                    currentPrice);
+
+            BigDecimal heldSinceYesterday = dayChange.eligibleQuantity();
+            BigDecimal dayChangeValue = dayChange.value();
+            BigDecimal dayChangePct = dayChange.percent();
+
+            if (dayChange.applies()) {
+                totalDayChangeValue = totalDayChangeValue.add(dayChangeValue);
+                // Yesterday's value of the qualifying shares, so the
+                // portfolio-level percentage is weighted by position size
+                // rather than averaging each position's percentage flat.
+                prevDayMarketValue = prevDayMarketValue.add(dayChange.previousDayValue());
+            }
+
+            totalMarketValue = totalMarketValue.add(marketValue);
+            totalCostBasis = totalCostBasis.add(costBasisTotal);
+
+            positionDtos.add(PortfolioPositionDto.builder()
+                    .symbol(position.getSymbol())
+                    .name(name)
+                    .quantity(position.getQuantity())
+                    .avgCostBasis(position.getAvgCostBasis())
+                    .currentPrice(currentPrice)
+                    .marketValue(marketValue)
+                    .unrealizedPnl(unrealizedPnl)
+                    .unrealizedPnlPct(unrealizedPnlPct)
+                    .prevClose(prevClose)
+                    .dayChangeValue(dayChangeValue)
+                    .dayChangePct(dayChangePct)
+                    .dayChangeQuantity(heldSinceYesterday)
+                    .build());
+        }
+
+        BigDecimal totalUnrealizedPnl = totalMarketValue.subtract(totalCostBasis);
+        BigDecimal totalUnrealizedPnlPct = totalCostBasis.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : totalUnrealizedPnl.divide(totalCostBasis, 6, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+
+        BigDecimal totalRealizedPnl = portfolioTransactionRepository.findByAccountIdOrderByExecutedAtDesc(account.getId())
+                .stream()
+                .map(PortfolioTransaction::getRealizedPnl)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPortfolioValue = account.getCashBalance().add(totalMarketValue);
+        BigDecimal totalReturnPct = totalPortfolioValue.subtract(PortfolioAccount.STARTING_CASH)
+                .divide(PortfolioAccount.STARTING_CASH, 6, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
+
+        return PortfolioSummaryDto.builder()
+                .cashBalance(account.getCashBalance())
+                .startingCash(PortfolioAccount.STARTING_CASH)
+                .positions(positionDtos)
+                .totalMarketValue(totalMarketValue)
+                .totalPortfolioValue(totalPortfolioValue)
+                .totalUnrealizedPnl(totalUnrealizedPnl)
+                .totalUnrealizedPnlPct(totalUnrealizedPnlPct)
+                .totalRealizedPnl(totalRealizedPnl)
+                .totalDayChangeValue(totalDayChangeValue)
+                .totalDayChangePct(prevDayMarketValue.compareTo(BigDecimal.ZERO) > 0
+                        ? totalDayChangeValue.divide(prevDayMarketValue, 6, RoundingMode.HALF_UP)
+                                .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO)
+                .totalReturnPct(totalReturnPct)
+                .build();
+    }
+
+    @Override
+    public List<PortfolioTransactionDto> getTransactions(Authentication authentication) {
+        User user = resolveUser(authentication);
+        PortfolioAccount account = getOrCreateAccount(user);
+        return portfolioTransactionRepository.findByAccountIdOrderByExecutedAtDesc(account.getId())
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public PortfolioTransactionDto buy(Authentication authentication, String symbolRaw, BigDecimal quantity) {
+        validateQuantity(quantity);
+        User user = resolveUser(authentication);
+        String symbol = symbolRaw.trim().toUpperCase();
+        StockResponseDto stock = fetchStock(symbol);
+        BigDecimal price = stock.getLastPrice();
+        BigDecimal totalCost = price.multiply(quantity).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        PortfolioAccount account = getOrCreateAccount(user);
+        if (account.getCashBalance().compareTo(totalCost) < 0) {
+            throw new InvalidEntityException(
+                    "Insufficient cash balance",
+                    ErrorCodes.PORTFOLIO_INSUFFICIENT_FUNDS,
+                    List.of("required: " + totalCost + ", available: " + account.getCashBalance()));
+        }
+
+        PortfolioPosition position = portfolioPositionRepository.findByAccountIdAndSymbol(account.getId(), symbol)
+                .orElseGet(() -> PortfolioPosition.builder()
+                        .account(account)
+                        .symbol(symbol)
+                        .quantity(BigDecimal.ZERO)
+                        .avgCostBasis(BigDecimal.ZERO)
+                        .build());
+
+        BigDecimal existingCostTotal = position.getQuantity().multiply(position.getAvgCostBasis());
+        BigDecimal newQty = position.getQuantity().add(quantity);
+        BigDecimal newAvgCost = existingCostTotal.add(totalCost).divide(newQty, 6, RoundingMode.HALF_UP);
+
+        position.setQuantity(newQty);
+        position.setAvgCostBasis(newAvgCost);
+        portfolioPositionRepository.save(position);
+
+        account.setCashBalance(account.getCashBalance().subtract(totalCost));
+        portfolioAccountRepository.save(account);
+
+        PortfolioTransaction tx = PortfolioTransaction.builder()
+                .account(account)
+                .symbol(symbol)
+                .side(TransactionSide.BUY)
+                .quantity(quantity)
+                .price(price)
+                .totalAmount(totalCost)
+                .build();
+        portfolioTransactionRepository.save(tx);
+
+        log.info("Portfolio BUY: user={} symbol={} qty={} price={}", user.getEmail(), symbol, quantity, price);
+        notifyExecution(user, tx, price, quantity);
+        return toDto(tx);
+    }
+
+    @Override
+    @Transactional
+    public PortfolioTransactionDto sell(Authentication authentication, String symbolRaw, BigDecimal quantity) {
+        validateQuantity(quantity);
+        User user = resolveUser(authentication);
+        String symbol = symbolRaw.trim().toUpperCase();
+        PortfolioAccount account = getOrCreateAccount(user);
+
+        PortfolioPosition position = portfolioPositionRepository.findByAccountIdAndSymbol(account.getId(), symbol)
+                .orElseThrow(() -> new InvalidEntityException(
+                        "No position held in " + symbol,
+                        ErrorCodes.PORTFOLIO_POSITION_NOT_FOUND,
+                        Collections.singletonList("symbol: " + symbol)));
+
+        if (position.getQuantity().compareTo(quantity) < 0) {
+            throw new InvalidEntityException(
+                    "Insufficient shares held",
+                    ErrorCodes.PORTFOLIO_INSUFFICIENT_SHARES,
+                    List.of("held: " + position.getQuantity() + ", requested: " + quantity));
+        }
+
+        StockResponseDto stock = fetchStock(symbol);
+        BigDecimal price = stock.getLastPrice();
+        BigDecimal proceeds = price.multiply(quantity).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        BigDecimal realizedPnl = price.subtract(position.getAvgCostBasis()).multiply(quantity).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        BigDecimal remainingQty = position.getQuantity().subtract(quantity);
+        if (remainingQty.compareTo(BigDecimal.ZERO) == 0) {
+            portfolioPositionRepository.delete(position);
+        } else {
+            position.setQuantity(remainingQty);
+            portfolioPositionRepository.save(position);
+        }
+
+        account.setCashBalance(account.getCashBalance().add(proceeds));
+        portfolioAccountRepository.save(account);
+
+        PortfolioTransaction tx = PortfolioTransaction.builder()
+                .account(account)
+                .symbol(symbol)
+                .side(TransactionSide.SELL)
+                .quantity(quantity)
+                .price(price)
+                .totalAmount(proceeds)
+                .realizedPnl(realizedPnl)
+                .build();
+        portfolioTransactionRepository.save(tx);
+
+        log.info("Portfolio SELL: user={} symbol={} qty={} price={} realizedPnl={}", user.getEmail(), symbol, quantity, price, realizedPnl);
+        notifyExecution(user, tx, price, quantity);
+        return toDto(tx);
+    }
+
+    @Override
+    @Transactional
+    public PortfolioSummaryDto resetAccount(Authentication authentication) {
+        User user = resolveUser(authentication);
+        PortfolioAccount account = getOrCreateAccount(user);
+        portfolioTransactionRepository.deleteByAccountId(account.getId());
+        portfolioPositionRepository.deleteAll(portfolioPositionRepository.findByAccountIdOrderBySymbolAsc(account.getId()));
+        account.setCashBalance(PortfolioAccount.STARTING_CASH);
+        portfolioAccountRepository.save(account);
+        log.info("Portfolio account reset for user={}", user.getEmail());
+        return getPortfolio(authentication);
+    }
+
+    /**
+     * Race-safe account lookup. The portfolio page issues its summary and
+     * transactions requests concurrently, so on a user's very first visit
+     * both can miss the account and both try to insert one — the second
+     * then dies on the unique constraint over user_id and the page half
+     * fails to load. saveAndFlush surfaces that conflict here (rather than
+     * at commit, where it could not be handled) so the loser of the race
+     * can simply read the row the winner just created.
+     */
+    /**
+     * Shares bought today, by symbol, for the account.
+     *
+     * <p>Used to keep today's purchases out of today's change: a share bought
+     * this morning was not held at yesterday's close, so the move from that
+     * close to now is not a gain or loss the holder experienced. Without this,
+     * buying anything on a green day showed an instant paper profit equal to
+     * the whole day's move.
+     *
+     * <p>SELLs are ignored deliberately. Selling shares held since yesterday
+     * reduces the quantity, and the smaller quantity already reflects that -
+     * subtracting the sale again would double-count it.
+     */
+    // Package-private rather than private so the wiring can be tested
+    // directly. The calculation it feeds is money-affecting, and reaching it
+    // through getPortfolio() would mean standing up an HTTP client and an
+    // authenticated request just to observe one query.
+    Map<String, BigDecimal> quantityBoughtToday(Long accountId) {
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        Map<String, BigDecimal> bought = new HashMap<>();
+
+        for (PortfolioTransaction transaction :
+                portfolioTransactionRepository.findByAccountIdOrderByExecutedAtDesc(accountId)) {
+
+            if (transaction.getExecutedAt() == null || transaction.getExecutedAt().isBefore(startOfToday)) {
+                // Ordered newest first, so the first older row means the rest
+                // are older too.
+                break;
+            }
+            if (transaction.getSide() != TransactionSide.BUY || transaction.getQuantity() == null) {
+                continue;
+            }
+            bought.merge(transaction.getSymbol(), transaction.getQuantity(), BigDecimal::add);
+        }
+        return bought;
+    }
+
+    private PortfolioAccount getOrCreateAccount(User user) {
+        return portfolioAccountRepository.findByUserId(user.getId())
+                .orElseGet(() -> createAccount(user));
+    }
+
+    private PortfolioAccount createAccount(User user) {
+        try {
+            return portfolioAccountRepository.saveAndFlush(PortfolioAccount.builder().user(user).build());
+        } catch (DataIntegrityViolationException ex) {
+            return portfolioAccountRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> ex);
+        }
+    }
+
+    /**
+     * Tells the user their order filled.
+     *
+     * <p>Deliberately after the transaction has been written, and deliberately
+     * unable to fail the trade: a notification that cannot be delivered is a
+     * far smaller problem than a trade that appears to have been rejected
+     * because the notification threw. The trade is the record of truth; this
+     * is a courtesy on top of it.
+     */
+    private void notifyExecution(User user, PortfolioTransaction tx, BigDecimal price, BigDecimal quantity) {
+        try {
+            boolean buy = "BUY".equals(tx.getSide().name());
+            BigDecimal total = price.multiply(quantity).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+            String body = (buy ? "Bought " : "Sold ") + quantity.stripTrailingZeros().toPlainString()
+                    + " " + tx.getSymbol() + " at " + price + " TND — " + total + " TND total";
+
+            if (!buy && tx.getRealizedPnl() != null) {
+                BigDecimal pnl = tx.getRealizedPnl();
+                body += pnl.signum() >= 0
+                        ? ". Realised gain " + pnl + " TND."
+                        : ". Realised loss " + pnl.abs() + " TND.";
+            }
+
+            notificationService.publish(
+                    user,
+                    (buy ? "Buy" : "Sell") + " order filled · " + tx.getSymbol(),
+                    body,
+                    "TRADE",
+                    // A sale that lost money is flagged, so a losing exit is
+                    // not reported in the same tone as a winning one.
+                    !buy && tx.getRealizedPnl() != null && tx.getRealizedPnl().signum() < 0
+                            ? "NEGATIVE"
+                            : "POSITIVE",
+                    tx.getSymbol());
+        } catch (RuntimeException ex) {
+            log.warn("Could not publish execution notification for {}: {}", tx.getSymbol(), ex.getMessage());
+        }
+    }
+
+    private StockResponseDto fetchStock(String symbol) {
+        StockResponseDto stock = webClientBuilder.build()
+                .get()
+                .uri(COLLECTOR_URL + "/symbol/{symbol}", symbol)
+                .header("X-API-Key", internalApiKey)
+                .retrieve()
+                .bodyToMono(StockResponseDto.class)
+                .block();
+
+        if (stock == null || stock.getLastPrice() == null) {
+            throw new InvalidEntityException(
+                    "Live price unavailable for " + symbol,
+                    ErrorCodes.PORTFOLIO_PRICE_UNAVAILABLE,
+                    Collections.singletonList("symbol: " + symbol));
+        }
+        return stock;
+    }
+
+    private void validateQuantity(BigDecimal quantity) {
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidEntityException(
+                    "Quantity must be a positive number",
+                    ErrorCodes.PORTFOLIO_INVALID_QUANTITY,
+                    Collections.singletonList("quantity: " + quantity));
+        }
+    }
+
+    private User resolveUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new InvalidEntityException("Not authenticated", ErrorCodes.USER_NOT_AUTHENTICATED, Collections.emptyList());
+        }
+        String email = authentication.getName();
+        return userRepository.findUserByEmail(email)
+                .orElseThrow(() -> new InvalidEntityException(
+                        "User not found", ErrorCodes.USER_NOT_FOUND, Collections.singletonList("email: " + email)));
+    }
+
+    private PortfolioTransactionDto toDto(PortfolioTransaction tx) {
+        return PortfolioTransactionDto.builder()
+                .id(tx.getId())
+                .symbol(tx.getSymbol())
+                .side(tx.getSide())
+                .quantity(tx.getQuantity())
+                .price(tx.getPrice())
+                .totalAmount(tx.getTotalAmount())
+                .realizedPnl(tx.getRealizedPnl())
+                .executedAt(tx.getExecutedAt())
+                .build();
+    }
+}

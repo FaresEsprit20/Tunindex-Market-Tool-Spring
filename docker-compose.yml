@@ -1,0 +1,271 @@
+# Tunindex Market Tool - full stack.
+#
+# Ports match the ones every service already runs on outside Docker
+# (discovery 8761, gateway 8070, collector 8081, api 8082, mailing 8085,
+# sms 8086, recaptcha 8089, ad-module 8090, frontend 4200) so nothing that
+# already points at localhost - the Google OAuth redirect URI registered in
+# the Google Console, the frontend's environment.ts, a bookmark to Swagger -
+# has to change to run this under Docker instead.
+#
+# Run from the repo root:
+#   docker compose up --build
+# or use the scripts in scripts/ (docker-up.sh / docker-up.ps1, etc.).
+
+services:
+  # ==========================================================================
+  # Postgres - one instance, six databases (see backend/db/init-databases.sql).
+  # Username/password match what every service's application.properties
+  # already hardcodes (postgres/root) - changing either here would mean
+  # changing it in eight files to match, for no benefit in a local stack.
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: tunindex-api
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backend/db/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # Discovery - every other backend service registers with this before it
+  # can be reached by name, so everything else depends on it being healthy
+  # rather than merely started.
+  # ==========================================================================
+  discovery-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: discovery-server
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # Gateway - the single entry point the frontend talks to. Given a fixed
+  # address on tunindex-net so the api service's TRUSTED_PROXIES can name it
+  # by IP below; Eureka's prefer-ip-address would otherwise hand out a
+  # container IP nobody configured in advance.
+  # ==========================================================================
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: api-gateway
+    ports:
+      - "8070:8070"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    env_file:
+      - ./backend/.env
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    networks:
+      tunindex-net:
+        ipv4_address: 172.28.0.10
+
+  # ==========================================================================
+  # Collector - scrapes/stores market data. Needs Postgres and Eureka.
+  # ==========================================================================
+  collector:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: collector
+    ports:
+      - "8081:8081"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex-collector
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # Api - the service behind auth, portfolio, watchlist, etc.
+  #
+  # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI come from
+  # backend/.env via env_file below and have NO default in
+  # application.properties - omitting them is not "OAuth disabled", it is
+  # this service refusing to start at all (PlaceholderResolutionException).
+  # TRUSTED_PROXIES is overridden to the gateway's fixed IP above, not left
+  # at its application.properties default (a LAN address from a previous,
+  # non-Docker network) - a wrong value here does not crash anything, it
+  # just silently stops recognizing the gateway as a trusted proxy and
+  # session IP-binding degrades to binding on the gateway's own address
+  # instead of the real client's.
+  # ==========================================================================
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: api
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex-api
+      TRUSTED_PROXIES: 172.28.0.10
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # Ad module - watch-to-unlock grants. AD_GRANT_SECRET must match the value
+  # api-gateway verifies grants with; both default to the same literal
+  # (tunindex-dev-ad-grant-secret-change-me) when unset, so leaving it out of
+  # backend/.env is consistent, not broken - set it there to override both
+  # at once.
+  # ==========================================================================
+  ad-module:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: ad-module
+    ports:
+      - "8090:8090"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex-ads
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # Mailing - sends 2FA / signup email. MAIL_USERNAME and MAIL_PASSWORD also
+  # have no default and must come from backend/.env or this service refuses
+  # to start. As of this compose file, MAIL_PASSWORD in that file is still
+  # the placeholder REPLACE_WITH_A_NEWLY_ISSUED_APP_PASSWORD - the container
+  # will start, but any real send will fail until that is replaced with an
+  # actual Gmail app password.
+  # ==========================================================================
+  mailing-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: mailing-service
+    ports:
+      - "8085:8085"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex-mailing
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # SMS - Twilio-backed notifications.
+  # ==========================================================================
+  sms-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: sms-service
+    ports:
+      - "8086:8086"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex-sms
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # Recaptcha - verifies tokens on signup/login/2FA/password-reset.
+  # ==========================================================================
+  recaptcha-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: recaptcha-service
+    ports:
+      - "8089:8089"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tunindex-recaptcha
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    networks:
+      - tunindex-net
+
+  # ==========================================================================
+  # Frontend - static Angular build behind nginx. Built with
+  # --configuration development so it keeps gatewayUrl: http://localhost:8070
+  # (see the Dockerfile) - correct for a stack reached from the host browser
+  # at localhost, which is what this compose file publishes.
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend/tunindex-market-tool
+      dockerfile: Dockerfile
+    ports:
+      - "4200:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - tunindex-net
+
+networks:
+  # Fixed subnet so api-gateway can be given a predictable address
+  # (172.28.0.10) - see the api service's TRUSTED_PROXIES above.
+  tunindex-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres-data:

@@ -1,0 +1,12 @@
+@if (session(); as s) {
+  <div class="session" [class]="toneClass()" [title]="s.label + ' · ' + s.timezone">
+    <span class="session-dot" [class.live]="isOpen()" aria-hidden="true"></span>
+    <span class="session-state">{{ stateLabel(s.state) }}</span>
+    @if (countdown(); as remaining) {
+      <span class="session-sep" aria-hidden="true">·</span>
+      <span class="session-next">
+        {{ s.nextTransitionLabel }} <span class="session-countdown mono">{{ remaining }}</span>
+      </span>
+    }
+  </div>
+}

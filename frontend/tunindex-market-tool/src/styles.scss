@@ -1,0 +1,379 @@
+/* Global styles. Load order matters: Tailwind (preflight + utilities) is
+   pulled in via angular.json ahead of this file, so the overrides below
+   win the cascade. */
+
+@import "styles/bootstrap-grid";
+@import "styles/auth-form";
+@import "styles/panels";
+@import "styles/stock-table";
+
+:root {
+  // Alpha/"dim" variants of the semantic tokens, derived from the Tailwind
+  // @theme tokens (src/styles/tailwind.css) so there is one source of truth
+  // for each hue. Used for washes, focus rings and subtle fills. Because
+  // these reference the underlying --color-* custom properties (not literal
+  // hex), they update automatically when data-theme switches to dark.
+  --color-brand-dim: color-mix(in srgb, var(--color-brand) 12%, transparent);
+  --color-positive-dim: color-mix(in srgb, var(--color-positive) 12%, transparent);
+  --color-negative-dim: color-mix(in srgb, var(--color-negative) 12%, transparent);
+  --color-warning-dim: color-mix(in srgb, var(--color-warning) 12%, transparent);
+
+  // Elevation system — every surface reads as flat without this. Shadows
+  // need different weights per theme (dark panels barely show a black
+  // shadow), so this is a plain override, not a color-mix derivation.
+  //
+  // Each level pairs a tight contact shadow with a wider ambient one, and
+  // carries a hairline top highlight: a single soft blur reads as a drop
+  // shadow stuck on a flat rectangle, while contact + ambient + rim reads
+  // as a surface with a real edge, which is the whole difference between
+  // "admin panel" and "instrument".
+  --shadow-xs: 0 1px 1px rgba(16, 25, 46, 0.04), 0 1px 2px rgba(16, 25, 46, 0.05);
+  --shadow-sm:
+    0 1px 1px rgba(16, 25, 46, 0.05),
+    0 2px 4px rgba(16, 25, 46, 0.05),
+    0 4px 12px rgba(16, 25, 46, 0.04);
+  --shadow-md:
+    0 1px 1px rgba(16, 25, 46, 0.05),
+    0 4px 8px rgba(16, 25, 46, 0.06),
+    0 12px 28px rgba(16, 25, 46, 0.08);
+  --shadow-lg:
+    0 2px 4px rgba(16, 25, 46, 0.06),
+    0 12px 24px rgba(16, 25, 46, 0.10),
+    0 28px 56px rgba(16, 25, 46, 0.12);
+
+  // A 1px inner highlight along the top edge, the way a physical panel
+  // catches light. Applied via box-shadow so it never affects layout.
+  --rim-light: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  // Motion vocabulary. Three curves, used consistently: `standard` for
+  // most state changes, `spring` where something should feel physical
+  // (a toggle, a press), `exit` for things leaving, which should go
+  // faster than they arrived.
+  // Density scale (phase 11). `compact` is the default and matches the
+  // values the tables were tuned at; the other two step around it. Every
+  // dense surface reads these rather than hard-coding a padding.
+  --row-py: 3px;
+  --row-px: 8px;
+  --data-font: 11.5px;
+  --control-h: 26px;
+  --panel-py: 13px;
+  --panel-px: 15px;
+
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --duration-fast: 0.12s;
+  --duration-base: 0.2s;
+  --duration-slow: 0.35s;
+}
+
+:root[data-theme="dark"] {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-md:
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 8px 20px rgba(0, 0, 0, 0.42);
+  --shadow-lg:
+    0 4px 8px rgba(0, 0, 0, 0.45),
+    0 16px 32px rgba(0, 0, 0, 0.5),
+    0 32px 64px rgba(0, 0, 0, 0.4);
+
+  // On a dark ground the rim is a faint light edge, not a white one —
+  // white here would read as a glowing outline rather than a lit edge.
+  --rim-light: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+// Density levels. Only the tokens change; no component knows which mode
+// is active, which is what keeps this to a handful of lines.
+:root[data-density="comfortable"] {
+  --row-py: 7px;
+  --row-px: 12px;
+  --data-font: 12.5px;
+  --control-h: 32px;
+  --panel-py: 16px;
+  --panel-px: 18px;
+}
+
+:root[data-density="terminal"] {
+  --row-py: 1px;
+  --row-px: 6px;
+  --data-font: 11px;
+  --control-h: 22px;
+  --panel-py: 8px;
+  --panel-px: 10px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+a {
+  color: var(--color-brand);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-brand-hover);
+    text-decoration: underline;
+  }
+}
+
+::selection {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+// Thin, theme-aware scrollbars everywhere (Firefox via scrollbar-color,
+// Chromium/Safari via the ::-webkit-scrollbar-* pseudo-elements) instead of
+// the OS-default chrome that clashes with a dense, dark-mode-capable UI.
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 999px;
+  border: 2px solid var(--color-bg);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-tertiary);
+  background-clip: padding-box;
+}
+
+// A visible, brand-colored ring on every keyboard-focused control that
+// doesn't already define its own :focus-visible treatment — components
+// with a bespoke focus style (inputs, checkboxes, chart controls) simply
+// win the cascade with their own more-specific selector.
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+// --- Motion: route transitions & theme toggle -----------------------------
+//
+// Angular's router (withViewTransitions, see app.config.ts) and Theme.toggle
+// (theme.ts) both drive the browser's native View Transitions API, which
+// always animates a single ::view-transition-*(root) pseudo-element pair —
+// so both effects are styled here and told apart by the .theme-transition
+// class Theme.toggle() stamps onto <html> only for its own transition.
+@media (prefers-reduced-motion: no-preference) {
+  // Route navigation: a quick, subtle fade + rise. Replaces the browser's
+  // default plain cross-fade so navigating between pages reads as
+  // intentional motion instead of a flicker.
+  ::view-transition-old(root) {
+    animation: route-fade-out 0.15s cubic-bezier(0.4, 0, 1, 1) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: route-fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  // Theme toggle: an expanding circle of the new theme, centered on the
+  // click, growing to cover the viewport — the old theme just sits still
+  // underneath rather than cross-fading, so it reads as a wipe, not a blend.
+  html.theme-transition::view-transition-old(root) {
+    animation: none;
+  }
+
+  html.theme-transition::view-transition-new(root) {
+    animation: theme-reveal 0.55s cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+}
+
+@keyframes route-fade-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes route-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0px at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--theme-reveal-radius, 150%) at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+// Shared keyframes for the signature motion devices, reused across many
+// components so they live once, globally.
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes flash-wash {
+  0% {
+    background-color: var(--color-brand-dim);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ticker-slide-in {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes card-enter {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Applied/removed by the FlashOnUpdate directive — a single-shot wash,
+// never a looping class.
+.flash-once {
+  animation: flash-wash 1.8s ease-out;
+}
+
+/* ── Explain-on-hover (phase 07) ───────────────────────────────────────────
+   Appended to <body> by the Explain directive, so these live globally
+   rather than in a component's scoped sheet. */
+
+.explainable {
+  cursor: help;
+  // A dotted underline is the long-standing convention for "there is more
+  // behind this word", and costs no layout.
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: 3px;
+  outline: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration-color: var(--color-brand);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+.explain-pop {
+  position: fixed;
+  z-index: 4000;
+  max-width: 300px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.1s ease, transform 0.1s ease;
+
+  &.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.explain-formula {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.explain-note {
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+/* ── Shared-element motion (phase 09) ──────────────────────────────────────
+   A named pair morphs between routes instead of cross-fading, so the row you
+   clicked visibly becomes the page you land on. The default route fade above
+   still applies to everything that isn't named. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(stock-symbol),
+  ::view-transition-new(stock-symbol) {
+    // Let the browser interpolate position and size; opacity animation on a
+    // morphing element reads as a flicker rather than movement.
+    animation-duration: 0.32s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    mix-blend-mode: normal;
+  }
+
+  // The morphing element rides above the page cross-fade rather than being
+  // dimmed by it.
+  ::view-transition-group(stock-symbol) {
+    z-index: 10;
+  }
+}

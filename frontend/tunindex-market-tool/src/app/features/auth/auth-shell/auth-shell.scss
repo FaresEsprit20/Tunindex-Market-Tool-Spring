@@ -1,0 +1,180 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.shell-grid {
+  display: grid;
+  grid-template-columns: minmax(380px, 38%) 1fr;
+  min-height: 100vh;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Brand panel — a fixed, intentionally colorful hero regardless of theme.
+.brand-panel {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  background: linear-gradient(160deg, #1656e8 0%, #0d2f80 55%, #071c4d 100%);
+
+  @media (max-width: 900px) {
+    display: none;
+  }
+}
+
+.brand-panel-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+  padding: 56px 56px 72px;
+  width: 100%;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-mark-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+.brand-mark {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.brand-copy {
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: #ffffff;
+    margin: 0 0 14px;
+    max-width: 380px;
+  }
+
+  p {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.72);
+    margin: 0;
+    max-width: 340px;
+  }
+}
+
+.brand-features {
+  list-style: none;
+  margin: 0;
+  padding: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  span {
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.78);
+    max-width: 300px;
+  }
+}
+
+.brand-chart {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 120px;
+}
+
+.form-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  // Grid items default to min-width: auto, which stops a track from
+  // shrinking below its content's intrinsic width — without this, the
+  // card blows out past the viewport on narrow screens.
+  min-width: 0;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  &:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.94);
+  }
+}
+
+.auth-card-slot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Same lockup on the signed-out screens, so the product is named
+   consistently before and after signing in. */
+.brand-mark-index {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}

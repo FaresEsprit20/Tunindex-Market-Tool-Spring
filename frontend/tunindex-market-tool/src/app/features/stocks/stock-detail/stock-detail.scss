@@ -1,0 +1,252 @@
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    color: var(--color-brand);
+    text-decoration: none;
+  }
+}
+
+.detail-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.error-card {
+  padding: 32px;
+  text-align: center;
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.symbol-title {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.tag {
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+}
+
+.company-name {
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+  margin: 6px 0 0;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.refresh-btn {
+  width: auto;
+  padding: 9px 16px;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+.detail-actions .btn {
+  width: auto;
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+.price-panel {
+  padding: 22px 24px;
+}
+
+.price-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.price-value {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.price-currency {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+}
+
+.price-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  // The absolute move leads and the percentage follows in parentheses —
+  // the convention on every quote page, and the order a reader expects.
+  .price-delta {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .price-delta-pct {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+  }
+
+  &.positive {
+    color: var(--color-positive);
+    background: var(--color-positive-dim);
+  }
+
+  &.negative {
+    color: var(--color-negative);
+    background: var(--color-negative-dim);
+  }
+}
+
+.price-vs-close {
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+  margin-left: auto;
+}
+
+.range-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+.range-panel-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.range-panel-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.ratios-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--color-border);
+
+  .ratios-grid & {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    border-top: none;
+    padding: 0;
+  }
+
+  &:first-child {
+    border-top: none;
+  }
+}
+
+.kv-label {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.kv-value {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+
+  &.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &.positive {
+    color: var(--color-positive);
+  }
+
+  &.negative {
+    color: var(--color-negative);
+  }
+}
+
+.exchange-flag {
+  margin-right: 4px;
+  align-self: center;
+}
+
+.exchange-name {
+  color: var(--color-text-tertiary);
+  margin-left: 7px;
+  font-size: 12.5px;
+}

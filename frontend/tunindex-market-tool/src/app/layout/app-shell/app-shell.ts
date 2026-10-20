@@ -1,0 +1,35 @@
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { RouterLink } from '@angular/router';
+import { PrimaryNav } from '../../shared/components/primary-nav/primary-nav';
+import { Navbar } from '../../shared/components/navbar/navbar';
+import { MarketTicker } from '../../shared/components/market-ticker/market-ticker';
+import { CommandPalette } from '../../shared/components/command-palette/command-palette';
+import { AdNavigationInterstitial } from '../../shared/components/ad-navigation-interstitial/ad-navigation-interstitial';
+import { AdGateOverlay } from '../../shared/components/ad-gate-overlay/ad-gate-overlay';
+
+/**
+ * Route-level shell for every authenticated page: a brand masthead, a
+ * horizontal section bar, a live ticker strip, and the routed view. Analogous to
+ * AuthShell but for the signed-in part of the app — the ticker lives here
+ * (not on the pre-login screens) because it's fed by real prices from the
+ * stock endpoints, which require a session. The command palette is mounted
+ * here too so ⌘K works on every authenticated screen.
+ */
+@Component({
+  selector: 'app-shell',
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    Navbar,
+    MarketTicker,
+    CommandPalette,
+    PrimaryNav,
+    AdNavigationInterstitial,
+    AdGateOverlay,
+  ],
+  templateUrl: './app-shell.html',
+  styleUrl: './app-shell.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class AppShell {}

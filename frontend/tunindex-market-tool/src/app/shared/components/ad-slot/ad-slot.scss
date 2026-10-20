@@ -1,0 +1,20 @@
+:host { display: block; }
+
+.ad-embed {
+  position: relative;
+  min-height: 90px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-alt);
+}
+
+.ad-label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+}

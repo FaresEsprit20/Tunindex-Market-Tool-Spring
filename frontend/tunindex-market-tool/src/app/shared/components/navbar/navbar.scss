@@ -1,0 +1,228 @@
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 100%;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border);
+  // Frosted rather than opaque: the ticker scrolling underneath stays
+  // faintly perceptible, which makes the chrome feel like a layer over a
+  // live surface instead of a lid on top of it.
+  background: color-mix(in srgb, var(--color-panel) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+
+  // No backdrop-filter support: fall back to the solid panel so the bar is
+  // never semi-transparent over scrolling content.
+  @supports not (backdrop-filter: blur(1px)) {
+    background: var(--color-panel);
+  }
+}
+
+.search-wrap {
+  position: relative;
+  width: 320px;
+  max-width: 40vw;
+  flex-shrink: 0;
+}
+
+// The clock takes the slack in the middle so the masthead reads as three
+// balanced groups — identity, market state, controls — instead of two
+// clusters pinned to opposite edges with a void between them.
+.navbar-session {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+// Below this the three groups no longer fit; the clock is the one that
+// yields, because the ticker underneath still carries live prices.
+@media (max-width: 900px) {
+  .navbar-session {
+    display: none;
+  }
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  max-width: 80vw;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 40;
+  animation: card-enter 0.15s ease-out;
+}
+
+.dropdown-status {
+  padding: 16px;
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+
+  &:hover {
+    background: var(--color-panel-alt);
+  }
+}
+
+.dropdown-symbol {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--color-text-primary);
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.dropdown-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-price {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.dropdown-footer {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: var(--color-panel-alt);
+  color: var(--color-brand);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-brand-dim);
+  }
+}
+
+.search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 7px 12px 7px 34px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  &:focus {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px var(--color-brand-dim);
+  }
+}
+
+.search-kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 5px;
+  border: 1px solid var(--color-border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.market-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.status-dot-idle {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.density-toggle,
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+  }
+}

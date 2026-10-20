@@ -1,0 +1,18 @@
+# ads.txt — authorised digital sellers
+#
+# AdSense looks for this file at the ROOT of the domain
+# (https://your-domain/ads.txt) and flags the account with an
+# "earnings at risk" warning while it is missing or wrong. It is what
+# tells buyers that Google is allowed to sell this site's inventory,
+# and it exists to stop someone else passing off their traffic as yours.
+#
+# Replace pub-0000000000000000 with your own publisher id once AdSense
+# approves the account — it is the same number as in
+# environment.prod.ts, but WITHOUT the leading "ca-".
+#
+# The last field is Google's own advertising-system id and is the same
+# for every publisher; it is not a secret and must be copied verbatim.
+#
+# This file is served from /public, which Angular copies to the site
+# root at build time, so it lands at /ads.txt automatically.
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0

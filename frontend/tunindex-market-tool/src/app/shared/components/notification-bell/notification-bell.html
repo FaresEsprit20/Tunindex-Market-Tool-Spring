@@ -1,0 +1,56 @@
+<button
+  type="button"
+  class="bell-btn"
+  [class.has-unread]="unreadCount() > 0"
+  (click)="toggle()"
+  [attr.aria-label]="unreadCount() > 0 ? unreadCount() + ' unread notifications' : 'Notifications'"
+  [attr.aria-expanded]="open()"
+>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+    <path d="M13.7 21a2 2 0 0 1-3.4 0"></path>
+  </svg>
+  @if (unreadCount() > 0) {
+    <span class="bell-badge">{{ unreadCount() > 9 ? '9+' : unreadCount() }}</span>
+  }
+</button>
+
+@if (open()) {
+  <div class="notif-panel">
+    <div class="notif-head">
+      <span class="notif-title">Notifications</span>
+      @if (unreadCount() > 0) {
+        <button type="button" class="notif-action" (click)="markAllRead()">Mark all read</button>
+      }
+    </div>
+
+    <div class="notif-list">
+      @if (notifications().length === 0) {
+        <div class="notif-empty">
+          <p class="notif-empty-title">Nothing yet</p>
+          <p class="notif-empty-body">
+            Set an alert on a stock and anything that trips it lands here.
+          </p>
+        </div>
+      } @else {
+        @for (item of notifications(); track item.id) {
+          <button
+            type="button"
+            class="notif-item"
+            [class.unread]="!item.read"
+            (click)="onNotificationClick(item)"
+          >
+            <span class="notif-tone" [class]="toneClass(item.tone)"></span>
+            <span class="notif-content">
+              <span class="notif-item-title">{{ item.title }}</span>
+              <span class="notif-item-body">{{ item.body }}</span>
+              <span class="notif-time">{{ item.createdAt | date: 'MMM d, HH:mm' }}</span>
+            </span>
+          </button>
+        }
+      }
+    </div>
+
+    <button type="button" class="notif-footer" (click)="openAlerts()">Manage alerts →</button>
+  </div>
+}

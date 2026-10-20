@@ -1,0 +1,521 @@
+package com.tunindex.market_tool.collector.services.impl;
+
+import com.tunindex.market_tool.common.utils.constants.Constants;
+import com.tunindex.market_tool.collector.dto.investingcom.NormalizedStockData;
+import com.tunindex.market_tool.collector.dto.investingcom.RawStockData;
+import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.springframework.stereotype.Service;
+import com.tunindex.market_tool.collector.services.parser.DataParserService;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.format.DateTimeFormatter;
+import java.util.function.Consumer;
+
+@Service
+@Slf4j
+public class StockAnalysisParserImpl implements DataParserService {
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d, yyyy");
+
+    @Override
+    public NormalizedStockData parseToNormalized(RawStockData rawData) {
+        log.debug("Parsing StockAnalysis data for symbol: {}", rawData.getSymbol());
+
+        NormalizedStockData normalizedData = new NormalizedStockData();
+
+        // Set basic info from stockInfo
+        Constants.StockInfo stockInfo = rawData.getStockInfo();
+        normalizedData.setSymbol(stockInfo.symbol());
+        normalizedData.setName(stockInfo.name());
+        normalizedData.setUrl(stockInfo.url());
+        normalizedData.setOwnershipType(stockInfo.ownershipType());
+        normalizedData.setIndustry(stockInfo.industry());
+        normalizedData.setCountry(stockInfo.country());
+
+        // Set source
+        normalizedData.setSource(Constants.PROVIDER_STOCKANALYSIS);
+
+        // Set last update timestamp
+        normalizedData.setLastUpdate(System.currentTimeMillis());
+
+        // Parse HTML data
+        String html = rawData.getMainPageHtml();
+        if (html != null && !html.isEmpty()) {
+            Document doc = Jsoup.parse(html);
+
+            // Extract ALL fields
+            extractBasicInfo(doc, normalizedData);
+            extractMarketCap(doc, normalizedData);
+            extractPriceData(doc, normalizedData);
+            extractVolumeData(doc, normalizedData);
+            extractRevenueAndEarnings(doc, normalizedData);
+            extractRatios(doc, normalizedData);
+            extractDividends(doc, normalizedData);
+            extract52WeekRange(doc, normalizedData);
+            extractTechnicalData(doc, normalizedData);
+            extractExchangeInfo(doc, normalizedData);
+            extractDebtToEquity(doc, normalizedData);
+            extractProfitMargin(doc, normalizedData);
+            extractBookValuePerShare(doc, normalizedData);
+        }
+
+        // Post-process calculations
+        calculateDerivedFields(normalizedData);
+
+        return normalizedData;
+    }
+
+    /**
+     * Extract basic info including exchange, market, currency
+     */
+    private void extractBasicInfo(Document doc, NormalizedStockData normalizedData) {
+        Element countryElem = doc.selectFirst(".country");
+        if (countryElem != null && normalizedData.getCountry() == null) {
+            String countryText = cleanLabel(countryElem.text(), "Country");
+            normalizedData.setCountry(countryText);
+        }
+
+        if (normalizedData.getCountry() != null) {
+            normalizedData.setMarket(normalizedData.getCountry());
+        } else {
+            normalizedData.setMarket("Tunisia");
+        }
+
+        if ("Tunisia".equals(normalizedData.getCountry()) ||
+                "Tunis Stock Exchange".equals(normalizedData.getExchange())) {
+            normalizedData.setCurrency("TND");
+        } else {
+            normalizedData.setCurrency("TND");
+        }
+
+        normalizedData.setSector(classifySector(normalizedData.getIndustry()));
+    }
+
+    /**
+     * Maps the real, specific SIC-style industry string BVMT stocks actually
+     * carry (e.g. "Poultry Slaughtering and Processing", "Insurance
+     * Carriers", "Miscellaneous business Credit Institutions") onto our
+     * coarser SectorType buckets. The previous version only recognized
+     * bank/tech/industrial keywords and dumped everything else into
+     * "Other" — since real BVMT industry strings rarely contain those exact
+     * words, that was ~77% of tracked stocks (confirmed against live data:
+     * 53 of 69). Checked most-specific first so e.g. "insurance" is never
+     * shadowed by a broader "financial" match.
+     */
+    private String classifySector(String industry) {
+        if (industry == null || industry.isBlank()) {
+            return "Other";
+        }
+        String s = industry.toLowerCase();
+
+        if (s.contains("insurance")) {
+            return "Insurance";
+        }
+        // Checked before the plain "bank" match below: "Mortgage Bankers and
+        // Loan Correspondents" contains "bank" too, but is a mortgage
+        // lender, not a commercial bank — must not fall into Banking.
+        if (s.contains("credit institution") || s.contains("mortgage")
+                || s.contains("loan correspondent") || s.contains("investment trust")) {
+            return "Financials";
+        }
+        if (s.contains("bank")) {
+            return "Banking";
+        }
+        if (s.contains("real estate") || s.contains("land subdivid")) {
+            return "Real Estate";
+        }
+        if (s.contains("computer") || s.contains("software") || s.contains("programming") || s.contains("electronic")) {
+            return "Technology";
+        }
+        if (s.contains("communication")) {
+            return "Telecommunications";
+        }
+        if (s.contains("water")) {
+            return "Utilities";
+        }
+        if (s.contains("pipeline") || s.contains("petroleum") || s.contains("oil and gas")) {
+            return "Energy";
+        }
+        if (s.contains("pharmaceutical") || s.contains("orthopedic") || s.contains("medical")) {
+            return "Healthcare";
+        }
+        if (s.contains("dairy") || s.contains("beverage") || s.contains("poultry") || s.contains("grocer")
+                || s.contains("textile") || s.contains("apparel") || s.contains("department store")
+                || s.contains("general merchandise") || s.contains("automotive dealer")) {
+            return "Consumer Goods";
+        }
+        if (s.contains("chemical") || s.contains("cement") || s.contains("clay") || s.contains("paperboard")
+                || s.contains("paper") || s.contains("glass") || s.contains("wood") || s.contains("lumber")
+                || s.contains("metal door") || s.contains("nonferrous") || s.contains("plastic")
+                || s.contains("tire") || s.contains("furniture") || s.contains("manufacturing industries")) {
+            return "Materials";
+        }
+        if (s.contains("industrial") || s.contains("manufacturing") || s.contains("machinery") || s.contains("motorcycle")) {
+            return "Industrials";
+        }
+        return "Other";
+    }
+
+    /**
+     * Extract exchange information
+     */
+    private void extractExchangeInfo(Document doc, NormalizedStockData normalizedData) {
+        Element exchangeElem = doc.selectFirst(".exchange");
+        if (exchangeElem != null) {
+            String exchangeText = cleanLabel(exchangeElem.text(), "Exchange");
+            if (exchangeText != null && !exchangeText.isEmpty()) {
+                normalizedData.setExchange(exchangeText);
+                log.debug("Extracted exchange: {}", exchangeText);
+            }
+        }
+
+        if (normalizedData.getExchange() == null || normalizedData.getExchange().isEmpty()) {
+            normalizedData.setExchange("Tunis Stock Exchange");
+            log.warn("Exchange not found, using default");
+        }
+
+        Element exchangeCodeElem = doc.selectFirst(".exchange-code");
+        if (exchangeCodeElem != null) {
+            String exchangeCode = cleanLabel(exchangeCodeElem.text(), "Exchange Code");
+            if (exchangeCode != null && !exchangeCode.isEmpty()) {
+                normalizedData.setExchangeFullName(exchangeCode);
+                log.debug("Extracted exchange code: {}", exchangeCode);
+            }
+        }
+
+        if (normalizedData.getExchangeFullName() == null || normalizedData.getExchangeFullName().isEmpty()) {
+            normalizedData.setExchangeFullName("BVMT");
+            log.warn("Exchange code not found, using default");
+        }
+    }
+
+    private void extractMarketCap(Document doc, NormalizedStockData normalizedData) {
+        Element elem = doc.selectFirst(".market-cap");
+        if (elem != null) {
+            String value = cleanLabel(elem.text(), "Market Cap");
+            normalizedData.setMarketCap(parseNumberWithSuffix(value));
+        }
+    }
+
+    /**
+     * Extract ALL price data including price, change, open, close, high, low
+     */
+    private void extractPriceData(Document doc, NormalizedStockData normalizedData) {
+        // Current price - from .price class
+        Element priceElem = doc.selectFirst(".price");
+        if (priceElem != null) {
+            String value = cleanLabel(priceElem.text(), "Price");
+            setBigDecimal(value, normalizedData::setLastPrice);
+            log.info("💰 Extracted price: {}", value);
+        }
+
+
+        // Previous Close
+        Element prevCloseElem = doc.selectFirst(".prev-close");
+        if (prevCloseElem != null) {
+            String value = cleanLabel(prevCloseElem.text(), "Previous Close");
+            setBigDecimal(value, normalizedData::setPrevClose);
+            log.info("🔚 Extracted previous close: {}", value);
+        }
+
+        // Day High
+        Element dayHighElem = doc.selectFirst(".day-high");
+        if (dayHighElem != null) {
+            String value = cleanLabel(dayHighElem.text(), "Day High");
+            setBigDecimal(value, normalizedData::setDayHigh);
+            log.info("📈 Extracted day high: {}", value);
+        }
+
+        // Day Low
+        Element dayLowElem = doc.selectFirst(".day-low");
+        if (dayLowElem != null) {
+            String value = cleanLabel(dayLowElem.text(), "Day Low");
+            setBigDecimal(value, normalizedData::setDayLow);
+            log.info("📉 Extracted day low: {}", value);
+        }
+    }
+
+    private void extractVolumeData(Document doc, NormalizedStockData normalizedData) {
+        Element volumeElem = doc.selectFirst(".volume");
+        if (volumeElem != null) {
+            String value = cleanLabel(volumeElem.text(), "Volume");
+            if (value != null && !value.isEmpty()) {
+                try {
+                    String cleanValue = value.replace(",", "");
+                    normalizedData.setVolume(Long.parseLong(cleanValue));
+                    log.info("📊 Extracted volume: {}", cleanValue);
+                } catch (NumberFormatException e) {
+                    log.warn("Failed to parse volume: {}", value);
+                }
+            }
+        }
+
+        Element avgVolumeElem = doc.selectFirst(".avg-volume");
+        if (avgVolumeElem != null) {
+            String value = cleanLabel(avgVolumeElem.text(), "Average Volume");
+            if (value != null && !value.isEmpty()) {
+                try {
+                    String cleanValue = value.replace(",", "");
+                    normalizedData.setAvgVolume3m(Long.parseLong(cleanValue));
+                } catch (NumberFormatException e) {
+                    log.warn("Failed to parse avg volume: {}", value);
+                }
+            }
+        }
+    }
+
+    private void extractRevenueAndEarnings(Document doc, NormalizedStockData normalizedData) {
+        Element revenueElem = doc.selectFirst(".revenue");
+        if (revenueElem != null) {
+            String value = cleanLabel(revenueElem.text(), "Revenue");
+            normalizedData.setRevenue(parseNumberWithSuffix(value));
+        }
+
+        Element netIncomeElem = doc.selectFirst(".net-income");
+        if (netIncomeElem != null) {
+            String value = cleanLabel(netIncomeElem.text(), "Net Income");
+            normalizedData.setNetIncome(parseNumberWithSuffix(value));
+        }
+
+        Element epsElem = doc.selectFirst(".eps");
+        if (epsElem != null) {
+            String value = cleanLabel(epsElem.text(), "EPS");
+            setBigDecimal(value, normalizedData::setEps);
+        }
+
+        Element sharesOutElem = doc.selectFirst(".shares-outstanding");
+        if (sharesOutElem != null) {
+            String value = cleanLabel(sharesOutElem.text(), "Shares Outstanding");
+            if (value != null && !value.isEmpty()) {
+                // Reuses the shared suffix parser rather than handling "M"
+                // alone. A small-cap's share count is printed as "680.00K",
+                // which the old branch sent to Long.parseLong and lost - and
+                // losing the share count also loses every figure derived from
+                // it. Société Tunisienne du Sucre was blank for exactly this
+                // reason while the number sat on the page.
+                BigDecimal shares = parseNumberWithSuffix(value);
+                if (shares != null) {
+                    normalizedData.setSharesOutstanding(shares.longValue());
+                    log.info("📋 Extracted shares outstanding: {}", normalizedData.getSharesOutstanding());
+                } else {
+                    log.warn("Failed to parse shares outstanding: {}", value);
+                }
+            }
+        }
+    }
+
+    private void extractRatios(Document doc, NormalizedStockData normalizedData) {
+        Element peElem = doc.selectFirst(".pe-ratio");
+        if (peElem != null) {
+            String value = cleanLabel(peElem.text(), "P/E Ratio");
+            setBigDecimal(value, normalizedData::setPeRatio);
+        }
+
+        // Extract PB Ratio (Price to Book)
+        Element pbElem = doc.selectFirst(".pb-ratio");
+        if (pbElem != null) {
+            String value = cleanLabel(pbElem.text(), "P/B Ratio");
+            setBigDecimal(value, normalizedData::setPriceToBook);
+            log.info("📐 Extracted P/B Ratio: {}", value);
+        }
+    }
+
+    private void extractDividends(Document doc, NormalizedStockData normalizedData) {
+        Element divYieldElem = doc.selectFirst(".dividend-yield");
+        if (divYieldElem != null) {
+            String value = cleanLabel(divYieldElem.text(), "Dividend Yield %");
+            if (value != null) {
+                String cleanValue = value.replace("%", "");
+                setBigDecimal(cleanValue, normalizedData::setDividendYield);
+                log.info("💸 Extracted dividend yield: {}%", cleanValue);
+            }
+        }
+
+        Element payoutElem = doc.selectFirst(".payout-ratio");
+        if (payoutElem != null) {
+            String value = cleanLabel(payoutElem.text(), "Payout Ratio %");
+            if (value != null) {
+                String cleanValue = value.replace("%", "");
+                setBigDecimal(cleanValue, normalizedData::setPayoutRatio);
+            }
+        }
+    }
+
+    private void extract52WeekRange(Document doc, NormalizedStockData normalizedData) {
+        Element lowElem = doc.selectFirst(".week52-low");
+        if (lowElem != null) {
+            String value = cleanLabel(lowElem.text(), "52-Week Low");
+            setBigDecimal(value, normalizedData::setWeek52Low);
+            log.info("📉 Extracted 52-week low: {}", value);
+        }
+
+        Element highElem = doc.selectFirst(".week52-high");
+        if (highElem != null) {
+            String value = cleanLabel(highElem.text(), "52-Week High");
+            setBigDecimal(value, normalizedData::setWeek52High);
+            log.info("📈 Extracted 52-week high: {}", value);
+        }
+
+        Element rangeElem = doc.selectFirst(".week52-range");
+        if (rangeElem != null) {
+            String value = cleanLabel(rangeElem.text(), "52-Week Range");
+            normalizedData.setWeek52Range(value);
+        }
+
+        if (normalizedData.getWeek52Low() != null && normalizedData.getWeek52High() != null) {
+            normalizedData.setWeek52Range(normalizedData.getWeek52Low() + " - " + normalizedData.getWeek52High());
+        }
+    }
+
+    private void extractTechnicalData(Document doc, NormalizedStockData normalizedData) {
+        Element betaElem = doc.selectFirst(".beta");
+        if (betaElem != null) {
+            String value = cleanLabel(betaElem.text(), "Beta");
+            setBigDecimal(value, normalizedData::setBeta);
+        }
+    }
+
+    /**
+     * Extract Debt/Equity ratio
+     */
+    private void extractDebtToEquity(Document doc, NormalizedStockData normalizedData) {
+        Element debtEquityElem = doc.selectFirst(".debt-equity");
+        if (debtEquityElem != null) {
+            String value = cleanLabel(debtEquityElem.text(), "Debt/Equity");
+            setBigDecimal(value, normalizedData::setDebtToEquity);
+            log.info("💼 Extracted Debt/Equity: {}", value);
+        }
+    }
+
+    /**
+     * Extract Profit Margin
+     */
+    private void extractProfitMargin(Document doc, NormalizedStockData normalizedData) {
+        Element profitMarginElem = doc.selectFirst(".profit-margin");
+        if (profitMarginElem != null) {
+            String value = cleanLabel(profitMarginElem.text(), "Profit Margin %");
+            if (value != null) {
+                String cleanValue = value.replace("%", "");
+                setBigDecimal(cleanValue, normalizedData::setProfitMargin);
+                log.info("📊 Extracted Profit Margin: {}%", cleanValue);
+            }
+        }
+    }
+
+    /**
+     * Extract Book Value Per Share
+     */
+    private void extractBookValuePerShare(Document doc, NormalizedStockData normalizedData) {
+        Element bvpsElem = doc.selectFirst(".book-value-per-share");
+        if (bvpsElem != null) {
+            String value = cleanLabel(bvpsElem.text(), "Book Value Per Share");
+            setBigDecimal(value, normalizedData::setBookValuePerShare);
+            log.info("📚 Extracted Book Value Per Share: {}", value);
+        }
+    }
+
+    private void calculateDerivedFields(NormalizedStockData normalizedData) {
+        // Calculate profit margin if not set
+        if (normalizedData.getProfitMargin() == null &&
+                normalizedData.getNetIncome() != null &&
+                normalizedData.getRevenue() != null &&
+                normalizedData.getRevenue().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal profitMargin = normalizedData.getNetIncome()
+                    .divide(normalizedData.getRevenue(), 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+            normalizedData.setProfitMargin(profitMargin);
+        }
+
+        // EPS from the income statement, when the source prints "n/a" for it.
+        //
+        // Earnings per share is net income over shares outstanding by
+        // definition, and both are on the same page. The source reports "n/a"
+        // for the ratio on loss-making companies while still publishing the
+        // two figures it is made of, so this is reading what is there rather
+        // than estimating: Société Tunisienne du Sucre shows a net income of
+        // -3.96M against 680K shares, which is -5.82 per share.
+        //
+        // Done here rather than in the deriver because net income is not
+        // carried on the entity - this is the last point at which both
+        // numbers are in hand.
+        if (normalizedData.getEps() == null
+                && normalizedData.getNetIncome() != null
+                && normalizedData.getSharesOutstanding() != null
+                && normalizedData.getSharesOutstanding() > 0) {
+
+            BigDecimal eps = normalizedData.getNetIncome()
+                    .divide(BigDecimal.valueOf(normalizedData.getSharesOutstanding()), 4, RoundingMode.HALF_UP);
+            normalizedData.setEps(eps);
+            log.info("📐 Derived EPS from net income / shares: {}", eps);
+        }
+    }
+
+    private String cleanLabel(String text, String label) {
+        if (text == null) return null;
+        String cleaned = text;
+        if (cleaned.contains(":")) {
+            cleaned = cleaned.substring(cleaned.indexOf(":") + 1).trim();
+        }
+        if (cleaned.startsWith(label)) {
+            cleaned = cleaned.substring(label.length()).trim();
+        }
+        return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    private BigDecimal parseNumberWithSuffix(String value) {
+        if (value == null || value.isEmpty()) return null;
+
+        try {
+            value = value.trim().toUpperCase();
+            double multiplier = 1.0;
+
+            boolean isNegative = value.startsWith("-");
+            if (isNegative) {
+                value = value.substring(1);
+            }
+
+            if (value.endsWith("B")) {
+                multiplier = 1_000_000_000.0;
+                value = value.substring(0, value.length() - 1);
+            } else if (value.endsWith("M")) {
+                multiplier = 1_000_000.0;
+                value = value.substring(0, value.length() - 1);
+            } else if (value.endsWith("K")) {
+                multiplier = 1_000.0;
+                value = value.substring(0, value.length() - 1);
+            } else if (value.endsWith("%")) {
+                value = value.substring(0, value.length() - 1);
+                multiplier = 1.0;
+            }
+
+            value = value.replace(",", "");
+
+            BigDecimal result = BigDecimal.valueOf(Double.parseDouble(value) * multiplier);
+            if (isNegative) {
+                result = result.negate();
+            }
+            return result;
+        } catch (NumberFormatException e) {
+            log.warn("Failed to parse number with suffix: {}", value);
+            return null;
+        }
+    }
+
+    private void setBigDecimal(String value, Consumer<BigDecimal> setter) {
+        if (value == null || value.isEmpty()) return;
+        try {
+            String cleanValue = value.trim();
+            if (cleanValue.endsWith("%")) {
+                cleanValue = cleanValue.substring(0, cleanValue.length() - 1);
+            }
+            cleanValue = cleanValue.replace(",", "");
+            setter.accept(new BigDecimal(cleanValue));
+        } catch (NumberFormatException e) {
+            log.debug("Failed to parse number: {}", value);
+        }
+    }
+}

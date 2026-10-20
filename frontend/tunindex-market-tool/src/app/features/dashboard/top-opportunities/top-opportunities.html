@@ -1,0 +1,36 @@
+<div class="panel-card">
+  <div class="panel-head">
+    <p class="panel-title">Top opportunities</p>
+    <a class="panel-link" routerLink="/app/opportunities">See all →</a>
+  </div>
+
+  <div class="panel-body">
+    @if (loading()) {
+      <div class="opp-skeleton">
+        <app-skeleton-block height="42px" />
+        <app-skeleton-block height="42px" />
+        <app-skeleton-block height="42px" />
+      </div>
+    } @else if (error()) {
+      <p class="empty-msg">Couldn't score the market right now.</p>
+    } @else if (rows().length === 0) {
+      <p class="empty-msg">No scored stocks yet.</p>
+    } @else {
+      <ul class="opp-list">
+        @for (row of rows(); track row.symbol) {
+          <li class="opp-row" (click)="openStock(row.symbol)">
+            <span class="opp-score" [class]="scoreClass(row.overallScore)">{{ row.overallScore }}</span>
+            <div class="opp-identity">
+              <span class="opp-symbol mono">{{ row.symbol }}</span>
+              <span class="opp-reason">{{ row.reasons[0] ?? 'Scored on available data' }}</span>
+            </div>
+            <span class="opp-verdict" [class]="verdictClass(row.verdict)">{{ verdictLabels[row.verdict] }}</span>
+            @if (row.lastPrice !== null) {
+              <span class="opp-price mono">{{ row.lastPrice | number: '1.2-2' }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

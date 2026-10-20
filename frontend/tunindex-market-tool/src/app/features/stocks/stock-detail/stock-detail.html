@@ -1,0 +1,212 @@
+<a routerLink="/app/stocks" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 5l-7 7 7 7"></path></svg>
+  Back to stocks
+</a>
+
+@if (loading()) {
+  <div class="detail-skeleton">
+    <app-skeleton-block width="220px" height="28px" />
+    <div class="stat-tile-grid">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <app-skeleton-block height="76px" radius="12px" />
+      }
+    </div>
+  </div>
+} @else if (error() || !stock()) {
+  <div class="panel-card error-card">
+    <p class="empty-msg">Couldn't load data for "{{ symbol() }}".</p>
+  </div>
+} @else if (stock(); as s) {
+  <div class="detail-head">
+    <div>
+      <div class="title-row">
+        <app-country-flag class="exchange-flag" [code]="exchangeCountry(s.exchange)" [width]="24" [title]="s.exchange ?? 'Unknown exchange'" />
+        <h1 class="symbol-title" style="view-transition-name: stock-symbol">{{ s.symbol }}</h1>
+        <app-watchlist-star [symbol]="s.symbol" />
+        @if (s.sector) {
+          <span class="tag">{{ sectorLabels[s.sector] }}</span>
+        }
+        @if (s.ownershipType) {
+          <span class="tag">{{ ownershipLabels[s.ownershipType] }}</span>
+        }
+      </div>
+      <p class="company-name">{{ s.name }}<span class="exchange-name">· {{ s.exchange }}</span></p>
+    </div>
+
+    <div class="detail-actions">
+      <a [routerLink]="['/app/analysis', s.symbol]" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19h16M7 15l3-4 3 2 4-6"></path></svg>
+        Full analysis
+      </a>
+      <button type="button" class="btn btn-secondary refresh-btn" [disabled]="refreshing()" (click)="refresh()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 4v6h-6"></path></svg>
+        {{ refreshing() ? 'Refreshing…' : 'Refresh data' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="price-panel panel-card section">
+    <div class="price-hero">
+      <span class="price-value mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }}</span>
+      <span class="price-currency">{{ s.currency }}</span>
+      @if (dayChangePct(); as chg) {
+        <span class="price-change mono" [class.positive]="chg > 0" [class.negative]="chg < 0" [appExplain]="explainDayChange(s)">
+          @if (chg > 0) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+          } @else if (chg < 0) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
+          }
+          @if (dayChangeValue(); as delta) {
+            <span class="price-delta">{{ delta > 0 ? '+' : '' }}{{ delta | number: '1.2-2' }}</span>
+          }
+          <span class="price-delta-pct">
+            ({{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%)
+          </span>
+        </span>
+      }
+      <span class="price-vs-close">vs. prev. close {{ s.prevClose !== null ? (s.prevClose | number: '1.2-2') : '—' }}</span>
+    </div>
+
+    <div class="range-panels">
+      <div class="range-panel-item">
+        <span class="range-panel-label">Day range</span>
+        <app-range-bar
+          [min]="s.dayLow"
+          [max]="s.dayHigh"
+          [current]="s.lastPrice"
+          [minLabel]="(s.dayLow | number: '1.2-2') ?? '—'"
+          [maxLabel]="(s.dayHigh | number: '1.2-2') ?? '—'"
+        />
+      </div>
+      <div class="range-panel-item">
+        <span class="range-panel-label">52-week range</span>
+        <app-range-bar
+          [min]="s.week52Low"
+          [max]="s.week52High"
+          [current]="s.lastPrice"
+          [minLabel]="(s.week52Low | number: '1.2-2') ?? '—'"
+          [maxLabel]="(s.week52High | number: '1.2-2') ?? '—'"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">Price history</p></div>
+    <div class="panel-body">
+      <app-candlestick-chart [points]="history()" [loading]="historyLoading()" />
+    </div>
+  </div>
+
+  <div class="stat-tile-grid section">
+    <app-stat-tile
+      label="Volume"
+      [value]="(s.volume !== null ? (s.volume | number) : null) ?? '—'"
+      icon="M3 3v18h18M7 14l4-4 3 3 5-6"
+    />
+    <app-stat-tile
+      label="Avg. volume (3m)"
+      [value]="(s.avgVolume3m !== null ? (s.avgVolume3m | number) : null) ?? '—'"
+      icon="M3 3v18h18M7 14l4-4 3 3 5-6"
+    />
+    <app-stat-tile
+      label="Market cap"
+      [value]="(s.marketCap !== null ? (s.marketCap | number) : null) ?? '—'"
+      icon="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+      accent="brand"
+    />
+    <app-stat-tile
+      label="Margin of safety"
+      [value]="s.marginOfSafety !== null ? (s.marginOfSafety | number: '1.1-1') + '%' : '—'"
+      icon="M12 4.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 20.6l1-5.8-4.3-4.1 5.9-.9z"
+      [accent]="(s.marginOfSafety ?? 0) >= 0 ? 'positive' : 'negative'"
+    />
+  </div>
+
+  <div class="two-col-grid section">
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Graham valuation</p></div>
+      <div class="panel-body">
+        <div class="kv-row">
+          <span class="kv-label">Fair value</span>
+          <span class="kv-value mono" appExplain=" " [explainNote]="notes.grahamFairValue">{{ s.grahamFairValue !== null ? (s.grahamFairValue | number: '1.2-2') : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Margin of safety</span>
+          <span
+            class="kv-value mono"
+            [class.positive]="(s.marginOfSafety ?? 0) > 0"
+            [class.negative]="(s.marginOfSafety ?? 0) < 0"
+            [appExplain]="explainMarginOfSafety(s)"
+            [explainNote]="notes.marginOfSafety"
+          >{{ s.marginOfSafety !== null ? (s.marginOfSafety | number: '1.1-1') + '%' : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Book value / share</span>
+          <span class="kv-value mono" appExplain=" " [explainNote]="notes.bookValuePerShare">{{ s.bookValuePerShare !== null ? (s.bookValuePerShare | number: '1.2-2') : '—' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-head"><p class="panel-title">Fundamentals</p></div>
+      <div class="panel-body">
+        <div class="kv-row">
+          <span class="kv-label">EPS</span>
+          <span class="kv-value mono">{{ s.eps !== null ? (s.eps | number: '1.2-2') : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">P/E ratio</span>
+          <span class="kv-value mono" [appExplain]="explainPeRatio(s)" [explainNote]="notes.peRatio">{{ s.peRatio !== null ? (s.peRatio | number: '1.1-1') : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Dividend yield</span>
+          <span class="kv-value mono" appExplain=" " [explainNote]="notes.dividendYield">{{ s.dividendYield !== null ? (s.dividendYield | number: '1.1-1') + '%' : '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Market cap</span>
+          <span class="kv-value mono">{{ (s.marketCap !== null ? (s.marketCap | number) : null) ?? '—' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">Ratios</p></div>
+    <div class="panel-body ratios-grid">
+      <div class="kv-row">
+        <span class="kv-label">Debt / equity</span>
+        <span class="kv-value mono" appExplain=" " [explainNote]="notes.debtToEquity">{{ s.debtToEquity !== null ? (s.debtToEquity | number: '1.2-2') : '—' }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Profit margin</span>
+        <span class="kv-value mono">{{ s.profitMargin !== null ? (s.profitMargin | number: '1.1-1') + '%' : '—' }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Price / book</span>
+        <span class="kv-value mono" [appExplain]="explainPriceToBook(s)" [explainNote]="notes.priceToBook">{{ s.priceToBook !== null ? (s.priceToBook | number: '1.2-2') : '—' }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Beta</span>
+        <span class="kv-value mono">{{ s.beta !== null ? (s.beta | number: '1.2-2') : '—' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">Tunidex Score</p></div>
+    <div class="panel-body">
+      <app-score-panel [symbol]="s.symbol" />
+    </div>
+  </div>
+
+  <!-- After the score, which is what a reader opened this page for. -->
+  <app-ad-slot placement="STOCK_DETAIL_SIDEBAR" />
+
+  <div class="panel-card section">
+    <div class="panel-head"><p class="panel-title">News</p></div>
+    <div class="panel-body">
+      <app-news-list [symbol]="s.symbol" />
+    </div>
+  </div>
+}

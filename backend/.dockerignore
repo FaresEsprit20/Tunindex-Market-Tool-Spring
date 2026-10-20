@@ -1,0 +1,25 @@
+# Build output and local caches - rebuilt fresh in the container.
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Never bake secrets into an image. docker-compose injects these at
+# container start via env_file/environment instead.
+.env
+**/.env
+
+# Leftover H2 files and ad-hoc JSON dumps from before the Postgres
+# migration - unused, and large enough to bloat the build context.
+data/
+*.mv.db
+c.json
+setup_*.json
+
+# A full copy of an earlier version of this backend - not part of the
+# Maven reactor (backend/pom.xml does not list it as a module), so it
+# never needs to be in the build context at all.
+original-backup/
+
+# Editor/VCS noise.
+.git/
+.idea/
+*.iml

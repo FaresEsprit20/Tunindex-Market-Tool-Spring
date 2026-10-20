@@ -1,0 +1,22 @@
+@if (ad(); as advert) {
+  <div class="ad-unit ad-banner">
+    <!-- Labelled on every format. Disclosure is a legal requirement in most
+         markets and a trust one everywhere; an ad a reader mistakes for
+         editorial costs more than it earns. -->
+    <span class="ad-label">Sponsored</span>
+    <a
+      [href]="advert.targetUrl || '#'"
+      target="_blank"
+      rel="noopener noreferrer sponsored"
+      (click)="onClick()"
+    >
+      <img
+        [src]="advert.creativeUrl"
+        [alt]="advert.altText || advert.name"
+        class="ad-creative"
+        loading="lazy"
+        (load)="onLoaded()"
+      />
+    </a>
+  </div>
+}

@@ -1,0 +1,187 @@
+<div class="page-head">
+  <div>
+    <p class="page-title">Opportunities</p>
+    <p class="page-sub">
+      Every tracked stock scored by the Tunidex Scorer and ranked best-first.
+    </p>
+  </div>
+
+  <div class="head-controls">
+    <label class="control">
+      <span class="control-label">Minimum score</span>
+      <select class="control-select" [value]="minScore()" (change)="onMinScoreChange($any($event.target).value)">
+        @for (option of minScoreOptions; track option) {
+          <option [value]="option">{{ option === 0 ? 'Any score' : option + '+' }}</option>
+        }
+      </select>
+    </label>
+  </div>
+</div>
+
+<!-- The analyst orients the reader before the table does. A ranked list of
+     twenty names does not say which of them are worth acting on today; that
+     distinction is the whole value, and it should be said in words before
+     anyone starts reading rows. -->
+<app-analyst-companion context="opportunities" />
+
+@if (!loading() && !error() && rows().length > 0) {
+  <div class="summary-strip">
+    <span class="summary-item"><strong>{{ rows().length }}</strong> ranked</span>
+    <span class="summary-item strong-buy"><strong>{{ strongBuyCount() }}</strong> strong buy</span>
+    <span class="summary-item buy"><strong>{{ buyCount() }}</strong> buy</span>
+  </div>
+}
+
+@if (loading()) {
+  <div class="opportunity-list">
+    @for (i of [1, 2, 3, 4, 5]; track i) {
+      <app-skeleton-block height="92px" radius="12px" />
+    }
+  </div>
+} @else if (error()) {
+  <p class="empty-msg">Couldn't score the market right now. Try again shortly.</p>
+} @else if (rows().length === 0) {
+  <app-empty-state
+    title="No stocks clear that bar"
+    message="Lower the minimum score to see more candidates."
+  />
+} @else {
+  <ul class="opportunity-list">
+    @for (row of rows(); track row.symbol; let rank = $index) {
+      <li class="opportunity-card" [class.expanded]="expanded() === row.symbol">
+        <div class="card-main" (click)="toggleExpanded(row.symbol)">
+          <span class="rank">{{ rank + 1 }}</span>
+
+          <div class="score-ring" [class]="scoreClass(row.overallScore)">
+            <span class="score-value">{{ row.overallScore }}</span>
+            <span class="score-max">/100</span>
+          </div>
+
+          <div class="identity">
+            <div class="identity-top">
+              <span class="symbol mono">{{ row.symbol }}</span>
+              <span class="verdict-badge" [class]="verdictClass(row.verdict)">{{ verdictLabels[row.verdict] }}</span>
+              <app-watchlist-star [symbol]="row.symbol" />
+            </div>
+            <span class="company">{{ row.name }}</span>
+            <span class="meta">
+              {{ sectorLabel(row.sector) }}
+              @if (row.lastPrice !== null) {
+                · <span class="mono">{{ row.lastPrice | number: '1.2-2' }} {{ row.currency }}</span>
+              }
+            </span>
+          </div>
+
+          <div class="reasons-preview">
+            @for (reason of row.reasons.slice(0, 2); track reason) {
+              <span class="reason-chip">{{ reason }}</span>
+            }
+            @if (row.reasons.length > 2) {
+              <span class="reason-more">+{{ row.reasons.length - 2 }} more</span>
+            }
+            @if (row.warnings.length > 0) {
+              <span class="warning-chip">{{ row.warnings.length }} warning{{ row.warnings.length === 1 ? '' : 's' }}</span>
+            }
+          </div>
+
+          <!-- The analyst's call, on the row itself. A ranking that shows a
+               verdict but hides the price leaves out the half that decides
+               the return - and nobody expands twenty cards to find it. -->
+          @if (row.tradeSetup; as setup) {
+            <div class="call" [class]="'call-' + stanceTone[setup.stance]">
+              <span class="call-label">{{ stanceLabels[setup.stance] }}</span>
+              @if (setup.buyZoneLow !== null && setup.buyZoneHigh !== null) {
+                <span class="call-zone mono">
+                  {{ setup.buyZoneLow | number: '1.2-2' }}&ndash;{{ setup.buyZoneHigh | number: '1.2-2' }}
+                </span>
+              }
+              @if (setup.priceInBuyZone) {
+                <span class="call-flag">in zone now</span>
+              } @else if (setup.distanceToZonePct !== null) {
+                <!-- TradifyAnalyst only sets this when the price is ABOVE the
+                     zone, i.e. currently too expensive. It read "% below",
+                     which inverted the one figure a reader uses to decide
+                     whether to buy now or wait. -->
+                <span class="call-flag muted">{{ setup.distanceToZonePct | number: '1.0-0' }}% above zone</span>
+              }
+            </div>
+          }
+
+          <button type="button" class="expand-btn" [attr.aria-expanded]="expanded() === row.symbol" [attr.aria-label]="'Show score breakdown for ' + row.symbol">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9l6 6 6-6"></path>
+            </svg>
+          </button>
+        </div>
+
+        @if (expanded() === row.symbol) {
+          <div class="card-detail">
+            <div class="detail-grid">
+              <div class="components">
+                <!-- The plan sits above the breakdown: the reader wants to
+                     know what to do before they want to know how it was
+                     scored. -->
+                @if (row.tradeSetup; as setup) {
+                  <app-analyst-panel [setup]="setup" [currency]="row.currency" />
+                }
+                <p class="detail-heading">Score breakdown</p>
+                @for (component of scoreComponents; track component.key) {
+                  <div class="component-row">
+                    <span class="component-label">{{ component.label }}</span>
+                    <span class="component-weight">{{ component.weight }}%</span>
+                    @if (componentValue(row, component.key) !== null) {
+                      <div class="component-bar">
+                        <div
+                          class="component-fill"
+                          [class]="scoreClass(componentValue(row, component.key)!)"
+                          [style.width.%]="componentValue(row, component.key)"
+                        ></div>
+                      </div>
+                      <span class="component-value mono">{{ componentValue(row, component.key) }}</span>
+                    } @else {
+                      <span class="component-missing">no data</span>
+                    }
+                  </div>
+                }
+                <p class="completeness">
+                  Based on {{ row.dataCompleteness }}% of the scorer's inputs.
+                  @if (row.dataCompleteness < 70) {
+                    <span class="completeness-note">Thin coverage — treat this score with caution.</span>
+                  }
+                </p>
+              </div>
+
+              <div class="rationale">
+                @if (row.reasons.length > 0) {
+                  <p class="detail-heading">Why it scores well</p>
+                  <ul class="rationale-list positive">
+                    @for (reason of row.reasons; track reason) {
+                      <li>{{ reason }}</li>
+                    }
+                  </ul>
+                }
+                @if (row.warnings.length > 0) {
+                  <p class="detail-heading">What to watch</p>
+                  <ul class="rationale-list negative">
+                    @for (warning of row.warnings; track warning) {
+                      <li>{{ warning }}</li>
+                    }
+                  </ul>
+                }
+                <button type="button" class="open-btn" (click)="openStock(row.symbol)">
+                  Open {{ row.symbol }} →
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </li>
+    }
+  </ul>
+
+  <p class="disclaimer">
+    The Tunidex Score is a fixed, weighted rule set over real published figures — filing-derived
+    fundamentals, scraped closing prices and real headlines. It is not a prediction, not investment
+    advice, and no part of it is a model output. Every reason above quotes the figure that produced it.
+  </p>
+}

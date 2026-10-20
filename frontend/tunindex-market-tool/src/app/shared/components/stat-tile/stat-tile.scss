@@ -1,0 +1,102 @@
+// A cell in the summary strip, not a card. The strip owns the border,
+// radius and shadow (see .stat-tile-grid) — repeating them per tile is
+// what made five figures occupy a third of the screen.
+:host {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
+  background: var(--color-panel);
+  transition: background-color var(--duration-fast) ease;
+
+  &:hover {
+    background: var(--color-panel-alt);
+  }
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &.accent-brand {
+    background: var(--color-brand-dim);
+    color: var(--color-brand);
+  }
+
+  &.accent-positive {
+    background: var(--color-positive-dim);
+    color: var(--color-positive);
+  }
+
+  &.accent-negative {
+    background: var(--color-negative-dim);
+    color: var(--color-negative);
+  }
+
+  &.accent-warning {
+    background: var(--color-warning-dim);
+    color: var(--color-warning);
+  }
+}
+
+.stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  // Down from 26px: at that size a five-figure balance wrapped onto two
+  // lines, which is what forced the tiles so tall in the first place.
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.stat-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+
+  svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  &.up {
+    color: var(--color-positive);
+  }
+
+  &.down {
+    color: var(--color-negative);
+  }
+}

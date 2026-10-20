@@ -1,0 +1,332 @@
+/* A deliberately dark band in an otherwise light page. It is the one element
+   here that is selling something, and separating it visually is more honest
+   than blending it into the data panels around it. */
+.spot {
+  --ink: #0d1117;
+  --ink-2: #141d2b;
+  --amber: #e8b44a;
+  --mint: #3ddc97;
+  --paper: #eef2f7;
+  --muted: #8b97a8;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+  gap: 28px;
+  padding: 26px 28px;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 140% at 88% 15%, #1b2740 0%, transparent 55%),
+    linear-gradient(135deg, var(--ink) 0%, var(--ink-2) 100%);
+  color: var(--paper);
+}
+
+/* A warm bloom behind the find, so the eye lands right of centre rather than
+   on the text block. */
+.spot-glow {
+  position: absolute;
+  z-index: -1;
+  top: -40%;
+  right: -6%;
+  width: 46%;
+  height: 180%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(232 180 74 / 0.16) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+/* One pass, once. */
+.spot-sheen {
+  position: absolute;
+  z-index: 1;
+  inset: 0 auto 0 -60%;
+  width: 55%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.07), transparent);
+  transform: skewX(-14deg);
+  pointer-events: none;
+}
+
+.spot.revealed .spot-sheen {
+  animation: sweep 1.5s cubic-bezier(0.22, 0.61, 0.36, 1) 0.25s 1 both;
+}
+
+@keyframes sweep {
+  from { left: -60%; }
+  to   { left: 130%; }
+}
+
+/* ── The pitch ──────────────────────────────────────────────────────── */
+.spot-pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.spot-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.spot-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 0 rgb(61 220 151 / 0.6);
+  animation: live 2.8s ease-out infinite;
+}
+
+@keyframes live {
+  0%   { box-shadow: 0 0 0 0 rgb(61 220 151 / 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgb(61 220 151 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(61 220 151 / 0); }
+}
+
+.spot-headline {
+  margin: 0;
+  max-width: 24ch;
+  font-size: clamp(21px, 2.5vw, 30px);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+
+  em {
+    display: block;
+    font-style: normal;
+    color: var(--amber);
+  }
+}
+
+.spot-sub {
+  margin: 0;
+  max-width: 56ch;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.spot-stats {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 4px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+
+  &.accent { color: var(--mint); }
+}
+
+.stat-label {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat-rule {
+  width: 1px;
+  height: 26px;
+  background: rgb(255 255 255 / 0.12);
+}
+
+/* ── The find ───────────────────────────────────────────────────────── */
+.spot-find {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid rgb(232 180 74 / 0.28);
+  border-radius: 13px;
+  background: rgb(255 255 255 / 0.04);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+
+  &:hover {
+    border-color: rgb(232 180 74 / 0.55);
+    transform: translateY(-2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+  }
+
+  &.empty {
+    border-color: rgb(255 255 255 / 0.12);
+    justify-content: center;
+  }
+}
+
+.find-flag {
+  margin: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mint);
+
+  &.quiet { color: var(--muted); }
+}
+
+.find-id {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.find-symbol {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.find-score {
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--amber);
+}
+
+.find-score-max {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.find-name {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The figure the whole band exists to deliver. Oversized on purpose - it is
+   the one number a reader should leave with. */
+.find-upside {
+  display: flex;
+  align-items: baseline;
+  margin: 6px 0 0;
+  font-size: clamp(38px, 4.6vw, 52px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  color: var(--mint);
+}
+
+.find-upside-sign { font-size: 0.6em; margin-right: 1px; }
+.find-upside-pct  { font-size: 0.45em; margin-left: 2px; }
+
+.find-upside-note {
+  margin: 2px 0 0;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.find-levels {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.lvl {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.lvl-label {
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lvl-value {
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-text {
+  margin: 6px 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+
+  strong { color: var(--paper); font-weight: 650; }
+}
+
+.find-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--amber);
+  text-decoration: none;
+
+  svg { width: 13px; height: 13px; }
+}
+
+/* ── Reveal ─────────────────────────────────────────────────────────── */
+.spot-pitch,
+.spot-find {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.spot.revealed .spot-pitch { opacity: 1; transform: none; }
+/* The find lands a beat after the pitch, so the eye is led to it. */
+.spot.revealed .spot-find  { opacity: 1; transform: none; transition-delay: 0.12s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spot-pitch,
+  .spot-find { opacity: 1; transform: none; transition: none; }
+  .spot-sheen { display: none; }
+  .spot-live-dot { animation: none; }
+}
+
+/* ── Narrow ─────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .spot {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 22px;
+  }
+
+  .spot-stats { flex-wrap: wrap; gap: 14px; }
+}

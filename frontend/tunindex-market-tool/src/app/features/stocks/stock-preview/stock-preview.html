@@ -1,0 +1,66 @@
+@if (!symbol()) {
+  <!-- Nothing selected is the pane's most common state, so it shows the
+       market instead of an apology. The hint stays, but as a one-line
+       footnote under real content rather than a card in an empty box. -->
+  <app-market-overview />
+  <p class="preview-hint">
+    Pick a row — or use ↑ ↓ in the grid — to preview a stock here.
+  </p>
+} @else if (loading() && !stock()) {
+  <div class="preview-skeleton">
+    <app-skeleton-block height="26px" width="55%" />
+    <app-skeleton-block height="150px" />
+    <app-skeleton-block height="90px" />
+  </div>
+} @else if (stock(); as s) {
+  <div class="preview-head">
+    <div class="preview-id">
+      <span class="preview-symbol mono">{{ s.symbol }}</span>
+      <span class="preview-name">{{ s.name }}</span>
+    </div>
+    <a [routerLink]="['/app/stocks', s.symbol]" class="open-full">Open full page →</a>
+  </div>
+
+  <div class="preview-price">
+    <span class="price mono">{{ s.lastPrice !== null ? (s.lastPrice | number: '1.2-2') : '—' }}</span>
+    <span class="currency">{{ s.currency }}</span>
+    @if (dayChangePct(s); as chg) {
+      <span class="change mono" [class.positive]="chg > 0" [class.negative]="chg < 0">
+        {{ chg > 0 ? '+' : '' }}{{ chg | number: '1.2-2' }}%
+      </span>
+    }
+  </div>
+
+  <app-tabbed-panel storageKey="stock-preview" class="preview-tabs">
+    <ng-template appTab="Chart">
+      <app-candlestick-chart [points]="history()" [loading]="historyLoading()" />
+    </ng-template>
+
+    <ng-template appTab="Score">
+      <app-score-panel [symbol]="s.symbol" />
+    </ng-template>
+
+    <ng-template appTab="Key figures">
+      <div class="figure-grid">
+        <div class="figure"><span class="figure-label">P/E</span><span class="figure-value mono">{{ s.peRatio !== null ? (s.peRatio | number: '1.1-1') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Dividend yield</span><span class="figure-value mono">{{ s.dividendYield !== null ? (s.dividendYield | number: '1.1-1') + '%' : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Margin of safety</span><span class="figure-value mono" [class.positive]="(s.marginOfSafety ?? 0) > 0" [class.negative]="(s.marginOfSafety ?? 0) < 0">{{ s.marginOfSafety !== null ? (s.marginOfSafety | number: '1.1-1') + '%' : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Debt / equity</span><span class="figure-value mono">{{ s.debtToEquity !== null ? (s.debtToEquity | number: '1.2-2') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Profit margin</span><span class="figure-value mono">{{ s.profitMargin !== null ? (s.profitMargin | number: '1.1-1') + '%' : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Price / book</span><span class="figure-value mono">{{ s.priceToBook !== null ? (s.priceToBook | number: '1.2-2') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Graham fair value</span><span class="figure-value mono">{{ s.grahamFairValue !== null ? (s.grahamFairValue | number: '1.2-2') : '—' }}</span></div>
+        <div class="figure"><span class="figure-label">Market cap</span><span class="figure-value mono">{{ (s.marketCap !== null ? (s.marketCap | number) : null) ?? '—' }}</span></div>
+      </div>
+    </ng-template>
+
+    <ng-template appTab="Risk">
+      <app-risk-panel [symbol]="s.symbol" />
+    </ng-template>
+
+    <ng-template appTab="News">
+      <app-news-list [symbol]="s.symbol" [limit]="8" />
+    </ng-template>
+  </app-tabbed-panel>
+} @else {
+  <p class="empty-msg">Couldn't load {{ symbol() }}.</p>
+}

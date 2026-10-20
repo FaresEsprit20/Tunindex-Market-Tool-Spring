@@ -1,0 +1,21 @@
+@for (toast of notification.toasts(); track toast.id) {
+  <div class="toast" [class]="toast.variant" (click)="notification.dismiss(toast.id)">
+    <span class="toast-icon">
+      @switch (toast.variant) {
+        @case ('success') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l6 6L20 6"></path></svg>
+        }
+        @case ('error') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5M12 16h.01M12 3l9 16H3l9-16z"></path></svg>
+        }
+        @default {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>
+        }
+      }
+    </span>
+    <div class="toast-body">
+      <p class="toast-title">{{ toast.title }}</p>
+      <p class="toast-message">{{ toast.message }}</p>
+    </div>
+  </div>
+}

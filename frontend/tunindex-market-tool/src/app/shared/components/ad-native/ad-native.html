@@ -1,0 +1,20 @@
+@if (ad(); as advert) {
+  <a
+    class="ad-native"
+    [href]="advert.targetUrl || '#'"
+    target="_blank"
+    rel="noopener noreferrer sponsored"
+    (click)="onClick()"
+  >
+    @if (advert.creativeUrl) {
+      <img class="ad-native-image" [src]="advert.creativeUrl" [alt]="advert.altText || advert.name" loading="lazy" />
+    }
+    <div class="ad-native-body">
+      <span class="ad-native-label">Sponsored{{ advert.advertiser ? ' · ' + advert.advertiser : '' }}</span>
+      <p class="ad-native-title">{{ advert.name }}</p>
+      @if (advert.altText) {
+        <p class="ad-native-text">{{ advert.altText }}</p>
+      }
+    </div>
+  </a>
+}
